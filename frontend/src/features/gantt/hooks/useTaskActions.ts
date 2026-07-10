@@ -9,7 +9,7 @@ import type {
   ScheduleTask,
   TaskAssigneeAllocation,
   TaskStatus,
-} from "../types/schedule";
+} from "../../../types/schedule";
 import {
   addMilestone,
   addTask,
@@ -31,9 +31,9 @@ import {
   type TaskInsertionResult,
   type TaskPasteMode,
   type TaskSiblingReorderPlacement,
-} from "../lib/taskOperations";
-import { statusLabels } from "../lib/schedule";
-import type { TaskClipboard } from "./appTypes";
+} from "../../../lib/taskOperations";
+import { statusLabels } from "../../../lib/schedule";
+import type { TaskClipboard } from "../../../app/appTypes";
 
 type CollapsedIdUpdate = Set<string> | ((current: Set<string>) => Set<string>);
 

@@ -80,14 +80,14 @@ import {
 } from "./appState";
 import type { ApiSyncState, AppInitialState, TaskClipboard } from "./appTypes";
 import { buildTopbarSyncQueueItems, createTopbarSyncStatus } from "./syncPresentation";
-import { useToastQueue } from "./useToastQueue";
-import { useGanttKeyboardShortcuts } from "./useGanttKeyboardShortcuts";
+import { useToastQueue } from "../hooks/useToastQueue";
+import { useGanttKeyboardShortcuts } from "../features/gantt/hooks/useGanttKeyboardShortcuts";
 import { findMissingProjectIds, mergeScheduleIntoWorkspace } from "./projectLoading";
-import { useTaskHistory } from "./useTaskHistory";
-import { useProjectActivityActions } from "./useProjectActivityActions";
-import { useTaskActions } from "./useTaskActions";
+import { useTaskHistory } from "../features/gantt/hooks/useTaskHistory";
+import { useProjectActivityActions } from "../features/projects/hooks/useProjectActivityActions";
+import { useTaskActions } from "../features/gantt/hooks/useTaskActions";
 import { useScheduleSync } from "./useScheduleSync";
-import { useTaskSelection } from "./useTaskSelection";
+import { useTaskSelection } from "../features/gantt/hooks/useTaskSelection";
 import { useWorkbenchOverlays, type PendingTaskCsvImport } from "./useWorkbenchOverlays";
 
 type AppWorkbenchProps = {
@@ -160,7 +160,7 @@ const ProjectImportSheet = lazy(() =>
 );
 
 const ProjectPortfolioPanel = lazy(() =>
-  import("../components/projects/ProjectPortfolioPanel").then((module) => ({
+  import("../features/projects/components/ProjectPortfolioPanel").then((module) => ({
     default: module.ProjectPortfolioPanel,
   })),
 );

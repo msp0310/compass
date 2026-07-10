@@ -4,6 +4,7 @@ import {
   InformationCircleIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
+import * as styles from "./ToastViewport.css";
 
 export type ToastTone = "success" | "info" | "warning";
 
@@ -30,26 +31,23 @@ export function ToastViewport({ onDismiss, toasts }: ToastViewportProps) {
   if (toasts.length === 0) return null;
 
   return (
-    <section
-      aria-label="操作結果"
-      aria-live="polite"
-      className="toast-viewport"
-    >
+    <section aria-label="操作結果" aria-live="polite" className={styles.viewport}>
       {toasts.map((toast) => {
         const Icon = toneIcon[toast.tone];
         return (
-          <article className={`toast-message ${toast.tone}`} key={toast.id}>
-            <Icon />
-            <div>
-              <strong>{toast.title}</strong>
-              {toast.detail ? <p>{toast.detail}</p> : null}
+          <article className={styles.message} key={toast.id}>
+            <Icon className={`${styles.icon} ${styles.iconByTone[toast.tone]}`} />
+            <div className={styles.content}>
+              <strong className={styles.title}>{toast.title}</strong>
+              {toast.detail ? <p className={styles.detail}>{toast.detail}</p> : null}
             </div>
             <button
               aria-label="通知を閉じる"
+              className={styles.dismiss}
               onClick={() => onDismiss(toast.id)}
               type="button"
             >
-              <XMarkIcon />
+              <XMarkIcon className={styles.dismissIcon} />
             </button>
           </article>
         );

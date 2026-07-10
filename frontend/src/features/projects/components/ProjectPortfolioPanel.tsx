@@ -7,27 +7,27 @@ import {
   UserGroupIcon,
 } from "@heroicons/react/24/outline";
 import { useMemo, useState, type ReactNode } from "react";
-import type { ProjectSummary, ScheduleSnapshot } from "../../data/scheduleRepository";
+import type { ProjectSummary, ScheduleSnapshot } from "../../../data/scheduleRepository";
 import {
   formatShortDate,
   getProgressStats,
   getTaskAssigneeAllocationPercent,
   getWorkingDays,
-} from "../../lib/schedule";
-import { isMemberActive } from "../../lib/members";
+} from "../../../lib/schedule";
+import { isMemberActive } from "../../../lib/members";
 import {
   getProjectAssignedMembers,
   getProjectLifecycleStatus,
   projectLifecycleLabels,
   projectLifecycleOptions,
-} from "../../lib/projects";
+} from "../../../lib/projects";
 import type {
   Member,
   Project,
   ProjectLifecycleStatus,
   ScheduleTask,
   Team,
-} from "../../types/schedule";
+} from "../../../types/schedule";
 import { ProjectPortfolioCard } from "./ProjectPortfolioCard";
 import type {
   ProjectPortfolioBuildInput,

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
-import { viewTabs, type ViewTab } from "../components/layout/ViewTabs";
-import type { GanttTimeUnit } from "../types/schedule";
+import { viewTabs, type ViewTab } from "../../../components/layout/ViewTabs";
+import type { GanttTimeUnit } from "../../../types/schedule";
 
 type SelectionRow = { id: string };
 

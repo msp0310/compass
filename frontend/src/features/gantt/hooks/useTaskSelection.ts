@@ -1,9 +1,6 @@
 import { useCallback, useState } from "react";
-import type {
-  TaskFocusRequest,
-  TaskSelectionOptions,
-} from "./appTypes";
-import type { TaskInspectorFocusTarget } from "../types/schedule";
+import type { TaskFocusRequest, TaskSelectionOptions } from "../../../app/appTypes";
+import type { TaskInspectorFocusTarget } from "../../../types/schedule";
 
 type SelectionRow = { id: string };
 
@@ -47,16 +44,13 @@ export function useTaskSelection({ visibleRows }: UseTaskSelectionOptions) {
     closeTaskInspector();
   }, [closeTaskInspector]);
 
-  const selectOnlyTask = useCallback(
-    (taskId: string | null) => {
-      setSelectedTaskId(taskId);
-      setSelectedTaskIds(taskId ? new Set([taskId]) : new Set());
-      setSelectionAnchorTaskId(taskId);
-      setTaskInspectorTaskId((current) => (current === taskId ? current : null));
-      setTaskFocusRequest(null);
-    },
-    [],
-  );
+  const selectOnlyTask = useCallback((taskId: string | null) => {
+    setSelectedTaskId(taskId);
+    setSelectedTaskIds(taskId ? new Set([taskId]) : new Set());
+    setSelectionAnchorTaskId(taskId);
+    setTaskInspectorTaskId((current) => (current === taskId ? current : null));
+    setTaskFocusRequest(null);
+  }, []);
 
   const selectTask = useCallback(
     (taskId: string, options: TaskSelectionOptions = {}) => {

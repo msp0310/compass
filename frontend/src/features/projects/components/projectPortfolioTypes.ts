@@ -1,11 +1,11 @@
-import type { ProjectSummary, ScheduleSnapshot } from "../../data/scheduleRepository";
+import type { ProjectSummary, ScheduleSnapshot } from "../../../data/scheduleRepository";
 import type {
   Member,
   Project,
   ScheduleTask,
   ProjectLifecycleStatus,
   Team,
-} from "../../types/schedule";
+} from "../../../types/schedule";
 
 export type ProjectPortfolioItem = {
   assignedMembers: Member[];

@@ -5,8 +5,8 @@ import type {
   ActivityTone,
   ProjectIssue,
   ProjectWorkLog,
-} from "../types/schedule";
-import type { ScheduleWorkspace } from "../data/scheduleRepository";
+} from "../../../types/schedule";
+import type { ScheduleWorkspace } from "../../../data/scheduleRepository";
 
 type UseProjectActivityActionsOptions = {
   currentUserName: string;
