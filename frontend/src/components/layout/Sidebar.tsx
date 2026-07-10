@@ -14,6 +14,7 @@ import {
   WrenchScrewdriverIcon,
 } from "@heroicons/react/24/outline";
 import type { ViewTab } from "./ViewTabs";
+import * as styles from "./Sidebar.css";
 
 type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
 
@@ -67,8 +68,8 @@ export function Sidebar({
   settingsOpen,
 }: SidebarProps) {
   return (
-    <aside className="sidebar" aria-label="メインナビゲーション">
-      <div className="nav-stack">
+    <aside className={styles.sidebar} aria-label="メインナビゲーション">
+      <div className={styles.navStack}>
         <NavGroup
           activeTab={activeTab}
           helpOpen={helpOpen}
@@ -106,7 +107,7 @@ export function Sidebar({
       </div>
       <button
         aria-current={helpOpen ? "page" : undefined}
-        className={helpOpen ? "help-button active" : "help-button"}
+        className={helpOpen ? `${styles.helpButton} ${styles.helpButtonActive}` : styles.helpButton}
         onClick={onHelp}
         title="ヘルプ"
         type="button"
@@ -143,8 +144,8 @@ function NavGroup({
   settingsOpen,
 }: NavGroupProps) {
   return (
-    <div className="nav-group" aria-label={ariaLabel}>
-      {label ? <span className="nav-group-label">{label}</span> : null}
+    <div className={styles.navGroup} aria-label={ariaLabel}>
+      {label ? <span className={styles.navGroupLabel}>{label}</span> : null}
       {items.map((item) => {
         const Icon = item.icon;
         const active =
@@ -156,7 +157,7 @@ function NavGroup({
         return (
           <button
             aria-current={active ? "page" : undefined}
-            className={active ? "nav-item active" : "nav-item"}
+            className={active ? `${styles.navItem} ${styles.navItemActive}` : styles.navItem}
             key={item.label}
             onClick={() => {
               if (item.tab) onNavigate(item.tab);
