@@ -1,0 +1,16 @@
+.git
+.github
+.DS_Store
+
+**/node_modules
+**/.npm-cache
+**/dist
+**/bin
+**/obj
+**/*.db
+**/*.db-shm
+**/*.db-wal
+
+outputs
+test-results
+playwright-report

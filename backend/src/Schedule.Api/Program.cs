@@ -56,6 +56,10 @@ app.UseExceptionHandler(errorApp =>
     });
 });
 
+// Dockerの本番イメージでは、Viteで生成した画面をAPIと同じホストから配信します。
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
