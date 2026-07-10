@@ -1,5 +1,9 @@
 # Mirai
 
+<p align="center">
+  <img src="frontend/public/brand/mirai-wordmark.png" alt="Mirai" width="240" />
+</p>
+
 SI企業のチーム開発・運用保守を支える、案件スケジュール管理アプリです。
 
 `Team > Project > Task` の情報構造を軸に、案件ポートフォリオからプロジェクト単位のGanttへ自然につなぎます。タスクの階層、担当者、依存関係、稼働日カレンダーをまとめて扱い、計画と実績の差分をチームで追えることを目指しています。
