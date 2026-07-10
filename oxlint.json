@@ -1,0 +1,12 @@
+{
+  "categories": {
+    "correctness": "warn",
+    "suspicious": "warn",
+    "pedantic": "off",
+    "perf": "warn",
+    "style": "warn",
+    "restriction": "off",
+    "nursery": "off"
+  },
+  "ignorePatterns": ["dist/**", "node_modules/**", "captures/**"]
+}

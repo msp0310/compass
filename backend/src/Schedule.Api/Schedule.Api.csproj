@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- EF Coreが生成するMigrationは自動生成コードのため、手書きコードと別の分析対象にします。 -->
+    <Compile Update="Infrastructure/Migrations/**/*.cs">
+      <NoWarn>$(NoWarn);CA1861</NoWarn>
+    </Compile>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.9">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.9" />
+    <!-- Microsoft.OpenApi 2.0.0の脆弱性を修正したバージョンへ解決を固定します。 -->
+    <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
+    <!-- EF Core SQLiteが利用するネイティブSQLiteを3.50.3へ固定します。 -->
+    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="3.50.3" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Design QA Comparison</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: #eef2f7;
+        color: #111827;
+        font-family: Inter, system-ui, sans-serif;
+      }
+
+      .comparison {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        padding: 12px;
+      }
+
+      figure {
+        margin: 0;
+        border: 1px solid #cbd5e1;
+        background: #fff;
+      }
+
+      figcaption {
+        padding: 10px 12px;
+        background: #111827;
+        color: #fff;
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="comparison">
+      <figure>
+        <figcaption>Reference concept 2</figcaption>
+        <img src="/qa/reference-concept-2.png" alt="Reference concept 2" />
+      </figure>
+      <figure>
+        <figcaption>Implementation viewport</figcaption>
+        <img
+          src="/qa/gantt-app-viewport-final.png"
+          alt="Implementation viewport"
+        />
+      </figure>
+    </main>
+  </body>
+</html>

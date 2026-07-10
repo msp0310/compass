@@ -1,0 +1,439 @@
+**Findings**
+- No actionable P0/P1/P2 findings remain.
+
+**Open Questions**
+- The reference concept shows a denser full task list in the first viewport. The implementation intentionally keeps the same PMO/resource-planning structure but adds a fixed-height Gantt workspace with internal scrolling to support larger task sets and future virtualization.
+- The implementation starts with the task inspector closed so the filter panel remains the primary visible state, matching the selected concept more closely. Task details open on row selection.
+- The weekly workload table has been moved out of the main Gantt view and into the `Resource` tab. This is an intentional IA change for SI project management: the primary view stays focused on the Gantt schedule, while utilization review is one tab away.
+- Gantt bar movement now uses a lightweight transform preview during mouse drag and commits the task date once on mouseup. Automated browser drag verified date movement from `5/23 - 5/29` to `5/27 - 6/2`.
+- Calendar-aware schedule edits now preserve or resize by working days. Browser verification moved `2.2 DB / IF設計` from `5/23 - 5/29` to `5/25 - 5/30`, then extended it to `5/25 - 6/2` for 6 working days.
+- Task table inline editing is now available for task title, assignee, status, and progress. Browser verification confirmed title edits update the Gantt bar title and progress `100` updates status to `done`.
+- Keyboard shortcuts now cover search `/`, task creation `N`, filter toggle `F`, Escape close, up/down row selection, Enter title editing, Today `T`, and Ctrl/Cmd undo/redo. Browser verification confirmed search focus, task sheet open/close, filter toggle, row selection, and Enter-to-edit.
+- Shortcut discovery is now available from the toolbar help icon and `?` key. Browser verification confirmed the sheet opens from both paths, lists 12 shortcuts across 3 groups, closes with `Esc`, and produces no console errors.
+- Project summary cards now live in a dedicated `Status` tab instead of above the Gantt. Browser verification confirmed `Gantt` shows no summary strip, `Status` shows the five summary cards, `Resource` shows only the workload table, and no console errors appear.
+- Removed placeholder toolbar actions (`表示設定`, `日単位`, calendar, and more menu) so every remaining toolbar action is functional. Browser verification confirmed the placeholder labels/buttons are absent and no console errors appear.
+- Day/week/month Gantt display switching is implemented. Browser verification confirmed the active unit, headers, timeline width, bar geometry, `1`/`2`/`3` shortcuts, shortcut-sheet row, and zero console errors.
+- Team/project management is now represented in the frontend shell. Browser verification confirmed switching from `業務システム事業部` to `クラウド基盤チーム`, project-option filtering, project title/task-list replacement, and frontend-only project creation.
+- Task hierarchy keyboard operations are now implemented. Browser verification confirmed `→` indents a selected row, `←` restores it, `Shift+↓` reorders within siblings, shortcut-sheet discovery is updated, and no console errors appear.
+- Calendar management is now available as a project tab. Browser verification confirmed the month grid, holiday/workday metrics, work-week controls, holiday creation, holiday rendering in the grid, and no console errors.
+- Milestone management is now available as a project tab. Browser verification confirmed milestone listing, inline status/date/progress editing controls, milestone creation, and returning to the selected Gantt milestone.
+- New empty projects no longer produce `NaN%` in status summaries when there are no actionable tasks.
+- Sidebar navigation is now functional instead of decorative. Browser verification confirmed sidebar navigation to `Resource` and `Calendar`, active nav state, and zero console errors.
+- Topbar actions are now functional at the frontend layer. Browser verification confirmed favorite toggling, share popover, export menu entries, notification popover, project settings sheet open/save, and zero console errors.
+- Share copy now handles restricted clipboard environments by keeping the share URL selectable and showing a manual-copy fallback message instead of a false success state.
+- Resource display settings are now functional. Browser verification confirmed the settings popover, compact mode toggle, visible metric label updates, and overload cell highlighting.
+- Mobile-width QA at `390 x 820` confirmed wrapped topbar actions, internally scrollable sidebar/tabs, and hidden page-level horizontal overflow while preserving internal Gantt scrolling.
+- Local draft persistence is now available as the frontend repository bridge until the API is introduced. Browser verification confirmed inline task edits switch the topbar to `未保存`, the Save button persists to local storage, reload restores the edited task, `Ctrl+S` saves from a focused inline editor, and no console errors appear.
+- Status now behaves as a project dashboard instead of a thin summary strip. Browser verification confirmed five summary cards, phase progress, risk rows, milestone timeline, workload rows, dashboard-to-Gantt selection handoff, no horizontal overflow, corrected `要注意` health when dependency risks exist, and zero console errors.
+- Gantt row virtualization is now implemented. Browser verification at a constrained `1000 x 430` viewport confirmed 22 logical rows with only 10 table/timeline rows mounted, synchronized table/timeline scroll positions, Status-to-Gantt selection of an initially unmounted row, and zero console errors. Default viewport was reset afterward and confirmed no page-level horizontal overflow.
+- Gantt horizontal timeline virtualization is now implemented. Browser verification confirmed right-scroll visible-slot movement from `0` to `9`, rendered day columns dropping from `56` to `47`, week/month unit switching preserving bars and dependency paths, no overflow candidates, and zero console errors.
+- Gantt drag feedback now includes a snap guide and date-range preview bubble during move/resize operations. Browser verification confirmed an unobstructed drag moved `1. 要件定義` from `5/1 - 5/14` to `5/5 - 5/20`, left no drag preview or dragging elements after mouseup, Undo restored `5/1 - 5/14`, and zero console errors appeared.
+- Team, project, and member management is now represented in the settings drawer. Browser verification confirmed project-level team selection, team metadata editing controls, team member membership checks, member master edit rows, task-creation assignee options scoped to the active project team, and zero console errors.
+- Task creation now supports multiple assignees. Browser verification confirmed the create sheet shows six project-team assignee checkboxes, can select two assignees without creating a task, keeps the submit action enabled, and produces zero console errors.
+- Excel-like Gantt row operations are now available. Browser verification confirmed `Shift+Enter` inserts a task directly below the selected row and focuses title editing, toolbar copy enables paste, toolbar paste inserts below a chosen row with progress/status reset, Undo restores the clean state, the shortcut sheet lists the new row operations, and zero console errors appear.
+- Multi-row Gantt editing is now available. Browser verification confirmed Cmd-click additive selection, Shift-click range selection with a selection count chip, multi-row delete with Undo restore, child-level paste under a phase, multi-row duplicate insertion, updated shortcut-sheet rows, clean final saved state, and zero console errors.
+- Multi-selected Gantt rows can now be bulk-edited from the toolbar. Browser verification confirmed two selected task rows show bulk status/assignee controls, bulk status changes both rows to `done`, bulk assignee changes both rows to `qa`, two Undo actions restore the original assignees/statuses, and zero console errors appear.
+- Selected Gantt rows can now be shifted by date in bulk. Browser verification confirmed two selected task bars move one day via the toolbar button, Undo restores their original positions and clean save state, `Alt+→` performs the same shift, the shortcut sheet documents the key, summary-row mixed selection moves only the movable task row, and zero console errors appear.
+- Gantt row context menus are now available on both task-table rows and timeline bars. Browser verification confirmed right-click selection, copy, paste with Undo restore, multi-selected date shift with Undo restore, timeline-bar context menu opening, outside-click close, context delete with Undo restore, root-summary destructive actions disabled, clean final saved state, and zero console errors.
+- Gantt context menus now include bulk status and assignee changes. Browser verification confirmed single-row status and assignee edits from the context menu, multi-row status and assignee edits from a selected context menu, Undo restoration to the original values, root-summary selects disabled, clean final saved state, and zero console errors.
+- Gantt column visibility settings and search highlighting are now available. Browser verification confirmed the column popover hides `進捗`, persisted the hidden state after save/reload, restored all columns cleanly, highlighted 4 matching `qa` rows/bars from search, and produced zero console errors.
+- Cross-hierarchy task movement is now available from the Gantt toolbar. Browser verification confirmed selecting `2.2 DB / IF設計`, opening the `移動` popover, moving it under `3. 詳細設計・実装`, preserving selection, marking the draft dirty, and Undo restoring the original `2. 基本設計` position with no unsaved state or console errors.
+- The cross-hierarchy move picker now supports search. Browser verification confirmed auto-focus on open, `18 / 18` target count, filtering `実装` to 3 targets, a `0 / 18` empty state, Escape close with query reset, moving via a filtered target, Undo restore, and zero console errors.
+- Task dependency editing is now searchable and guarded. Browser verification confirmed selecting `3.2 API実装（C#）`, searching dependencies by `結合`, adding `4.2 結合テスト`, showing a date-order warning, marking the draft dirty, Undo restoring `0件選択`, `0件表示` empty state for no matches, final clean state, and zero console errors.
+- Dependency risks are now visible directly in the Gantt workspace. Browser verification confirmed 11 issue rows, 11 issue bars/milestones, 12 warning dependency paths, selected-row inspector consistency for `2.2 DB / IF設計`, visible badges, and zero console errors.
+- Operation feedback toasts are now available for major frontend actions. Browser verification confirmed save, copy, delete, and Undo toasts, `aria-live="polite"`, manual dismiss, auto-dismiss, restored `2.2 DB / IF設計` after Undo, no unintended save toast after row edits, and zero console errors.
+- Explicit local save no longer re-fires after subsequent task edits. Browser verification confirmed a prior save request does not auto-save again during delete/Undo operations.
+
+**Implementation Checklist**
+- Preserve the desktop SaaS layout from concept 2: sidebar, top navigation, Status-tab summary cards, Gantt workspace, filter panel, and Resource-tab workload table.
+- Keep task hierarchy, Gantt coordinates, dependency lines, holiday shading, filters, and resource utilization driven by typed data models.
+- Keep API boundary isolated in `src/data/scheduleRepository.ts` so a future ASP.NET Core API client can replace the mock repository.
+- Keep future performance work centered around `components/gantt/TimelineGrid.tsx` and `components/gantt/TaskTableRow.tsx`, where row virtualization and visible-date windowing can be introduced.
+- Keep all Gantt edits flowing through typed task operations so API persistence can later be added at the repository boundary.
+
+**Follow-up Polish**
+- P3: Tune typography scale slightly smaller if the eventual production dataset has many more task rows.
+
+source visual truth path: `/Users/sawada/Documents/New project/frontend/src/assets/reference-concept-2.png`
+
+implementation screenshot path: `/Users/sawada/Documents/New project/frontend/screenshots/gantt-app-viewport-final.png`
+
+latest Gantt tab screenshot path: `/Users/sawada/Documents/New project/frontend/screenshots/gantt-main-tab-viewport.png`
+
+latest Resource tab screenshot path: `/Users/sawada/Documents/New project/frontend/screenshots/resource-tab-viewport.png`
+
+functional Gantt screenshot path: `/Users/sawada/Documents/New project/frontend/screenshots/gantt-functional-viewport.png`
+
+viewport: `1440 x 1024` browser viewport, captured as `1425 x 1013` content image due browser chrome/device pixel handling.
+
+state: desktop Gantt view, filter panel open, no task inspector open, holiday calendar enabled, mock project data loaded.
+
+full-view comparison evidence: `/Users/sawada/Documents/New project/frontend/screenshots/design-comparison-viewport.png`
+
+focused region comparison evidence: the full-view comparison keeps the Gantt workspace, task table, filter panel, and resource panel legible side by side at the target desktop viewport. Additional focused crop was not required after the final comparison because the remaining deviations are intentional product choices or P3 polish.
+
+patches made since previous QA pass:
+- Fixed task table row class collision where `milestone` row styling inherited absolute positioning intended only for timeline milestones.
+- Changed initial selected task to `null` so the filter panel is visible without the task inspector competing for the right side.
+- Replaced CSS-pattern sparkline with an SVG path for cleaner summary-card rendering.
+- Allowed the filter panel to render outside the Gantt grid bounds so its apply button is visible.
+- Primary tabs are `Gantt`, `Status`, and `Resource`; moved the team workload table from the main Gantt screen into the Resource tab.
+- Added editable task state with undo/redo history.
+- Added task creation, editable detail inspector, progress/status updates, assignee updates, dependency checkboxes, date inputs, and one-day nudge/resize controls.
+- Added timeline zoom controls, Today scrolling, synchronized table/timeline scrolling, keyboard arrow movement, and resize handles.
+- Reworked Gantt drag from native HTML dragging to lightweight transform-based preview, removing the drag ghost and reducing perceived lag.
+- Added drag snap guide and date-range preview elements that are created during pointer drag and removed on mouseup without React rerenders.
+- Added workday-aware task creation, movement, date editing, and resizing so weekends/holidays are excluded from effort duration and end dates extend across non-working days.
+- Added working-day and calendar-day counts to the task inspector.
+- Added table inline editors for task title, primary assignee, status, and progress.
+- Added app-level keyboard shortcuts that remain disabled while typing in inputs/selects.
+- Increased the task table width and tightened utility columns so hierarchical task title editing has more usable room.
+- Added a keyboard shortcut cheat sheet modal with grouped shortcut rows and toolbar / `?` launch paths.
+- Moved project summary cards out of the Gantt workspace and into the dedicated `Status` tab.
+- Removed non-functional toolbar placeholder controls and kept only implemented actions visible.
+- Added day/week/month Gantt display switching, with timeline headers, Today scrolling, bar geometry, dependency lines, drag commits, and `1`/`2`/`3` shortcuts all using the selected time unit.
+- Kept the Resource tab on a separate day-based weekly timeline so workload calculations remain weekly even when the Gantt is switched to week or month view.
+- Added multiple frontend project schedules under multiple teams, plus a topbar team/project switcher and frontend-only project creation.
+- Added project-scoped task histories so edits, undo, and redo are isolated per active project.
+- Added task hierarchy shortcuts for indent/outdent and sibling reordering, with the cheat sheet updated to expose them.
+- Added `Calendar` and `Milestones` tabs for project-level calendar maintenance and milestone management.
+- Added calendar work-week editing, holiday add/remove, month navigation, and task/milestone markers on the monthly grid.
+- Added milestone creation plus inline title/date/status/progress editing and Gantt selection handoff.
+- Guarded zero-task status summaries so new frontend-only projects render cleanly.
+- Wired the sidebar to the actual app views and project settings.
+- Added frontend-only topbar favorite state, share link panel, export menu, notification panel, and editable project settings drawer.
+- Added CSV/JSON export generation from the current in-memory project schedule.
+- Added resource display settings for hours, utilization percent, compact density, and overload threshold.
+- Added mobile overflow containment for the sidebar/tabs/topbar while keeping Gantt/resource tables scrollable inside their work areas.
+- Added a local-storage draft adapter with versioned payloads for workspace, active team/project, favorites, calendar-aware display, scale, and time unit.
+- Added topbar save status, save action, local draft reset action, before-unload protection for unsaved changes, and `Ctrl/Cmd+S` shortcut discovery.
+- Updated inline title/progress editors to update app state while typing so focused edits are included in explicit saves.
+- Expanded the Status tab into a dashboard using live task, milestone, calendar, member, and resource-matrix data.
+- Added dashboard panels for phase progress, dependency/delay risk, milestones, and team workload, with clickable rows returning to the selected Gantt task.
+- Tightened save-state header sizing so `保存済み` does not wrap in the crowded topbar.
+- Added Gantt row virtualization with fixed-height spacers, shared scroll position, selected-row auto-scroll, and visible-window dependency rendering.
+- Added horizontal timeline virtualization for headers, holiday columns, bars, milestones, and dependency paths while preserving the full scrollable canvas width.
+- Expanded project settings into project, team, and member management sections, including team membership checks and project-scoped assignee lists.
+- Added a shared member checklist component and reused it for task creation and task detail assignment editing.
+- Added Gantt row insertion, internal row copy/paste, row duplication, toolbar buttons for those actions, browser copy/paste event handling, and shortcut-sheet discovery.
+- Fixed inline table controls so clicking a task title, assignee, status, or progress field also selects the row before toolbar actions run.
+- Added Gantt multi-selection state, Cmd/Ctrl-click additive selection, Shift-click range selection, selection count chip, multi-row delete, multi-row copy/duplicate, and sibling/child paste mode controls.
+- Added bulk status and primary-assignee controls for multi-selected Gantt task rows, wired through existing typed task updates and undo history.
+- Added bulk date shifting for selected Gantt subtrees with toolbar buttons, `Alt+←/→` shortcuts, shortcut-sheet discovery, and existing undo history support.
+- Added a fixed-position Gantt task context menu for table rows and timeline bars, reusing existing copy, paste, duplicate, date-shift, delete, and undo-safe task operations.
+- Added status and assignee select controls to the Gantt task context menu, wired to the same typed bulk update paths as the toolbar.
+- Added persisted Gantt column visibility settings for assignee/status/progress and search-match highlighting across the task table and timeline bars.
+- Added typed subtree movement across hierarchy targets, plus a toolbar move-target popover that excludes selected subtrees and supports Undo through the existing task history.
+- Added search, result counts, target type labels, keyboard close, and empty-state handling to the move-target popover for larger project hierarchies.
+- Reworked the task inspector dependency editor with searchable candidates, selected-first ordering, circular dependency exclusion, dependency date/status warnings, and a scoped empty state.
+- Added shared dependency issue detection and surfaced dependency risk badges on task rows, warning styling on Gantt bars/milestones, and emphasized dependency paths for blocked or date-order issues.
+- Added an accessible toast viewport for save, share-copy, export, project creation, row operations, hierarchy movement, and settings feedback.
+- Changed local-save request handling to save from a current draft ref only when a new explicit save request is made.
+- Added pointer-driven drag range selection on the Gantt task table, with virtual-scroll-aware row indexing, drag feedback, and click suppression after range selection.
+- Browser QA confirmed dragging from `research` through `approval` selects 4 rows, shows `4行選択`, removes the drag overlay on mouseup, allows normal single-row click selection afterward, and logs no console errors.
+- Added a JSON import path to the topbar `入出力` menu, with structured validation for exported project snapshots and safe imported-project ID handling instead of overwriting existing projects.
+- Browser QA confirmed the `入出力` popover exposes `JSONを読み込み`, `タスク一覧 CSV`, and `プロジェクト JSON` with no console errors; parser QA confirmed valid project JSON parses and malformed JSON returns the expected warning message.
+- Reworked JSON import into a confirmation sheet that summarizes project/team/date/task/member/calendar contents and lets the user choose safe add-as-new or same-ID replacement before applying.
+- Kept add-as-new as the default even when a same-ID project exists; replacement is available only when a matching project ID is present. Browser QA covered app reload and the `入出力` menu; file-picker automation was not used, so parser/type/build checks cover the import data path.
+- Added import integrity validation for duplicate IDs, missing parents, invalid parent types, missing assignees, missing dependencies, dependency/hierarchy cycles, impossible dates, date order, project range drift, work-week duplication, and team/member mismatches.
+- Import confirmation now shows OK/warning/error diagnostics and disables the final import action when blocking errors exist. Validation QA covered a valid sample and an invalid sample with missing parent, missing assignee, missing dependency, and reversed dates.
+- Added a runtime schedule health report for the active project covering duplicate IDs, hierarchy integrity, assignee integrity, dependency integrity, impossible dates, project range drift, calendar work-week settings, milestones, and high-load members.
+- Status dashboard now includes a schedule health panel with score, warning/error counts, issue rows, task selection handoff, and topbar notifications for health warnings/errors.
+- Health-score QA covered clean data, warning-only data, and blocking-error data; browser QA confirmed the Status tab renders the health panel at `要確認 / 45点`, has no horizontal overflow, and logs no console errors.
+- Expanded the schedule repository contract with API-ready save and sync-status result types, keeping the current frontend mock/local workflow compatible with a future C# API adapter.
+- Reworked the topbar save-state chip into a sync-status popover showing provider, endpoint, pending-change count, and a direct save action while preserving the existing local save behavior.
+- Browser QA confirmed the sync popover opens from the topbar, shows `LocalStorage / API-ready`, toggles between saved and unsaved states through a reversible favorite change, saves through `今すぐ保存`, closes cleanly, has no horizontal overflow, and logs no console errors.
+- Added a persisted Activity tab and activity-log model for project, task, team, calendar, import/export, and sync operations, giving the frontend a future API-ready audit-log surface.
+- Wired key operations into Activity: undo/redo, task insert/paste/duplicate/delete, bulk status/assignee/date changes, hierarchy movement, project/team/member/calendar updates, favorite changes, import/export, local reset, and local save.
+- Browser QA confirmed Activity appears in top tabs and sidebar, shows summary counts, records reversible favorite operations, filters by `プロジェクト`, searches `お気に入り`, records `ローカル保存しました`, keeps the topbar at `保存済み` after save, has no horizontal overflow, and logs no console errors.
+- Added task-detail collaboration fields: work memo, completion checklist, comments, and reference links, with optional typed fields on `ScheduleTask` for API-ready persistence.
+- Task detail JSON import now preserves description, checklist, comments, and links; parser QA confirmed a sample import retains all four detail field groups with no validation errors.
+- Browser QA confirmed the task inspector shows the new detail sections, adding a checklist item/comment/link marks the project unsaved, Activity records `完了条件を追加しました`, `コメントを追加しました`, and `参考リンクを追加しました`, saving returns the topbar to `保存済み`, has no horizontal overflow, and logs no console errors.
+- Added bulk hierarchy shortcuts for selected Gantt rows, so `←` / `→` now move selected root subtrees together instead of only the active row.
+- Added Gantt right-click menu actions for `階層を上げる` and `階層を下げる`, wired to the same undo-safe bulk hierarchy movement path.
+- Added `Ctrl/Cmd+A` visible-row selection plus `PageUp` / `PageDown` / `Home` / `End` navigation with shortcut-sheet discovery.
+- Browser QA confirmed single-row indent/outdent, three-row range indent/outdent, `Cmd+A` selecting 22 visible rows, shortcut-sheet entries for select-all/page movement/range movement, context-menu hierarchy actions, clean close state, and no console errors.
+- Added API-ready task baseline fields (`baselineStart`, `baselineEnd`, `baselineCapturedAt`) plus JSON import preservation and validation for baseline date order.
+- Added a Gantt toolbar baseline popover for recording/updating/clearing the current project baseline, wired through undo-safe task history and Activity logging.
+- Added baseline guide bars on the Gantt timeline and a task-inspector baseline summary showing start/end variance as `遅れ`, `前倒し`, or `差分なし`.
+- Fixed the task inspector vertical position and toolbar popover z-index so right-side Gantt toolbar actions remain clickable while the inspector is open.
+- Browser QA confirmed baseline recording creates 22 guide bars and an unsaved state, shifting `requirements` by one day shows one delayed baseline bar and `開始1日遅れ`, baseline clear removes all guide bars and shows the empty inspector hint, Undo restores the pre-QA task dates, no horizontal overflow, and no console errors.
+- Parser QA confirmed imported baseline fields are preserved for summary/task rows with no validation errors.
+- Added frontend project templates for `標準SI工程`, `小規模改修`, and `空のプロジェクト`, with working-day-aware generated phases, tasks, milestones, dependencies, effort hours, assignees, project range, and next milestone.
+- Reworked topbar `プロジェクト追加` into a template-based project creation sheet with team context, project name, management name, start date, and selectable template cards.
+- Browser QA confirmed the project creation sheet opens from the topbar, shows 3 templates with corrected row counts (`25`, `13`, `1`), creates a `QAテンプレートSI案件` project from the standard SI template with 25 Gantt rows and expected phase/task names, marks the workspace unsaved, then reload-discard restores the original project without the QA project, with no horizontal overflow and no console errors.
+- Added a frontend task CSV import path for the active project, separate from full-project JSON import, with quoted-cell parsing, flexible Japanese/English headers, status/type aliases, member name/initial lookup, dependencies, effort hours, and shared schedule validation.
+- Added a task CSV confirmation sheet that summarizes target project, row count, date range, hierarchy roots, task types, assignees, dependencies, and blocks apply when validation errors exist.
+- Browser QA confirmed the `入出力` popover now exposes `プロジェクトJSONを読み込み`, `タスクCSVを読み込み`, `タスクCSVを書き出し`, and `プロジェクトJSONを書き出し`, with no horizontal overflow and no console errors.
+- Parser QA confirmed a CSV sample with a quoted comma in the task name, Japanese task types/statuses, member name/initial assignment, parent hierarchy, dependencies, slash dates, and Japanese date text parses with no validation errors.
+- Added a CSV import preview table showing the first imported rows with task type, title, parent, date range, and assignees before replacement.
+- Added an import option to expand the active project range to the CSV task range, preventing out-of-range imported tasks from disappearing outside the Gantt viewport.
+- Parser QA confirmed an out-of-range CSV expands the projected range to `2025-04-01 - 2025-07-04` while preserving quoted task names and member name/initial mapping.
+- Browser QA reconfirmed the `入出力` popover labels after the range/preview work, with no horizontal overflow and no console errors.
+- Added a floating bulk action bar that appears for multi-selected Gantt rows, summarizing row count, date range, editable-row count, effort hours, and assignee count.
+- The bulk action bar exposes the existing undo-safe operations in one place: status change, assignee change, one-day shift, indent/outdent, copy, duplicate, delete, and selection clear.
+- Browser QA confirmed Shift-selecting `research` through `approval` selects 4 rows, shows the bulk action bar with `4行選択`, `2025-05-01 - 2025-05-15`, `編集対象4行`, `工数82h`, and `担当2名`, exposes both bulk selects and action buttons, has no horizontal overflow, and logs no console errors.
+- Browser QA confirmed the selection-clear button removes the bulk action bar and returns selected rows to 0 with no console errors.
+- Added CSV column mapping for task import, keeping the import sheet open even when required columns are missing so users can assign fields manually.
+- Made CSV task ID optional; when no ID column is mapped, imported rows get generated IDs such as `csv-1`, allowing flat Excel task lists to import cleanly.
+- Added mapping controls for ID, parent ID, type, title, status, start, end, progress, assignees, effort hours, and dependencies, with title/start/end marked as required.
+- Parser QA confirmed a custom-header CSV (`作業名`, `着手`, `完了予定`, `主担当`, `先行`) can be manually mapped, generates row IDs, preserves quoted comma task names, maps member names/initials, restores dependencies, and validates with no blocking errors.
+- Browser QA reconfirmed the `入出力` CSV import/export menu labels after the mapping work, with no horizontal overflow and no console errors.
+- Added sibling row reorder controls to the Gantt bulk action bar and task context menu, exposing the existing `Shift+↑/↓` row-order workflow as visible `上へ` / `下へ` actions.
+- Added multi-selected sibling block reordering so selected root rows move together within each parent while preserving child hierarchy and Undo history.
+- Browser QA confirmed selecting `research` through `requirements` shows bulk `上へ` / `下へ` buttons, moving the two selected rows down places them after `sitemap`, and Undo restores the original order.
+- Browser QA confirmed the right-click menu for `sitemap` exposes `上へ移動` / `下へ移動`, moving through the context menu changes order, Undo restores the original order, no horizontal overflow occurs, and console errors remain empty.
+- Added drag-handle row reordering on the Gantt task table, with visible drop guides, invalid same-level feedback, and auto-scroll near the table edges.
+- Replaced the old text-only row grip with a button-based Heroicons handle so summary, phase, task, and milestone rows all expose the same drag affordance.
+- Browser QA confirmed dragging the `requirements` handle below `sitemap` reorders the row, keeps the guide transient, and Undo restores the original order.
+- Browser QA confirmed multi-selecting `research` through `requirements` and dragging one selected handle moves the selected block together below `sitemap`, keeps the bulk action bar active, and Undo restores the original order.
+- Browser QA confirmed final state has the original row order, no active selection/bulk bar/context menu/drop guide, 22 visible drag handles, no horizontal overflow, and no console errors.
+- Added horizontal row-drag hierarchy changes: dragging a row handle to the right nests the selected row block under the hovered non-milestone task, while dragging left outdents the block after its current parent.
+- Reused the row drop guide for hierarchy changes with mode-specific labels (`子階層へ入れる`, `親階層へ出す`) and kept invalid feedback for selected-subtree and milestone targets.
+- Browser QA confirmed right-dragging `requirements` onto `sitemap` makes it a child row (`padding-left: 64px`), then left-dragging it returns it to the parent level (`padding-left: 46px`).
+- Browser QA confirmed two Undo operations restore the original `research`, `requirements`, `sitemap` order, and final state has no active selection/bulk bar/context menu/drop guide, 22 drag handles, no horizontal overflow, and no console errors.
+- Added an API-ready task change review model that compares the current active project against the last saved workspace snapshot, including added/updated/removed rows and field-level changes for schedule, hierarchy, assignee, dependency, effort, baseline, and detail data.
+- Added a saved-before-review panel to the Activity tab with unsaved/saved state, save action, summary counters, changed-row preview, field before/after values, and empty-state guidance.
+- Updated local save/reset handling so the saved workspace snapshot advances only after an explicit save or reset, keeping the review grounded to the user's last saved state.
+- Added responsive styling for the Activity review panel and tightened mobile sidebar/topbar/tab overflow handling so review content remains readable on narrow screens.
+- Browser QA confirmed shifting `requirements` forward by one day shows one `更新` review row with `開始日 2025-05-05 -> 2025-05-06`, no desktop horizontal overflow, and no console errors.
+- Browser QA confirmed the review row remains readable at mobile width, Undo clears the task review back to 0 rows, the viewport resets to desktop, final horizontal overflow is 0, and console errors remain empty.
+- Added a save-before-confirmation sheet that intercepts save requests when task changes exist, shows the same added/updated/removed counters and row-level before/after preview, and confirms into the existing local save path.
+- Kept lightweight saves for non-task changes: when the task review is empty, save requests continue directly without showing the confirmation sheet.
+- Browser QA confirmed shifting `requirements` forward by one day and pressing the topbar save button opens `保存前確認` with one `更新` row and `開始日 2025-05-05 -> 2025-05-06`, then `確認して保存` closes the sheet and returns the topbar to `保存済み`.
+- Browser QA confirmed shifting the same task back shows the reverse change `開始日 2025-05-06 -> 2025-05-05`, saving restores the original date as the saved baseline, and Activity `保存前レビュー` returns to 0 rows.
+- Browser QA confirmed the save confirmation sheet fits in a 390px mobile viewport, close/cleanup leaves the app saved, final desktop horizontal overflow is 0, and console errors remain empty.
+- Added field-focus targets to task change review entries so changed fields can send the user back to the matching Task Inspector input, including title, start/end dates, status, progress, assignee, dependencies, effort, baseline, and detail fields.
+- Wired the Activity save-before-review rows and the save confirmation sheet rows to pass the clicked field target into the Gantt selection flow, keeping ordinary activity rows as task-only navigation.
+- Added Task Inspector focus handling and focus styles for direct review-to-edit navigation without changing the existing task update paths.
+- Fixed save request handling so an old save request no longer reopens `保存前確認` when a new task diff is created later; save confirmation now opens only from a fresh save request.
+- Browser QA confirmed clicking `開始日` inside `保存前確認` closes the sheet, switches to Gantt, selects `requirements`, and focuses the visible start-date input with value `2025-05-06`, with no horizontal overflow.
+- Browser QA confirmed clicking `開始日` inside the Activity `保存前レビュー` row performs the same direct focus behavior, and creating a new diff after a previous save request does not auto-open the save confirmation sheet.
+- Browser QA confirmed Undo returns the task review to 0 rows, a task-review-empty save bypasses the confirmation sheet, final state is `保存済み`, horizontal overflow is 0, and console errors remain empty.
+- Added a frontend-only API outbox model for the future C# API connection, separating local draft save from API send status (`idle`, `sending`, `failed`, `synced`) while keeping the current app usable without a backend.
+- Extended the topbar sync popover with `API online` / `API offline` connection controls, an API send queue, pending/sending/failed/synced queue rows, and a retry action for failed sends.
+- Browser QA confirmed the sync popover renders the existing unsaved task diff as `タスク差分を保存待ち` with 2 changed rows / 5 fields, switches visibly between API online and offline, and keeps the connection restored to online.
+- Browser QA confirmed `今すぐ保存` from the sync popover opens `保存前確認` for the existing 2-row task diff and can be closed without saving; the failure/retry save path was not clicked to avoid committing pre-existing unconfirmed task edits in the live browser.
+- Browser QA confirmed the app was restored to the Gantt tab with the sync popover closed and no console errors.
+- Replaced the browser-native local reset `confirm()` with a product-native reset confirmation sheet, keeping destructive local-draft reset inside the app's SaaS-style panel system.
+- The reset confirmation now summarizes save state, task diff rows, changed fields, API sync status, last saved time, and a preview/empty state for task changes before showing the destructive `破棄して初期化` action.
+- Browser QA confirmed clicking the topbar reset icon opens `ローカル保存の初期化確認` with no native JavaScript confirm dialog, shows `保存済み`, `0行`, `0項目`, API `保存済み`, and the last saved time, with no horizontal overflow.
+- Browser QA confirmed both Escape and the scoped sheet close button dismiss the reset sheet without resetting data, leave the app on the Gantt tab at `保存済み20:37`, do not show the reset toast, and log no console errors.
+- Added API sync audit logging so API send start, offline failure, retry start, and send success are recorded in Activity as `保存/同期` events, not just transient toasts.
+- Activity log persistence now keeps a separate saved-draft reference, allowing API audit entries to be written to LocalStorage without accidentally committing unrelated unsaved workspace edits.
+- Browser QA confirmed an `API offline` save creates `API送信を開始しました` and `API送信に失敗しました` Activity rows, leaves the topbar in `同期失敗`, and avoids the task save-review sheet for a non-task favorite change.
+- Browser QA confirmed switching back to `API online` and clicking `API再送` creates `API再送を開始しました` and `API送信が完了しました` Activity rows, returns the topbar to `保存済み`, and keeps the Activity summary label at `最終保存/同期`.
+- Browser QA restored the favorite flag to its original state, returned to Gantt with the sync popover closed, verified final state `保存済み21:04`, no horizontal overflow, and no console errors.
+- Added project deep-link routing so `#projectId` opens the matching project, project/team selector changes update the URL hash, and browser back/forward can restore the previous project context.
+- Navigation-only project changes are now auto-persisted as view state, preventing shared-link opens or selector navigation from marking the workspace dirty when no schedule data changed.
+- Browser QA confirmed opening `http://127.0.0.1:5173/#crm-integration` renders `CRM連携基盤構築`, selects `crm-integration`, keeps the team at `business-solutions`, and stays `保存済み`.
+- Browser QA confirmed selecting `site-renewal` updates the URL to `#site-renewal`, selecting team `cloud-platform` switches to `cloud-migration`, and browser Back returns to `site-renewal` with matching team/project selectors.
+- Browser QA confirmed the share popover link value/title match the current URL `http://127.0.0.1:5173/#site-renewal`, the popover closes cleanly, no horizontal overflow occurs, and console errors remain empty.
+- Added initial shared-link feedback so opening a valid `#projectId` shows `共有リンクから開きました` without touching saved schedule data.
+- Added invalid shared-link feedback so an unknown `#projectId` shows `共有リンクのプロジェクトが見つかりません`, then replaces the URL hash with the active valid project.
+- Browser QA confirmed reloading `http://127.0.0.1:5173/#crm-integration` opens `CRM連携基盤構築`, keeps the screen `保存済み`, shows the shared-link toast, and has no horizontal overflow.
+- Browser QA confirmed opening `http://127.0.0.1:5173/?qa-invalid-share=1#missing-project` falls back to `crm-integration`, updates the URL to `#crm-integration`, keeps the team/project selectors aligned, shows the invalid-link toast, and stays `保存済み`.
+- Browser QA restored the app to `http://127.0.0.1:5173/#crm-integration`, verified no horizontal overflow, and confirmed no console errors.
+- Changed the task save-review model from active-project-only to workspace-wide, preserving the project id/name on each changed row so hidden edits from another project stay visible before saving.
+- Updated Save Review, Reset Draft, and Activity review rows to show the project label when a task diff belongs to a project, and wired row clicks to switch to the owning project before selecting/focusing the task.
+- Browser QA confirmed editing `crm-auth` in `CRM連携基盤構築`, switching to `site-renewal`, and pressing save opens `保存前確認` with CRM-labeled task diffs even while the visible project is `販売管理システム刷新`.
+- Browser QA confirmed selecting the CRM task-name diff from `保存前確認` switches the URL back to `#crm-integration`, opens the CRM Gantt context, and focuses the changed task field.
+- Browser QA confirmed the Activity tab shows a CRM-labeled progress diff while the active project is `site-renewal`; selecting the row switches back to `#crm-integration` and focuses the progress input.
+- Browser QA restored the edited CRM title/progress to the original values, saved the local draft, verified `保存済み`, no horizontal overflow, and no console errors.
+- Added a cross-team project switcher to the topbar so users can search all projects by project name, code, id, team name, or team code without first changing the team select.
+- The switcher keeps the existing team/project selects intact, prioritizes favorite projects in the result list, clears the previous query on each open, and closes after project selection.
+- Browser QA confirmed opening the switcher from `CRM連携基盤構築` starts with an empty query, shows 3 projects, filters `クラウド` to `認証基盤クラウド移行`, and keeps the desktop popover at 372px with no horizontal overflow.
+- Browser QA confirmed selecting the filtered cloud project switches the team select to `cloud-platform`, project select to `cloud-migration`, updates the URL hash, closes the popover, and keeps the screen `保存済み`.
+- Browser QA confirmed reopening the switcher clears the previous query, `zzzz` shows the empty state with 0 rows, and no horizontal overflow occurs.
+- Browser QA confirmed the mobile 390px viewport positions the project switcher from x=12 to x=363 with 0 horizontal overflow, filters to the cloud project, then restores the app to `http://127.0.0.1:5173/#crm-integration` with no console errors.
+- Added project lifecycle state with optional `active` / `archived` status, keeping older local drafts and imported JSON compatible when the field is absent.
+- Added project archive from the settings sheet with an inline confirmation step, blocking archive when only one active project remains.
+- Archived projects are removed from normal team/project selects, but remain searchable in the cross-team project switcher as dashed `復元` rows.
+- Browser QA confirmed archiving `CRM連携基盤構築` moves the active context to `site-renewal`, removes `crm-integration` from the business-solutions project select, marks the workspace unsaved, and keeps horizontal overflow at 0.
+- Browser QA confirmed searching `CRM` in the project switcher shows one archived CRM row with `復元`, clicking it restores and opens `#crm-integration`, and the normal project select again contains both `site-renewal` and `crm-integration`.
+- Browser QA saved the restored workspace, then reopened `http://127.0.0.1:5173/#crm-integration` and confirmed `保存済み`, the correct team/project selectors, no horizontal overflow, and no console errors.
+- Added editable member initials and color swatches in project settings for both new and existing members, keeping avatars, resource views, Gantt assignee selects, and the future API model aligned through `Member.initials` / `Member.color`.
+- Browser QA confirmed the settings member tab exposes `略称` and color swatches; changing `佐藤 翔` from `ST` to `SX` and color `#f0a928` updates Gantt assignee options and avatars, marks the workspace unsaved, then reverting to `ST` / `#ff7a8a` and saving returns to `保存済み`.
+- Browser QA confirmed new-member and existing-member swatch groups each keep one selected color, the app is restored to `http://127.0.0.1:5173/#crm-integration`, no horizontal overflow occurs, and console errors remain empty.
+- Added member lifecycle state with optional `active` / `inactive` status, keeping older local drafts and imported JSON compatible when the field is absent.
+- Added member pause/restore controls in project settings with assignment counts and an inline confirmation explaining that existing task history remains.
+- Assignment candidates now exclude inactive members for new assignments, bulk changes, task creation, and milestone creation, while already-assigned inactive members remain visible on existing tasks with a `休止` label.
+- Browser QA confirmed pausing `佐藤 翔` moves the row to `休止中メンバー`, changes the roster summary to `5名が有効1名が休止中`, marks the workspace unsaved, keeps existing `ST 休止` assigned rows visible, and removes `st` from non-ST assignee options.
+- Browser QA confirmed the task creation sheet excludes paused `佐藤 翔`, restoring the member returns the roster summary to `6名が有効0名が休止中`, saving returns to `保存済み`, ST options are normal again, and console errors remain empty.
+- Browser QA confirmed the member lifecycle settings fit at a 390px mobile viewport with no horizontal overflow, then restored the desktop viewport and `http://127.0.0.1:5173/#crm-integration`.
+- Added member-level availability overrides as API-ready `Member.availabilityOverrides`, with imported JSON compatibility when the field is absent.
+- Resource calculations now reduce each member's weekly capacity by personal unavailable working days, exposing `capacityHours` and `unavailableDays` per resource cell.
+- Added a compact non-working-day editor inside member settings so users can add a date/reason and remove registered unavailable days without leaving the member roster.
+- Resource cells now show the effective weekly capacity, for example `枠 32h / 休1日`, so overload caused by PTO is visible alongside hours and utilization.
+- Browser QA confirmed adding `2025-06-03 / QA休暇` to `佐藤 翔` creates a `6/3 QA休暇` chip, marks the workspace unsaved, and changes the Resource row for that week to `枠 32h / 休1日`.
+- Browser QA confirmed removing the unavailable day returns the Resource row to `枠 40h`, saves back to `保存済み`, leaves no console errors, and keeps `http://127.0.0.1:5173/#crm-integration` restored.
+- Browser QA confirmed the member availability editor fits at a 390px mobile viewport with no horizontal overflow, then restored the desktop viewport.
+- Added API-ready task assignee allocations with `memberId` / `percent`, preserving older drafts and imported JSON when the field is absent.
+- Resource workload now splits each task's effort by assignee allocation instead of charging the full effort to every assigned member.
+- Added a compact Task Inspector `担当配分` editor for multi-assignee tasks, with both slider and direct percent input while keeping totals normalized to 100%.
+- Save review and Activity diffs now include `配分`, so allocation changes can be reviewed and focused like other task fields.
+- Browser QA confirmed adding FE to `2.1 データ同期バッチ` creates a 50/50 allocation editor, entering BE `60` immediately changes BE/FE to 60/40, and the Resource tab reflects the split as FE `12h` and BE `18h` for W23.
+- Browser QA confirmed the app can be restored to `保存済み22:13` at `http://127.0.0.1:5173/#crm-integration`, with no horizontal overflow and no console errors.
+- Added Resource cell task contributions so each member/week cell keeps the task-level source of its workload, including hours, allocation rate, status, progress, and task date range.
+- Resource week cells with workload are now clickable and expose a compact `工数内訳` strip above the matrix, while empty cells remain inert.
+- Contribution rows jump back to the Gantt tab using the existing secondary-view selection path and focus the selected task's allocation area when available.
+- Browser QA confirmed clicking BE `2025-06-09` opens `伊藤 大輔 の工数内訳` for W24 with `2.1 データ同期バッチ`, `38h`, and `100%`.
+- Browser QA confirmed clicking the contribution row switches back to Gantt, selects `crm-sync`, opens the Task Inspector, keeps the draft `保存済み22:13`, and logs no console errors.
+- Browser QA confirmed the Resource drilldown fits at a 390px viewport with document/body horizontal overflow at 0, then reset the viewport.
+- Added a Resource `調整候補` panel that identifies the largest workload contributor and offers next actions for assignment review plus one-day schedule shifts.
+- Single-assignee contributors show `担当を見直す` and date-shift actions; multi-assignee contributors additionally expose `配分を調整`.
+- Resource date-shift actions reuse the existing task move path, so Undo, save review, activity logging, and calendar-aware movement stay aligned with Gantt behavior.
+- Browser QA confirmed BE `2025-06-09` shows `調整候補最大要因は 2.1 データ同期バッチ / 38h` with `担当を見直す`, `1日前へ`, and `1日後ろへ`, and no `配分を調整` for the single-assignee task.
+- Browser QA confirmed `担当を見直す` switches to Gantt, selects `crm-sync`, opens Task Inspector, and focuses the assignee area while keeping `保存済み22:13`.
+- Browser QA confirmed `1日後ろへ` changes the task range from `6/3 - 6/16` to `6/4 - 6/17` and marks the draft dirty; Undo plus reload restores `2.1 データ同期バッチ 6/3 - 6/16` and `保存済み22:13`.
+- Browser QA confirmed the Resource adjustment panel fits at a 390px viewport with document/body horizontal overflow at 0, then reset the viewport.
+- Added Resource adjustment suggestions ranked by impact, showing how much the current member/week load would drop if the contribution were moved or reassigned.
+- Suggestion cards now show the candidate task, status, assignment rate, relief hours, and projected cell load such as `38h -> 0h / 95% -> 0%`.
+- Browser QA confirmed BE `2025-06-09` shows one suggestion for `2.1 データ同期バッチ` with `-38h` and `38h -> 0h / 95% -> 0%`, and the single-assignee task exposes `担当`, `1日前`, and `1日後ろ` without `配分`.
+- Browser QA confirmed `担当` switches to Gantt, selects `crm-sync`, and focuses the assignee area while preserving `保存済み22:13`.
+- Browser QA confirmed `1日後ろ` changes the task range to `6/4 - 6/17` and marks the draft dirty; Undo plus reload restores `2.1 データ同期バッチ 6/3 - 6/16` and `保存済み22:13`.
+- Browser QA confirmed the suggestion card fits at 390px with `left 35 / right 338`, document/body horizontal overflow at 0, and viewport reset afterward.
+- Added Resource `分担候補` actions for single-assignee overload contributors, ranking members by the projected 50/50 load after sharing the task.
+- Browser QA confirmed BE `2025-06-09` shows share candidates for `2.1 データ同期バッチ`, including `QA 高橋 美咲`, `ST 佐藤 翔`, and `YK 山田 健太`, each showing `自分 19h / 相手 19h・48%`.
+- Browser QA confirmed clicking `QA 高橋 美咲` switches to Gantt, selects `crm-sync`, marks the draft `未保存22:13`, and creates 50/50 allocation inputs for `伊藤 大輔` and `高橋 美咲`.
+- Browser QA confirmed Undo removes the allocation editor, and reload restores the saved Resource cell to `伊藤 大輔 / 2025-06-09 / 38h / 95% / 保存済み22:13`.
+- Fixed the Resource grid mobile layout so the grid itself owns horizontal scrolling instead of pushing the drilldown off-screen.
+- Browser QA confirmed the share suggestion card fits at 390px with card `left 36 / right 339`, each share button `left 36 / right 339`, document/body horizontal overflow at 0, and viewport reset afterward.
+- Calendar events are now actionable buttons, and the selected day panel lists all work on that date with status and date range.
+- Calendar selected-day actions can add or remove a company holiday for the selected date while reusing the existing calendar update/save flow.
+- Browser QA confirmed clicking the `開始: 1.1 連携API棚卸し` calendar event switches to Gantt, selects the task, focuses the start date field at `2025-05-12`, keeps `保存済み22:13`, and logs no console errors.
+- Browser QA confirmed selecting `会社休日にする` changes `5/12（月）` to `会社休日` and marks `未保存22:13`; selecting `休日を解除` returns the selected day to `稼働日`, and reload restores `保存済み22:13`.
+- Mobile Calendar now orders the selected-day side panel before the horizontally scrollable month grid.
+- Browser QA confirmed the 390px Calendar layout has document/body horizontal overflow at 0, the selected-day card fits at `left 23 / right 352`, its event row fits at `left 36 / right 339`, and the side panel appears before the month grid.
+- Milestone cards now show approval readiness based on predecessor tasks, including `準備OK`, `要確認`, or `前提なし`, plus actionable predecessor task rows.
+- Browser QA confirmed the CRM `外部IFレビュー` milestone shows `要確認 / 未完了1件` and lists `1.2 認証方式検討 5/19 - 5/28 / 進行中 / 55%`.
+- Browser QA confirmed clicking the predecessor row switches to Gantt, opens `1.2 認証方式検討`, preserves `保存済み22:13`, and logs no console errors.
+- Browser QA confirmed the 390px Milestones layout has document/body horizontal overflow at 0, the milestone card fits at `left 23 / right 352`, and the predecessor row fits at `left 87 / right 341`.
+- Global shortcuts now work outside the Gantt tab: `?` opens the cheat sheet, `Esc` closes open sheets/dialogs, and `Alt+1..6` switches across the main tabs.
+- View tabs now expose their `Alt+number` shortcut in the button title, and the shortcut sheet separates app-wide shortcuts from Gantt-specific movement, operation, and editing shortcuts.
+- Browser QA confirmed `Alt+2` switches to Status, `?` opens the shortcut sheet from Status, `Esc` closes it, and `Alt+5` switches to Milestones with no horizontal overflow.
+- Browser QA confirmed the project settings sheet opens on Milestones and closes with `Esc`, preserving the active Milestones tab.
+- Browser QA confirmed the 390px shortcut sheet fits with document/body horizontal overflow at 0 and a sheet rect of `left 5 / right 371`.
+- Save review now includes non-task configuration changes for project, team, calendar, and member settings through a separate config change review model.
+- Topbar sync state and sync queue now count task changes plus config changes, so a project setting edit shows `設定差分1件` instead of a generic local change.
+- Browser QA confirmed changing the CRM project name without saving shows `未保存`, a tooltip of `設定差分1件が保存待ちです`, and a save review row `案件 / プロジェクト名 CRM連携基盤構築 -> CRM連携基盤構築 QA確認`.
+- Browser QA confirmed the save review statistics show `変更行0`, `設定1`, and `変更項目1` for a config-only project setting edit.
+- Browser QA confirmed Activity shows the same config review row and stats for the unsaved project setting edit.
+- Browser QA confirmed the 390px Activity config review fits with document/body horizontal overflow at 0, panel `left 12 / right 363`, stats `left 27 / right 348`, and row `left 27 / right 348`.
+- Browser QA confirmed Reset draft review also lists the config-only change under `破棄される設定差分`, with `設定差分1件` and `変更項目1項目`.
+- Browser QA discarded temporary project-name QA changes by reloading without saving and confirmed the app returned to `保存済み22:13` with title `CRM連携基盤構築`.
+- Status health issue rows are now all actionable and show their destination label, so task issues jump to Gantt while non-task categories can route to Calendar, Resource, or member settings.
+- Added a compact `残りN件を表示` control to the health panel so lower-priority issues are not hidden behind the first five warnings.
+- Browser QA confirmed Status shows five health rows plus `残り2件を表示`, expanding reveals seven actionable rows and changes the control to `主要5件に戻す`.
+- Browser QA confirmed clicking `外部IFレビュー の前提が未完了です` switches to Gantt, selects `crm-if-review`, and focuses the Task Inspector dependency field.
+- Browser QA confirmed the expanded health panel fits at a 390px mobile viewport with panel `left 12 / right 363`, rows `left 25 / right 350`, button `left 25 / right 350`, document/body horizontal overflow at 0, then reset the viewport.
+- Added dependency repair actions inside Task Inspector: date conflicts expose `日程調整`, incomplete predecessors expose `完了`, and incorrect predecessors can be removed with `外す`.
+- Dependency date repair now starts the task on the next working day after the latest blocking predecessor and preserves the original working-day duration through the existing calendar-aware date logic.
+- Browser QA confirmed `外部IFレビュー` shows `完了` / `外す`; clicking `完了` clears the dependency warning, marks the draft unsaved, and Undo restores the warning.
+- Browser QA confirmed `2.2 連携状況画面` shows `日程調整` / `完了` / `外す`; clicking `日程調整` changes `6/10 - 6/24` to `6/17 - 7/1`, keeping 11 working days and leaving only the incomplete-predecessor warning.
+- Browser QA confirmed clicking `外す` removes the selected predecessor, clears the warning, marks the draft unsaved, and reload restores the saved data at `保存済み22:13`.
+- Browser QA confirmed the dependency repair card fits at a 390px viewport with inspector `left 12 / right 363`, repair card `left 27 / right 333`, warning row `left 27 / right 333`, action buttons within `left 60 / right 323`, document/body overflow at 0, then reset the viewport.
+- Schedule health now detects task-level non-working boundary dates, reporting start and end warnings such as `開始日が非稼働日です` / `終了日が非稼働日です` with task handoff back to Gantt.
+- Task Inspector now shows non-working date repair actions next to the date fields, moving a non-working start to the next working day and a non-working end to the previous working day.
+- Function-level QA confirmed making `2025-05-12` a holiday produces `crm-api-list-start-non-working`, and moving `1.1 連携API棚卸し` to `2025-05-13 - 2025-05-16` keeps 4 working days.
+- Function-level QA confirmed making `2025-05-16` a holiday produces `crm-api-list-end-non-working`.
+- Browser QA for this specific non-working-date flow could not be completed in this pass because the in-app browser control repeatedly timed out while recovering from a pending local QA reload.
+- Project switcher now opens with `Ctrl/Cmd+K`, focuses the project search field, supports `ArrowDown` / `ArrowUp` / `Esc` keyboard navigation, and the shortcut sheet documents the command.
+- Code QA confirmed the project switcher shortcut and keyboard navigation compile with `npm run check`; browser QA for this shortcut remains pending because the in-app browser control was already timing out.
+- Added a dedicated `Projects` tab for team-level project portfolio management, keeping the main Gantt screen focused while still exposing team > project hierarchy.
+- The Projects tab shows active team projects with favorite state, progress, delayed-task count, working-day span, team size, next milestone, and a direct `Ganttへ` handoff.
+- Added portfolio side panels for cross-project attention items and upcoming milestones, plus `Alt+1..7` shortcut coverage for the new tab.
+- Code QA confirmed the Projects tab compiles with `npm run check` and production `npm run build`; browser QA remains pending because the in-app browser tab API repeatedly timed out during recovery.
+- Split secondary tabs and sheets with React lazy loading. Production build now emits the main JS chunk at about `401.63 kB` instead of the previous `502.30 kB`, and the Vite chunk-size warning is gone.
+- Projects tab now has a portfolio toolbar with project search, status filters (`全件` / `要対応` / `お気に入り` / `低進捗`), and sort modes for priority, milestone, name, and progress.
+- Projects summary cards now reflect the filtered result set, while the side attention list keeps the highest-priority team risks visible across the active team.
+- Code QA confirmed the enhanced Projects filtering/sorting compiles with `npm run check` and production `npm run build`; the main JS chunk remains about `401.63 kB`, with `ProjectPortfolioPanel` split to about `10.23 kB`.
+- Projects side panel now includes `チーム残作業`, calculated across active team projects from open task effort, assignee allocation percent, task progress, and calendar-aware working days.
+- Team workload rows show remaining hours, project count, delayed-task involvement, the largest contributing project, and a direct handoff into that project.
+- Code QA confirmed the cross-project workload calculation compiles with `npm run check` and production `npm run build`; the main JS chunk remains about `401.64 kB`, with `ProjectPortfolioPanel` split to about `12.60 kB`.
+- Resource tab now supports scope switching between `このプロジェクト` and `チーム横断`, preserving the project-focused workload grid while adding a formal team-wide workload mode.
+- Team-wide Resource mode builds its week range, task set, and member set from all active projects in the current team, preserving draft task edits via the shared review snapshot.
+- Resource drilldown now carries project metadata for cross-project contributions; clicking a task from team-wide mode hands off to the correct project Gantt, while direct date-shift/share actions stay scoped to project mode.
+- Code QA confirmed the Resource scope switch compiles with `npm run check` and production `npm run build`; the main JS chunk is about `402.93 kB`, with `ResourcePanel` split to about `9.58 kB`.
+- Team-wide Resource aggregation now keeps base member capacity separate from project task contribution calculations, so each project's own calendar/holidays are used when adding cross-project workload.
+- Function-level QA confirmed a task from `2025-05-12` to `2025-05-13` contributes `16h` with a normal calendar but `8h` when `2025-05-12` is a project-specific holiday.
+- Resource scope (`このプロジェクト` / `チーム横断`) is now part of the shared schedule type and local draft payload, with backward-compatible normalization for older saved drafts that do not have the field.
+- Code QA confirmed the Resource scope persistence compiles with `npm run check` and production `npm run build`; browser save/reload QA for this specific setting remains pending because the in-app browser tab API timed out while listing/selecting the active tab.
+- Resource display settings (`工数を表示`, `稼働率を表示`, `コンパクト表示`, `警告しきい値`) now live in the app-level local draft instead of transient ResourcePanel state, so display preferences participate in unsaved/saved state and reload restoration.
+- Code QA confirmed Resource display-setting persistence with `npm run check` and production `npm run build`; the main JS chunk is about `405.28 kB`, with `ResourcePanel` split to about `9.69 kB`.
+- Active view state is now persisted in the local draft: the selected tab, Gantt filter panel open/closed state, and Gantt filters are restored on normal reloads. When a URL hash points at a different project than the saved draft, the app intentionally opens the Gantt tab for a predictable shared-link landing.
+- Code QA confirmed active view-state persistence compiles with `npm run check` and production `npm run build`; the main JS chunk is about `406.56 kB`. Browser save/reload QA for this specific view-state flow remains pending because the in-app browser tab API was timing out in the previous pass.
+- Gantt hierarchy collapsed row state is now persisted per project in the local draft, so long SI schedules can reopen with the same phase/task outline while project switching restores each project's own view. Task-structure replacement flows such as CSV/JSON import clear only the affected project's collapsed state.
+- Code QA confirmed project-scoped collapsed-state persistence with `npm run check` and production `npm run build`; the main JS chunk is about `407.66 kB`.
+- Topbar sync state now distinguishes local view/display changes from task and project-setting changes. The sync popover and reset confirmation can show `表示状態` with concrete labels such as Gantt view, Resource display settings, active tab, and favorites.
+- Reset confirmation now includes a `表示状態` stat and a discard preview row for local view/display changes, so UI-only unsaved changes no longer appear as `タスク0 / 設定0` without explanation.
+- Code QA confirmed local view-change summaries with `npm run check` and production `npm run build`; the main JS chunk is about `408.99 kB`, with `ResetDraftDialog` split to about `5.36 kB`.
+- Topbar `プロジェクト追加` now uses a scoped compact font treatment in `.topbar-actions > .primary-button` so it visually aligns with the neighboring save/share/export controls without changing primary buttons in sheets or other panels.
+- Code QA confirmed the toolbar-wide topbar typography adjustment with `npm run check` and production `npm run build`; browser style verification is now confirmed below.
+- Topbar toolbar typography is now compact across the action group: toolbar buttons use 12px text, the save-state badge uses smaller 10px/9px labels, and the project-add primary button now matches the 12px toolbar scale.
+- Browser QA confirmed `保存`, `共有`, `入出力`, and `プロジェクト追加` render at 12px, the save-state text renders at 10px/9px, and the page has no horizontal overflow at `http://127.0.0.1:5173/#cloud-migration`.
+- Project management now starts from the `Projects` tab in the visible tab/sidebar order, giving users a card-based team project list before entering the Gantt.
+- Project cards now show and edit project lifecycle status (`計画` / `進行中` / `完了済み`), include status filters, exclude completed projects from attention/milestone urgency, and show project-assigned member avatars/names.
+- Project settings now manages project lifecycle status and project-level member assignment separately from team membership, while keeping existing archive state as a separate active/archived flag.
+- New project templates initialize lifecycle status as `計画` and seed project members from the selected team, matching the future API-side Project DTO boundary.
+- Project import parsing and config-change review now understand `lifecycleStatus` and `memberIds`, while remaining backward compatible with older project JSON that does not contain these fields.
+- Code QA confirmed the project entry/status/member-assignment work with `npm run check` and production `npm run build`; browser QA remains pending because the in-app browser automation timed out during reload/DOM verification.
+- Sidebar `設定` now opens a dedicated `管理設定` master page in the main workspace, while the Topbar gear opens a separate `プロジェクト設定` page for the active project only.
+- Master settings now has functional `チーム`, `メンバー`, and `カレンダー` page tabs. Team/member editing moved out of project settings, member rows are shared through a smaller settings component, and the calendar tab saves a team-standard calendar across the selected team's projects.
+- Project settings now only contains project-specific fields: project name, team assignment, lifecycle status, code/display name, date range, next milestone, project assignees, and archive controls.
+- Browser QA confirmed the sidebar settings button opens `管理設定` as a page, hides the project view tabs, marks only sidebar `設定` active, exposes `チーム / メンバー / カレンダー`, and keeps horizontal overflow at 0.
+- Browser QA confirmed the Topbar project gear leaves the master page and opens `プロジェクト設定` as its own page with no master tabs, while console errors stay at 0.
+- Code QA confirmed the master-page/project-page split with `npm run check` and production `npm run build`; the `MasterSettingsSheet` lazy chunk is about `13.61 kB`.
+- Topbar project gear now opens `プロジェクト設定` as a main workspace page instead of a sheet. Project settings hides the project view tabs, keeps the gear active, and shows project status/member/range summary cards above the project-only form.
+- Browser QA confirmed project settings renders as a page with no overlay and no `project-settings-sheet`, hides top view tabs, keeps horizontal overflow at 0, and then cleanly switches to the sidebar `管理設定` page.
+- Code QA confirmed the project-settings-page conversion with `npm run check` and production `npm run build`; the `ProjectSettingsSheet` lazy chunk is about `5.58 kB`.
+- Large-count function QA covered generated single-project datasets of 1,001 rows / 20 members and 3,001 rows / 30 members across a 365-day Gantt range. `flattenTasks`, filtered row search, timeline generation, header generation, and progress stats stayed around 0.1-1.3ms in the Node/Vite SSR benchmark.
+- Gantt rendering is already row-windowed and date-slot-windowed; the 3,001-row / 365-day estimate renders about 34 rows and 61 date slots in the active viewport instead of all rows and days.
+- Performance tuning reused one task lookup map for dependency issue checks, reducing the 3,001-row dependency scan from about 298.8ms to about 0.5ms in the benchmark.
+- Resource aggregation now groups actionable tasks by member before weekly cell calculation, reducing the 3,001-row / 30-member resource matrix benchmark from about 314.8ms to about 236.5ms.
+- Current remaining large-count risk: Resource calculation is still the heaviest local computation and should be revisited if a single project regularly exceeds several thousand tasks or if team-wide mode spans many such projects.
+- Browser-level large-count QA remains pending because the in-app browser automation timed out while reading the current tab; the completed coverage for this pass is code-level load benchmarking plus `npm run check` and production `npm run build`.
+- Added `product-backlog.md` with a PM analytics requirement for schedule-change frequency: task-level date-change counts, changed width, phase concentration, milestone-adjacent churn, and historical estimation/risk-management use.
+- Brabio reference item 2/6 follow-up: Gantt now has a compact `前へ / 今日 / 次へ` timeline navigation control next to the display controls, replacing the single today button.
+- Today highlighting now renders as a header band, a body column tint, and the vertical today line; the highlight is only shown when the mocked today date is actually inside the visible project timeline range.
+- Browser QA confirmed the Gantt tab renders the navigation control, one today header band, one today body column, and one today line at `http://127.0.0.1:5173/#site-renewal`.
+- Browser QA confirmed `次へ` changes the timeline scroll from `94` to `532`, `前へ` returns it to `0`, and `今日` returns it to `94`; console errors remained 0.
+- Code QA confirmed the timeline navigation/today-highlight work with `npm run check` and production `npm run build`; the main JS chunk is about `413.66 kB`.
+- Today highlight was softened after visual review: the strong blue vertical line was removed, while the header band, subtle body column tint, and today label remain.
+- Browser QA confirmed `.today-line` is no longer rendered, with one today header band and one today body column still present; console errors remained 0.
+- Code QA confirmed the softened today-highlight work with `npm run check` and production `npm run build`; the main JS chunk is about `413.59 kB`.
+- Gantt work area was expanded by narrowing the desktop task table from `440px` to `408px`, tightening the internal task table columns to `196px / 58px / 76px / 68px`, and increasing the table/timeline body max height from `min(580px, calc(100vh - 350px))` to `min(720px, calc(100vh - 318px))`.
+- Browser QA at the active desktop viewport confirmed the timeline body increased from `807px x 580px` to `824px x 645px`, the task table is now `408px x 645px`, horizontal overflow stayed at 0, and console errors remained 0.
+- Code QA confirmed the expanded Gantt work area with `npm run check` and production `npm run build`; the main JS chunk is about `413.59 kB`.
+- Topbar project context was tightened: the global `プロジェクト追加` button was removed from the Topbar because it is a team/portfolio action, not an operation on the currently selected project.
+- Project creation remains available in the `Projects` portfolio page header and empty state, keeping creation at the team/project-list level while Gantt/Status/Resource/Calendar/Milestones stay project-scoped.
+- Browser QA confirmed Gantt has `topbarProjectAddCount: 0`, Projects has `portfolioProjectAddCount: 1`, horizontal overflow stayed at 0, and console errors remained 0.
+- Code QA confirmed the Topbar project-scope cleanup with `npm run check` and production `npm run build`; the main JS chunk is about `413.45 kB`.
+- Topbar now has explicit context modes for `portfolio`, `project`, and `admin`, so the header title and actions match the current workspace scope instead of always showing the active project.
+- Projects/portfolio mode now shows `プロジェクトポートフォリオ`, a team-level `案件一覧` context chip, and hides project-only actions such as `共有`, `入出力`, and `プロジェクト設定`; project creation remains in the portfolio page.
+- Project mode keeps the active project title, project selector, favorite, share, import/export, and project settings action; admin mode shows `管理設定` and hides project-only controls.
+- Top view tabs now use the same Japanese labels as the sidebar: `案件 / ガント / 概要 / リソース / カレンダー / マイルストーン / 履歴`, and the shortcut sheet uses the same vocabulary.
+- Removed the unused duplicate `ProjectSettingsSheet 2.tsx` file so only the current project-settings page implementation remains.
+- Browser QA confirmed Projects mode has `h1: プロジェクトポートフォリオ`, `shareButtonCount: 0`, `exportButtonCount: 0`, `projectSettingsButtonCount: 0`, `portfolioAddCount: 1`, and horizontal overflow at 0.
+- Browser QA confirmed Gantt/project mode restores `h1: 販売管理システム刷新`, `shareButtonCount: 1`, `exportButtonCount: 1`, `projectSettingsButtonCount: 1`, and project select count 1.
+- Browser QA confirmed sidebar `設定` opens admin mode with `h1: 管理設定`, no project select, and no project-only actions; console errors remained 0.
+- Code QA confirmed the context-mode cleanup with `npm run check` and production `npm run build`; the main JS chunk is about `414.06 kB`.
+- Navigation hierarchy now matches the product model: sidebar is team/workspace level with `案件` and `設定`, while `ガント / 概要 / リソース / カレンダー / マイルストーン / 履歴` moved into project-level tabs after a project is selected.
+- The Projects portfolio page no longer shows project-level tabs, so `ガント` is no longer presented as a sibling of `案件`; it is a child view of the active project.
+- Shortcut help now documents project-level tab switching as `Alt+1..6` for `ガント / 概要 / リソース / カレンダー / マイルストーン / 履歴`.
+- Browser QA confirmed the project view keeps sidebar labels at `案件 / 設定`, marks `案件` active, and shows project tabs `ガント / 概要 / リソース / カレンダー / マイルストーン / 履歴` with the active project title.
+- Browser QA confirmed returning to sidebar `案件` shows `プロジェクトポートフォリオ`, hides project tabs, keeps horizontal overflow at 0, and console errors remained 0.
+- Code QA confirmed the navigation hierarchy cleanup with `npm run check` and production `npm run build`; the main JS chunk is about `410.54 kB`.
+- The sidebar team-selector direction was corrected: team selection now lives in the Projects portfolio as team cards above the project summary, keeping the sidebar at workspace-level `案件 / 設定`.
+- Team cards show team code, team name, active project count, and member count before users enter an individual project Gantt.
+- Team switching now supports teams with no active projects by moving the UI to the Projects portfolio instead of refusing the selection.
+- Browser QA confirmed switching the team card from `業務システム事業部` to `クラウド基盤チーム` updates the active team, project count/card content, and summary to the cloud team while staying on the portfolio URL; switching back restores `業務システム事業部`.
+- Browser QA confirmed the portfolio still hides project-level tabs, horizontal overflow stayed at 0, and console errors remained 0.
+- Code QA confirmed the portfolio team-card selector with `npm run check` and production `npm run build`; the main JS chunk is about `410.79 kB`.
+- Save scope now follows the product hierarchy: project screens save `このガント`, while sidebar settings save `管理設定`; the saved baseline merge for project screens only applies the active project's schedule/task/activity state instead of treating every project as the same save batch.
+- The sync popover now shows `保存範囲`, and the save button title reflects the current scope such as `このガントを保存 (Ctrl/Cmd+S)` or `管理設定を保存 (Ctrl/Cmd+S)`.
+- Browser QA confirmed the project Gantt sync popover shows `保存範囲: このガント`; a temporary task-title edit opened `保存前確認` with `保存範囲: このガント / 販売管理システム刷新`, and closing/reloading restored the original title without saving.
+- Browser QA confirmed the sidebar settings page shows `保存範囲: 管理設定`, hides project tabs, keeps horizontal overflow at 0, and console errors remained 0.
+- Code QA confirmed the save-scope split with `npm run check` and production `npm run build`; the main JS chunk is about `412.99 kB`, with `SaveReviewDialog` at about `4.41 kB`.
+
+final result: partial - non-working-date, project-switcher, Projects, project lifecycle/member assignment, large-count browser QA, Resource, Resource-scope persistence, Resource display-setting, active view-state, Gantt collapsed-state, and local view-change summary browser QA pending; toolbar-wide Topbar typography, master/project settings pages, and Brabio-inspired today/timeline navigation verified in browser

@@ -1,0 +1,346 @@
+export type TaskStatus = "notStarted" | "inProgress" | "done" | "delayed";
+export type TaskType = "summary" | "phase" | "task" | "milestone";
+export type ProjectStatus = "active" | "archived";
+export type ProjectLifecycleStatus = "planning" | "inProgress" | "completed";
+export type ProjectIssuePriority = "critical" | "high" | "medium" | "low";
+export type ProjectIssueStatus = "open" | "inProgress" | "blocked" | "resolved" | "closed";
+export type ProjectIssueType = "bug" | "change" | "question" | "risk" | "task";
+export type ProjectIssueGitHubState = "closed" | "open";
+export type ProjectIssueSyncStatus = "error" | "linked" | "pending" | "synced" | "unlinked";
+export type WorkLogCategory =
+  | "improvement"
+  | "incident"
+  | "maintenance"
+  | "meeting"
+  | "other"
+  | "support";
+export type MemberStatus = "active" | "inactive";
+export type MemberAvailabilityOverrideType = "unavailable";
+export type UtilizationTone = "good" | "warning" | "danger";
+export type AppViewTab =
+  | "Gantt"
+  | "Status"
+  | "Projects"
+  | "Resource"
+  | "Issues"
+  | "WorkLogs"
+  | "Calendar"
+  | "Milestones"
+  | "Activity";
+
+export type CalendarHoliday = {
+  date: string;
+  name: string;
+};
+
+export type CalendarDefinition = {
+  id: string;
+  name: string;
+  workWeek: number[];
+  holidays: CalendarHoliday[];
+};
+
+export type Member = {
+  id: string;
+  name: string;
+  initials: string;
+  role: string;
+  color: string;
+  capacityHours: number;
+  status?: MemberStatus;
+  inactiveAt?: string;
+  availabilityOverrides?: MemberAvailabilityOverride[];
+  loginEmail?: string | null;
+  permissionRole?: string | null;
+  loginEnabled?: boolean;
+  loginCreatedAt?: string | null;
+  lastLoginAt?: string | null;
+  passwordChangedAt?: string | null;
+  passwordResetRequired?: boolean;
+};
+
+export type MemberAvailabilityOverride = {
+  id: string;
+  date: string;
+  type: MemberAvailabilityOverrideType;
+  label: string;
+};
+
+export type Team = {
+  id: string;
+  name: string;
+  code: string;
+  description: string;
+  memberIds: string[];
+};
+
+export type Project = {
+  id: string;
+  teamId: string;
+  name: string;
+  workspace: string;
+  version?: number;
+  lifecycleStatus?: ProjectLifecycleStatus;
+  memberIds?: string[];
+  rangeStart: string;
+  rangeEnd: string;
+  nextMilestone: {
+    title: string;
+    date: string;
+  };
+  status?: ProjectStatus;
+  archivedAt?: string;
+};
+
+export type TaskChecklistItem = {
+  done: boolean;
+  id: string;
+  label: string;
+};
+
+export type TaskComment = {
+  author: string;
+  body: string;
+  createdAt: string;
+  id: string;
+};
+
+export type TaskReferenceLink = {
+  createdAt: string;
+  id: string;
+  label: string;
+  url: string;
+};
+
+export type ProjectIssueGitHubLink = {
+  issueNumber?: number;
+  lastSyncedAt?: string;
+  repository?: string;
+  state?: ProjectIssueGitHubState;
+  syncStatus?: ProjectIssueSyncStatus;
+  url?: string;
+};
+
+export type ProjectIssueReply = {
+  authorId?: string;
+  authorName: string;
+  body: string;
+  createdAt: string;
+  id: string;
+  updatedAt?: string;
+};
+
+export type ProjectIssue = {
+  assigneeIds: string[];
+  body: string;
+  closedAt?: string;
+  createdAt: string;
+  dueDate?: string;
+  github?: ProjectIssueGitHubLink;
+  id: string;
+  priority: ProjectIssuePriority;
+  replies?: ProjectIssueReply[];
+  status: ProjectIssueStatus;
+  taskIds: string[];
+  title: string;
+  type: ProjectIssueType;
+  updatedAt: string;
+};
+
+export type ProjectWorkLog = {
+  billable: boolean;
+  category: WorkLogCategory;
+  createdAt: string;
+  createdBy: string;
+  date: string;
+  hours: number;
+  id: string;
+  issueId?: string;
+  memberId: string;
+  note?: string;
+  summary: string;
+  taskId?: string;
+  updatedAt: string;
+};
+
+export type TaskAssigneeAllocation = {
+  memberId: string;
+  percent: number;
+};
+
+export type ScheduleTask = {
+  id: string;
+  parentId: string | null;
+  title: string;
+  type: TaskType;
+  status: TaskStatus;
+  start: string;
+  end: string;
+  progress: number;
+  assigneeIds: string[];
+  assigneeAllocations?: TaskAssigneeAllocation[];
+  color: string;
+  expanded?: boolean;
+  dependencies?: string[];
+  description?: string;
+  effortHours?: number;
+  baselineStart?: string;
+  baselineEnd?: string;
+  baselineCapturedAt?: string;
+  checklist?: TaskChecklistItem[];
+  comments?: TaskComment[];
+  links?: TaskReferenceLink[];
+};
+
+export type CreateTaskInput = {
+  title: string;
+  parentId: string | null;
+  start: string;
+  end: string;
+  assigneeIds: string[];
+  effortHours?: number;
+};
+
+export type CreateMilestoneInput = {
+  title: string;
+  parentId: string | null;
+  date: string;
+  assigneeIds: string[];
+};
+
+export type TaskDateChange = {
+  end: string;
+  start: string;
+};
+
+export type TaskInspectorFocusTarget =
+  | "assignees"
+  | "allocations"
+  | "baseline"
+  | "comments"
+  | "dependencies"
+  | "description"
+  | "effort"
+  | "end"
+  | "progress"
+  | "start"
+  | "status"
+  | "title";
+
+export type GanttScale = "compact" | "normal" | "comfortable";
+export type GanttTimeUnit = "day" | "week" | "month";
+export type ResourceScope = "project" | "team";
+export type ResourceDisplaySettings = {
+  compact: boolean;
+  showHours: boolean;
+  showPercent: boolean;
+  warningThreshold: number;
+};
+export type LocalDraftChangeSummary = {
+  count: number;
+  detail: string;
+  labels: string[];
+};
+export type GanttColumnKey = "assignee" | "status" | "progress";
+export type GanttColumnVisibility = Record<GanttColumnKey, boolean>;
+
+export type TaskRow = ScheduleTask & {
+  depth: number;
+  hasChildren: boolean;
+};
+
+export type TaskMoveTarget = Pick<ScheduleTask, "id" | "title" | "type"> & {
+  depth: number;
+};
+
+export type TimelineDay = {
+  key: string;
+  start: string;
+  end: string;
+  date: Date;
+  index: number;
+  spanDays: number;
+  label: string;
+  subLabel?: string;
+  day: number;
+  weekday: number;
+  month: number;
+  isWeekend: boolean;
+  holiday?: CalendarHoliday;
+  isNonWorking: boolean;
+};
+
+export type TimelineColumn = {
+  key: string;
+  label: string;
+  startIndex: number;
+  span: number;
+  start?: string;
+};
+
+export type ScheduleFilters = {
+  query: string;
+  assigneeId: string;
+  statuses: Record<TaskStatus, boolean>;
+};
+
+export type ProgressStats = {
+  delayed: number;
+  completed: number;
+  total: number;
+  progress: number;
+};
+
+export type ResourceCell = {
+  week: string;
+  hours: number;
+  capacityHours: number;
+  percent: number;
+  tone: UtilizationTone;
+  unavailableDays: number;
+  contributions: ResourceTaskContribution[];
+};
+
+export type ResourceTaskContribution = {
+  allocationPercent: number;
+  assigneeCount: number;
+  end: string;
+  hours: number;
+  progress: number;
+  projectId?: string;
+  projectName?: string;
+  start: string;
+  status: TaskStatus;
+  taskId: string;
+  title: string;
+};
+
+export type ResourceRowModel = {
+  member: Member;
+  utilization: number;
+  cells: ResourceCell[];
+};
+
+export type ActivityCategory =
+  | "calendar"
+  | "import"
+  | "issue"
+  | "project"
+  | "sync"
+  | "task"
+  | "team"
+  | "workLog";
+
+export type ActivityTone = "danger" | "info" | "success" | "warning";
+
+export type ActivityLogEntry = {
+  actor: string;
+  category: ActivityCategory;
+  detail: string;
+  happenedAt: string;
+  id: string;
+  projectId: string;
+  taskId?: string;
+  title: string;
+  tone: ActivityTone;
+};

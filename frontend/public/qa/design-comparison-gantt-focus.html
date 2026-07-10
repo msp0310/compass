@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Design QA Gantt Focus</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: #eef2f7;
+        color: #111827;
+        font-family: Inter, system-ui, sans-serif;
+      }
+
+      .comparison {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        padding: 12px;
+      }
+
+      figure {
+        height: 760px;
+        margin: 0;
+        overflow: hidden;
+        border: 1px solid #cbd5e1;
+        background: #fff;
+      }
+
+      figcaption {
+        padding: 10px 12px;
+        background: #111827;
+        color: #fff;
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      img {
+        display: block;
+        width: 980px;
+        max-width: none;
+        height: auto;
+        transform: translateY(-96px);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="comparison">
+      <figure>
+        <figcaption>Reference gantt focus</figcaption>
+        <img src="/qa/reference-concept-2.png" alt="Reference gantt focus" />
+      </figure>
+      <figure>
+        <figcaption>Implementation gantt focus</figcaption>
+        <img
+          src="/qa/gantt-app-viewport-final.png"
+          alt="Implementation gantt focus"
+        />
+      </figure>
+    </main>
+  </body>
+</html>

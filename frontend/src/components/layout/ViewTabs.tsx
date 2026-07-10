@@ -1,0 +1,53 @@
+import type { AppViewTab } from "../../types/schedule";
+
+export type ViewTab = AppViewTab;
+
+export const viewTabs: ViewTab[] = [
+  "Gantt",
+  "Status",
+  "Issues",
+  "WorkLogs",
+  "Resource",
+  "Calendar",
+  "Milestones",
+  "Activity",
+];
+
+const viewTabLabels: Record<ViewTab, string> = {
+  Activity: "履歴",
+  Calendar: "カレンダー",
+  Gantt: "ガント",
+  Issues: "課題",
+  Milestones: "マイルストーン",
+  Projects: "案件一覧",
+  Resource: "リソース",
+  Status: "概要",
+  WorkLogs: "作業時間",
+};
+
+type ViewTabsProps = {
+  activeTab: ViewTab;
+  onChange: (tab: ViewTab) => void;
+};
+
+/** プロジェクト内の主要ビューを切り替えるタブバーです。 */
+export function ViewTabs({ activeTab, onChange }: ViewTabsProps) {
+  return (
+    <nav className="tabs project-view-tabs" aria-label="プロジェクト内ビュー切り替え">
+      {viewTabs.map((tab, index) => {
+        const label = viewTabLabels[tab];
+        return (
+          <button
+            className={tab === activeTab ? "tab active" : "tab"}
+            key={tab}
+            onClick={() => onChange(tab)}
+            title={`${label} (Alt+${index + 1})`}
+            type="button"
+          >
+            {label}
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
