@@ -158,6 +158,18 @@ npm run test:types
 dotnet build backend/ScheduleManager.sln
 ```
 
+## 開発ルール
+
+コミットメッセージは [Conventional Commits](https://www.conventionalcommits.org/ja/v1.0.0/) に従います。
+
+```text
+feat(gantt): タスクの一括移動を追加
+fix(auth): ログイン失敗時のエラー表示を修正
+docs: READMEに起動手順を追加
+```
+
+利用できるtype、scope、破壊的変更の扱いは [`CONTRIBUTING.md`](CONTRIBUTING.md) にまとめています。
+
 ## 設計方針
 
 - 初期表示は軽量なワークスペースサマリーだけを取得し、タスク明細は選択した案件のGanttを開くときに遅延取得します。

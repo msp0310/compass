@@ -43,6 +43,15 @@ React/Vite frontend with an ASP.NET Core Web API and SQLite backend.
   `http://127.0.0.1:5174/#crm-integration`.
 - Keep dev servers running when the user needs to inspect the app.
 
+## Commit Convention
+
+- Use Conventional Commits for commit messages: `feat`, `fix`, `docs`,
+  `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, or `revert`.
+- Use a focused scope when useful, such as `gantt`, `api`, or `auth`.
+- Keep one purpose per commit and write the description in concise Japanese or
+  English.
+- See `CONTRIBUTING.md` for the full format and breaking-change rules.
+
 ## Backend Guidelines
 
 - Use singular DTO names such as `ProjectDto`, `MemberDto`, and
