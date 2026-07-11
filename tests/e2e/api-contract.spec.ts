@@ -1,4 +1,47 @@
 import { expect, test, type APIResponse } from "@playwright/test";
+import { request as httpRequest } from "node:http";
+import { zstdDecompressSync } from "node:zlib";
+
+type RawHttpResponse = {
+  body: Buffer;
+  headers: Record<string, string | string[] | undefined>;
+  statusCode: number;
+};
+
+function getRawApiResponse(
+  path: string,
+  token: string,
+  acceptEncoding = "zstd",
+): Promise<RawHttpResponse> {
+  return new Promise((resolve, reject) => {
+    const request = httpRequest(
+      {
+        headers: {
+          Accept: "application/json",
+          "Accept-Encoding": acceptEncoding,
+          Authorization: `Bearer ${token}`,
+        },
+        host: "127.0.0.1",
+        method: "GET",
+        path,
+        port: 5080,
+      },
+      (response) => {
+        const chunks: Buffer[] = [];
+        response.on("data", (chunk: Buffer) => chunks.push(chunk));
+        response.on("end", () => {
+          resolve({
+            body: Buffer.concat(chunks),
+            headers: response.headers,
+            statusCode: response.statusCode ?? 0,
+          });
+        });
+      },
+    );
+    request.on("error", reject);
+    request.end();
+  });
+}
 
 test("認証が必要なAPIは未認証リクエストを401で拒否する", async ({ request }) => {
   const response = await request.get("/api/workspace/summary");
@@ -36,6 +79,27 @@ test("認証後に軽量案件サマリーAPIを取得できる", async ({ reque
   expect(summaries[0]?.project.workspace).toBeTruthy();
   expect(summaries[0]?.taskCount).toBeGreaterThanOrEqual(0);
   expect(summaries[0]?.progress).toBeGreaterThanOrEqual(0);
+});
+
+test("ZstandardでAPIレスポンスを圧縮し、復元できる", async ({ request }) => {
+  const loginResponse = await request.post("/api/auth/login", {
+    data: { email: "pm@example.com", password: "Password123!" },
+  });
+  expect(loginResponse.ok()).toBe(true);
+  const session = (await loginResponse.json()) as { token: string };
+
+  const response = await getRawApiResponse("/api/workspace", session.token);
+
+  expect(response.statusCode).toBe(200);
+  expect(response.headers["content-encoding"]).toBe("zstd");
+  expect(response.headers.vary).toContain("Accept-Encoding");
+  const workspace = JSON.parse(zstdDecompressSync(response.body).toString("utf8")) as {
+    schedules: Array<{ project: { id: string } }>;
+  };
+  expect(workspace.schedules.length).toBeGreaterThan(0);
+
+  const gzipResponse = await getRawApiResponse("/api/workspace", session.token, "gzip");
+  expect(gzipResponse.headers["content-encoding"]).toBe("gzip");
 });
 
 test("案件サマリーは全件ワークスペースより小さく、短時間で取得できる", async ({ request }) => {
