@@ -2,7 +2,8 @@
 
 ## Current Implementation
 
-- Frontend bootstraps workspace data from `GET /api/workspace`.
+- Frontend bootstraps team and project-list data from `GET /api/workspace/summary`.
+- Project details are loaded on demand from `GET /api/projects/{projectId}/schedule`.
 - Project Gantt saves are scoped to one project through `PUT /api/projects/{projectId}/schedule`.
 - SQLite seed data is created by the API on first startup, so the frontend no longer needs mock data for initial display.
 - Frontend keeps localStorage as a browser cache for view state and unsaved/offline recovery, but project data is now API-originated.

@@ -39,11 +39,6 @@ export const apiScheduleRepository: ScheduleRepository = {
     return requestAuthenticatedJson<ProjectSummary[]>("/projects/summary");
   },
 
-  /** 既存互換用に全ワークスペースを取得します。詳細画面では遅延取得を優先します。 */
-  async getWorkspace() {
-    return requestAuthenticatedJson<ScheduleWorkspace>("/workspace");
-  },
-
   /** 案件一覧向けに、詳細タスクを除いた初期データを取得します。 */
   async getWorkspaceSummary() {
     return requestAuthenticatedJson<ScheduleWorkspaceSummary>("/workspace/summary");

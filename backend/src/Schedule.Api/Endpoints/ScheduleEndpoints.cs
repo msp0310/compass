@@ -20,13 +20,6 @@ public static class ScheduleEndpoints
             checkedAt = DateTimeOffset.UtcNow
         }));
 
-        api.MapGet("/workspace", async (
-            ScheduleService schedules,
-            CancellationToken cancellationToken) =>
-        {
-            return Results.Ok(await schedules.GetWorkspaceAsync(cancellationToken));
-        });
-
         api.MapGet("/workspace/summary", async (
             ScheduleService schedules,
             CancellationToken cancellationToken) =>

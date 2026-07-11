@@ -24,32 +24,6 @@ public sealed class ScheduleService(ScheduleDbContext db)
             await GetProjectSummariesAsync(cancellationToken));
     }
 
-    /// <summary>チームとプロジェクト一覧を読み込み、フロントエンドのワークスペースへ変換します。</summary>
-    public async Task<ScheduleWorkspaceDto> GetWorkspaceAsync(CancellationToken cancellationToken)
-    {
-        var teams = await db.Teams
-            .Include(team => team.Members)
-            .AsNoTracking()
-            .OrderBy(team => team.Code)
-            .ToListAsync(cancellationToken);
-        var projects = await LoadProjectsQuery()
-            .AsNoTracking()
-            .OrderBy(project => project.TeamId)
-            .ThenBy(project => project.Workspace)
-            .ToListAsync(cancellationToken);
-        var members = await db.Members
-            .AsNoTracking()
-            .OrderBy(member => member.Id)
-            .ToListAsync(cancellationToken);
-        var accountsByMemberId = await LoadMemberAccountsAsync(
-            members.Select(member => member.Id),
-            cancellationToken);
-
-        return new ScheduleWorkspaceDto(
-            teams.Select(ScheduleMapper.ToDto).ToArray(),
-            projects.Select(project => ToSnapshot(project, members, accountsByMemberId)).ToArray());
-    }
-
     /// <summary>
     /// 案件一覧向けの軽量な集計を取得します。
     /// Gantt詳細を必要としない画面が、全タスク本文を転送せずに表示できます。

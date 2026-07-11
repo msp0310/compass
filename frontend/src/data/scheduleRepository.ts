@@ -73,8 +73,6 @@ export type ScheduleRepositorySyncStatus = {
 export type ScheduleRepository = {
   /** 案件一覧用の軽量集計を取得します。 */
   getProjectSummaries(): Promise<ProjectSummary[]>;
-  /** 互換用の全件ワークスペースを取得します。 */
-  getWorkspace(): Promise<ScheduleWorkspace>;
   /** 初期表示用のチームと案件集計を取得します。 */
   getWorkspaceSummary(): Promise<ScheduleWorkspaceSummary>;
   /** 指定案件のタスク・カレンダー・メンバー詳細を取得します。 */
