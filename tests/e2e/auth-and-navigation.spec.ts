@@ -137,6 +137,50 @@ test.describe("Miraiの認証とプロジェクト導線", () => {
     );
   });
 
+  test("ガントバーの選択は位置を維持しドラッグをEscで取り消せる", async ({ page }) => {
+    await login(page);
+    const projectCard = page.locator("article.portfolio-card").filter({
+      hasText: "販売管理システム刷新",
+    });
+    await projectCard.getByRole("button", { name: "Ganttへ" }).click();
+    await expect(page.getByRole("button", { name: "タスク追加" })).toBeVisible();
+
+    const timelineBody = page.locator(".timeline-body");
+    const taskBar = page.locator('.timeline-canvas .gantt-bar[data-task-id="db-if-design"]');
+    await expect(taskBar).toBeVisible();
+
+    const initialBox = await taskBar.boundingBox();
+    if (!initialBox) throw new Error("操作対象のガントバーが見つかりません。");
+    const initialScrollLeft = await timelineBody.evaluate((element) => element.scrollLeft);
+    const centerX = initialBox.x + initialBox.width / 2;
+    const centerY = initialBox.y + initialBox.height / 2;
+
+    // クリック時の手ぶれではドラッグを開始せず、表示位置も変えない。
+    await page.mouse.move(centerX, centerY);
+    await page.mouse.down();
+    await page.mouse.move(centerX + 3, centerY);
+    await page.mouse.up();
+
+    await expect(taskBar).not.toHaveClass(/is-dragging/);
+    const selectedBox = await taskBar.boundingBox();
+    expect(selectedBox?.x).toBeCloseTo(initialBox.x, 0);
+    await expect
+      .poll(() => timelineBody.evaluate((element) => element.scrollLeft))
+      .toBe(initialScrollLeft);
+
+    // 意図して動かし始めても、Escで確定せず元の位置へ戻せる。
+    await page.mouse.move(centerX, centerY);
+    await page.mouse.down();
+    await page.mouse.move(centerX + 18, centerY);
+    await expect(taskBar).toHaveClass(/is-dragging/);
+    await page.keyboard.press("Escape");
+    await page.mouse.up();
+
+    await expect(taskBar).not.toHaveClass(/is-dragging/);
+    const cancelledBox = await taskBar.boundingBox();
+    expect(cancelledBox?.x).toBeCloseTo(initialBox.x, 0);
+  });
+
   test("タスク表示をガントと表で切り替えられる", async ({ page }) => {
     await login(page);
     const projectCard = page.locator("article.portfolio-card").filter({
@@ -201,6 +245,7 @@ test.describe("Miraiの認証とプロジェクト導線", () => {
 
     const anchorRow = page.locator('.task-table-row[data-task-id="db-if-design"]');
     await anchorRow.click();
+    await expect(anchorRow).toHaveClass(/selected/);
     await page.keyboard.press("n");
 
     await expect(page.getByRole("dialog", { name: "タスク追加" })).toHaveCount(0);

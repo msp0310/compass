@@ -341,15 +341,14 @@ function TimelineRow({
     const element = event.currentTarget.closest(".gantt-bar, .milestone") as HTMLElement | null;
     if (!element) return;
     const canvas = element.closest(".timeline-canvas") as HTMLElement | null;
-    const previewElements = canvas ? ensureDragPreviewElements(canvas) : null;
+    let previewElements: ReturnType<typeof ensureDragPreviewElements> | null = null;
+    let active = false;
     const startX = event.clientX;
     let latestDelta = 0;
     const originalWidth = element.getBoundingClientRect().width;
     const minWidth = Math.max(dayWidth - 12, 10);
     const maxStartDelta = Math.max(span.duration - 1, 0);
     const minEndDelta = -Math.max(span.duration - 1, 0);
-
-    element.classList.add("is-dragging");
 
     const updatePreview = (deltaUnits: number) => {
       const deltaDays = getDateDeltaForTimeUnit(
@@ -377,10 +376,30 @@ function TimelineRow({
       updateDependencyPreviewPaths(canvas, task.id, mode, previewPx);
     };
 
-    updatePreview(0);
+    const beginDrag = () => {
+      if (active) return;
+      active = true;
+      element.classList.add("is-dragging");
+      previewElements = canvas ? ensureDragPreviewElements(canvas) : null;
+      updatePreview(0);
+    };
+
+    const cleanup = () => {
+      document.removeEventListener("mousemove", handleMove);
+      document.removeEventListener("mouseup", handleUp);
+      window.removeEventListener("keydown", handleCancel);
+      element.classList.remove("is-dragging");
+      element.style.transform = "";
+      element.style.width = "";
+      delete element.dataset.dragPreview;
+      resetDependencyPreviewPaths(canvas);
+      clearDragPreviewElements(canvas);
+    };
 
     const handleMove = (moveEvent: globalThis.MouseEvent) => {
       const rawDelta = moveEvent.clientX - startX;
+      if (!active && Math.abs(rawDelta) < 5) return;
+      beginDrag();
       let deltaDays = Math.round(rawDelta / dayWidth);
       if (mode === "start") {
         deltaDays = Math.min(deltaDays, maxStartDelta);
@@ -402,18 +421,8 @@ function TimelineRow({
       updatePreview(latestDelta);
     };
     const handleUp = () => {
-      document.removeEventListener("mousemove", handleMove);
-      document.removeEventListener("mouseup", handleUp);
-      element.classList.remove("is-dragging");
-      element.style.transform = "";
-      element.style.width = "";
-      delete element.dataset.dragPreview;
-      resetDependencyPreviewPaths(canvas);
-      clearDragPreviewElements(canvas);
-      if (latestDelta === 0) {
-        onSelect();
-        return;
-      }
+      cleanup();
+      if (!active || latestDelta === 0) return;
       if (mode === "move") {
         onMoveTask(task.id, getDateDeltaForTimeUnit(task.start, timeUnit, latestDelta));
       } else {
@@ -424,9 +433,15 @@ function TimelineRow({
         );
       }
     };
+    const handleCancel = (keyEvent: globalThis.KeyboardEvent) => {
+      if (keyEvent.key !== "Escape") return;
+      keyEvent.preventDefault();
+      cleanup();
+    };
 
     document.addEventListener("mousemove", handleMove);
     document.addEventListener("mouseup", handleUp);
+    window.addEventListener("keydown", handleCancel);
   }
 
   function handleOpenInspector(event: MouseEvent<HTMLElement>) {
