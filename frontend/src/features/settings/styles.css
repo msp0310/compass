@@ -2882,6 +2882,32 @@
   accent-color: #2864ea;
 }
 
+.create-sheet .member-checklist {
+  gap: 6px;
+  margin-top: 0;
+  padding-top: 10px;
+}
+
+.create-sheet .member-checklist label {
+  min-height: 24px;
+  gap: 7px;
+  font-size: 11px;
+}
+
+.create-sheet .member-checklist input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  margin: 0;
+  padding: 0;
+}
+
+.create-sheet > .primary-button.full {
+  min-height: 34px;
+  font-size: 12px;
+  line-height: 1;
+}
+
 .assignee-allocation-editor {
   display: grid;
   gap: 8px;
