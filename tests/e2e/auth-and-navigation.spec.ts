@@ -148,7 +148,8 @@ test.describe("Miraiの認証とプロジェクト導線", () => {
     const viewModeControl = page.locator(".view-mode-control");
     await viewModeControl.getByRole("button", { name: "表" }).click();
     await expect(page.locator(".gantt-shell.table-view")).toBeVisible();
-    await expect(page.getByText("期間", { exact: true })).toBeVisible();
+    await expect(page.getByText("開始日", { exact: true })).toBeVisible();
+    await expect(page.getByText("終了日", { exact: true })).toBeVisible();
     await expect(page.locator(".task-date-cell").first()).toBeVisible();
     await expect(page.locator(".timeline-body")).toHaveCount(0);
     await expect(page.locator(".gantt-shell.table-view .table-header")).toHaveCSS(

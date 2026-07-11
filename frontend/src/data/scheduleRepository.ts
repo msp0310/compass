@@ -50,6 +50,7 @@ export type ScheduleRepositorySaveReason = "manual" | "autosave" | "import" | "p
 export type ScheduleRepositorySaveOptions = {
   activeProjectId: string;
   activeTeamId: string;
+  changeReason?: string;
   reason: ScheduleRepositorySaveReason;
 };
 

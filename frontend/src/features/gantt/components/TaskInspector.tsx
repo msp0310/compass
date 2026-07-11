@@ -419,7 +419,7 @@ export function TaskInspector({
             </div>
           </>
         ) : (
-          <p>基準計画は分析機能側で扱う想定です</p>
+          <p>分析画面で現在の日程を基準計画として設定できます</p>
         )}
       </section>
       <div className="two-col inspector-fields">

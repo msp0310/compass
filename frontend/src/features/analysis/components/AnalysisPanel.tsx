@@ -70,6 +70,13 @@ export function AnalysisPanel({
   ).length;
   const baselineCapturedAt = tasks.find((task) => task.baselineCapturedAt)?.baselineCapturedAt;
   const hasBaseline = baselineTaskCount > 0;
+  const baselineDelayedTasks = tasks.filter(
+    (task) => task.type === "task" && task.baselineEnd && task.end > task.baselineEnd,
+  );
+  const maximumBaselineDelay = baselineDelayedTasks.reduce(
+    (maximum, task) => Math.max(maximum, getDateDiffDays(task.baselineEnd ?? task.end, task.end)),
+    0,
+  );
 
   return (
     <section className="analysis-page" aria-label="プロジェクト分析">
@@ -147,7 +154,11 @@ export function AnalysisPanel({
           </div>
           <div className="analysis-baseline-content">
             <p>{baselineCapturedAt ? `最終設定 ${formatDate(baselineCapturedAt)}` : "まだ基準計画が設定されていません。"}</p>
-            <small>基準計画を設定すると、ガント上で予定変更を比較できます。</small>
+            <small>
+              {hasBaseline
+                ? `終了日超過 ${baselineDelayedTasks.length}件 / 最大 +${maximumBaselineDelay}日`
+                : "基準計画を設定すると、ガント上で予定変更を比較できます。"}
+            </small>
           </div>
         </section>
       </div>
@@ -178,4 +189,10 @@ function AnalysisKpi({
 function formatDate(value: string) {
   if (value.length >= 10) return value.slice(0, 10).replaceAll("-", "/");
   return value;
+}
+
+function getDateDiffDays(before: string, after: string) {
+  const beforeDate = new Date(`${before}T00:00:00Z`);
+  const afterDate = new Date(`${after}T00:00:00Z`);
+  return Math.round((afterDate.getTime() - beforeDate.getTime()) / 86_400_000);
 }

@@ -93,6 +93,7 @@ export const apiScheduleRepository: ScheduleRepository = {
       {
         body: JSON.stringify({
           calendar: schedule.calendar,
+          changeReason: options.changeReason?.trim() || null,
           expectedVersion: schedule.project.version ?? null,
           issues: schedule.issues ?? [],
           members: schedule.members,
@@ -103,6 +104,9 @@ export const apiScheduleRepository: ScheduleRepository = {
         method: "PUT",
       },
     );
+    const changeLogs = await requestAuthenticatedJson<ScheduleChangeLog[]>(
+      "/projects/" + encodeURIComponent(options.activeProjectId) + "/changes",
+    );
 
     return {
       mode: "remote",
@@ -112,7 +116,11 @@ export const apiScheduleRepository: ScheduleRepository = {
         ...workspace,
         schedules: workspace.schedules.map((snapshot) =>
           snapshot.project.id === result.schedule.project.id
-            ? { ...result.schedule, attachments: schedule.attachments }
+            ? {
+                ...result.schedule,
+                attachments: schedule.attachments,
+                changeLogs,
+              }
             : snapshot,
         ),
       },

@@ -1,5 +1,5 @@
 import { CheckCircleIcon, CloudArrowUpIcon, XMarkIcon } from "@heroicons/react/24/outline";
-import type { MouseEvent } from "react";
+import { useState, type MouseEvent } from "react";
 import type {
   ConfigChangeReview,
   ConfigChangeRow,
@@ -10,7 +10,7 @@ import type { Project, TaskInspectorFocusTarget } from "../../../types/schedule"
 type SaveReviewDialogProps = {
   configReview: ConfigChangeReview;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: (changeReason?: string) => void;
   onSelectTask: (
     taskId: string,
     focusTarget?: TaskInspectorFocusTarget,
@@ -44,6 +44,7 @@ export function SaveReviewDialog({
   review,
   scopeLabel,
 }: SaveReviewDialogProps) {
+  const [changeReason, setChangeReason] = useState("");
   const previewRows = review.rows.slice(0, 10);
   const hiddenCount = Math.max(review.rows.length - previewRows.length, 0);
   const configPreviewRows = configReview.rows.slice(0, 8);
@@ -61,6 +62,10 @@ export function SaveReviewDialog({
       : projectLabels.length === 1
         ? projectLabels[0]
         : `${projectLabels[0]} ほか${projectLabels.length - 1}プロジェクト`;
+  const hasScheduleDateChanges = review.rows.some((row) =>
+    row.fields.some((field) => field.focusTarget === "start" || field.focusTarget === "end"),
+  );
+  const normalizedChangeReason = changeReason.trim();
 
   function selectTask(taskId: string, focusTarget?: TaskInspectorFocusTarget, projectId?: string) {
     onClose();
@@ -154,11 +159,34 @@ export function SaveReviewDialog({
           </section>
         ) : null}
 
+        {hasScheduleDateChanges ? (
+          <section className="save-review-reason" aria-label="日程変更理由">
+            <label htmlFor="schedule-change-reason">
+              <strong>日程変更理由</strong>
+              <span>必須</span>
+            </label>
+            <textarea
+              id="schedule-change-reason"
+              maxLength={500}
+              onChange={(event) => setChangeReason(event.target.value)}
+              placeholder="例: 顧客レビュー日程の変更に伴い、基本設計以降を3営業日後ろ倒し"
+              rows={3}
+              value={changeReason}
+            />
+            <small>この保存で変更される開始日・終了日の履歴に記録します。</small>
+          </section>
+        ) : null}
+
         <div className="settings-actions">
           <button className="subtle-action" onClick={onClose} type="button">
             戻る
           </button>
-          <button className="primary-button" onClick={onConfirm} type="button">
+          <button
+            className="primary-button"
+            disabled={hasScheduleDateChanges && normalizedChangeReason.length === 0}
+            onClick={() => onConfirm(normalizedChangeReason || undefined)}
+            type="button"
+          >
             <CloudArrowUpIcon />
             確認して保存
           </button>

@@ -2269,7 +2269,7 @@ export function AppWorkbench({
   }
 
   /** 現在の変更をローカル保存し、API同期を開始します。 */
-  function saveDraft(draft = currentDraftRef.current) {
+  function saveDraft(draft = currentDraftRef.current, changeReason?: string) {
     const projectScopedSave = isProjectSaveScope;
     const apiChangeCount = Math.max(
       taskChangeReviewRef.current.totalCount + configChangeReviewRef.current.totalCount,
@@ -2303,7 +2303,7 @@ export function AppWorkbench({
       detail: projectScopedSave ? schedule.project.workspace : saveScopeLabel,
       title: projectScopedSave ? "このガントを保存しました" : "ローカル保存しました",
     });
-    void scheduleApiSync(nextDraft, apiChangeCount);
+    void scheduleApiSync(nextDraft, apiChangeCount, "save", changeReason);
   }
 
   /** 保存要求をキューに登録します。 */
@@ -2862,7 +2862,7 @@ export function AppWorkbench({
           <SaveReviewDialog
             configReview={configChangeReview}
             onClose={() => setShowSaveReview(false)}
-            onConfirm={() => saveDraft(currentDraftRef.current)}
+            onConfirm={(changeReason) => saveDraft(currentDraftRef.current, changeReason)}
             onSelectTask={selectTaskFromSecondaryView}
             project={schedule.project}
             review={taskChangeReview}

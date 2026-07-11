@@ -61,6 +61,7 @@ export function useScheduleSync({
     draftToSync: PersistableDraft,
     changeCount: number,
     mode: "save" | "retry" = "save",
+    changeReason?: string,
   ) {
     const operationId = saveOperationIdRef.current + 1;
     saveOperationIdRef.current = operationId;
@@ -95,6 +96,7 @@ export function useScheduleSync({
       const result = await apiScheduleRepository.saveWorkspace(draftToSync.workspace, {
         activeProjectId: draftToSync.activeProjectId,
         activeTeamId: draftToSync.activeTeamId,
+        changeReason,
         reason: "manual",
       });
       if (saveOperationIdRef.current !== operationId) return;

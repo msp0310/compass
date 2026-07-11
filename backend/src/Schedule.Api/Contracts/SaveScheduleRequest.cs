@@ -8,4 +8,5 @@ public sealed record SaveScheduleRequest(
     ProjectDto Project,
     IReadOnlyList<ScheduleTaskDto> Tasks,
     IReadOnlyList<ProjectWorkLogDto>? WorkLogs,
+    string? ChangeReason,
     int? ExpectedVersion);
