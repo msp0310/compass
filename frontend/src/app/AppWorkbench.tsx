@@ -197,6 +197,12 @@ const ResourcePanel = lazy(() =>
   })),
 );
 
+const WorkloadOverviewPage = lazy(() =>
+  import("../features/resource/components/WorkloadOverviewPage").then((module) => ({
+    default: module.WorkloadOverviewPage,
+  })),
+);
+
 const SaveReviewDialog = lazy(() =>
   import("../features/gantt/components/SaveReviewDialog").then((module) => ({
     default: module.SaveReviewDialog,
@@ -556,12 +562,15 @@ export function AppWorkbench({
   );
 
   useEffect(() => {
-    if (resourceScope !== "team") return;
-    const missingProjectIds = findMissingProjectIds(
-      projectSummaries,
-      workspace.schedules,
-      activeTeamId,
-    );
+    if (resourceScope !== "team" && activeTab !== "Workload") return;
+    const targetTeamIds = activeTab === "Workload" ? workspace.teams.map((team) => team.id) : [activeTeamId];
+    const missingProjectIds = [
+      ...new Set(
+        targetTeamIds.flatMap((teamId) =>
+          findMissingProjectIds(projectSummaries, workspace.schedules, teamId),
+        ),
+      ),
+    ];
     if (missingProjectIds.length === 0) return;
 
     let cancelled = false;
@@ -588,7 +597,7 @@ export function AppWorkbench({
     return () => {
       cancelled = true;
     };
-  }, [activeTeamId, projectSummaries, resourceScope, workspace.schedules]);
+  }, [activeTab, activeTeamId, projectSummaries, resourceScope, workspace.schedules, workspace.teams]);
   const teamResourceTasks = useMemo(
     () =>
       activeTeamReviewSchedules.flatMap((snapshot) =>
@@ -830,7 +839,8 @@ export function AppWorkbench({
       ),
     [schedule.project.id, workspaceConfigChangeReview.rows],
   );
-  const isProjectSaveScope = !showMasterSettings && activeTab !== "Projects";
+  const isProjectSaveScope =
+    !showMasterSettings && activeTab !== "Projects" && activeTab !== "Workload";
   const projectSaveScopeLabel =
     activeTab === "Issues" || activeTab === "WorkLogs" ? "この案件" : "このガント";
   const saveScopeLabel = isProjectSaveScope
@@ -2476,7 +2486,9 @@ export function AppWorkbench({
         onProjectSettingsOpen={openProjectSettings}
         projectName={schedule.project.workspace}
         projectNavigationVisible={
-          !showMasterSettings && !showHelpPage && (showProjectSettings || activeTab !== "Projects")
+          !showMasterSettings &&
+          !showHelpPage &&
+          (showProjectSettings || (activeTab !== "Projects" && activeTab !== "Workload"))
         }
         projectSettingsOpen={showProjectSettings}
         settingsOpen={showMasterSettings}
@@ -2499,6 +2511,8 @@ export function AppWorkbench({
                 ? "admin"
                 : activeTab === "Projects"
                   ? "portfolio"
+                  : activeTab === "Workload"
+                    ? "workload"
                   : "project"
           }
           currentUser={currentUser}
@@ -2719,6 +2733,18 @@ export function AppWorkbench({
               onToggleFavoriteProject={toggleFavoriteProject}
               onUpdateProjectLifecycleStatus={updateProjectLifecycleStatus}
               projectSummaries={projectSummaries}
+              schedules={currentReviewSchedules}
+              teams={workspace.teams}
+            />
+          ) : null}
+          {showMainProjectViews && activeTab === "Workload" ? (
+            <WorkloadOverviewPage
+              calendar={schedule.calendar}
+              calendarAware={calendarAware}
+              onOpenProject={(projectId) => {
+                if (changeProject(projectId)) setActiveTab("Gantt");
+              }}
+              onOpenTeam={(teamId) => changeTeam(teamId, { stayOnPortfolio: true })}
               schedules={currentReviewSchedules}
               teams={workspace.teams}
             />

@@ -25,6 +25,7 @@ const viewTabLabels: Record<ViewTab, string> = {
   Resource: "リソース",
   Status: "概要",
   WorkLogs: "作業時間",
+  Workload: "稼働状況",
   WeeklyReport: "週次報告",
 };
 

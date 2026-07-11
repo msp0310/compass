@@ -32,7 +32,10 @@ type NavSubItem = {
   tab: ViewTab;
 };
 
-const globalNavItems: NavItem[] = [{ label: "案件一覧", icon: FolderOpenIcon, tab: "Projects" }];
+const globalNavItems: NavItem[] = [
+  { label: "案件一覧", icon: FolderOpenIcon, tab: "Projects" },
+  { label: "稼働状況", icon: UserGroupIcon, tab: "Workload" },
+];
 
 const projectNavItems: NavItem[] = [
   { label: "概要", icon: HomeIcon, tab: "Status" },

@@ -39,7 +39,7 @@ export type TopbarSyncStatus = {
 };
 
 export type ApiConnectionMode = "offline" | "online";
-export type TopbarContextMode = "admin" | "help" | "portfolio" | "project";
+export type TopbarContextMode = "admin" | "help" | "portfolio" | "project" | "workload";
 
 export type TopbarAuthUser = {
   email: string;
@@ -136,6 +136,7 @@ export function Topbar({
   const isAdminContext = contextMode === "admin";
   const isHelpContext = contextMode === "help";
   const isPortfolioContext = contextMode === "portfolio";
+  const isWorkloadContext = contextMode === "workload";
   const isProjectContext = contextMode === "project";
   const pageTitle = isAdminContext
     ? "管理設定"
@@ -143,8 +144,16 @@ export function Topbar({
       ? "ヘルプ"
       : isPortfolioContext
         ? "プロジェクトポートフォリオ"
+        : isWorkloadContext
+          ? "稼働状況"
         : project.workspace;
-  const contextLabel = isAdminContext ? "管理設定" : isHelpContext ? "ヘルプ" : "案件一覧";
+  const contextLabel = isAdminContext
+    ? "管理設定"
+    : isHelpContext
+      ? "ヘルプ"
+      : isWorkloadContext
+        ? "稼働状況"
+        : "案件一覧";
   const teamById = useMemo(() => new Map(teams.map((team) => [team.id, team])), [teams]);
   const normalizedProjectQuery = projectQuery.trim().toLowerCase();
   const filteredProjects = useMemo(

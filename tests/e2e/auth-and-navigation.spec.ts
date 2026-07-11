@@ -36,6 +36,32 @@ test.describe("Miraiの認証とプロジェクト導線", () => {
     await expect(projectCard.locator("header strong")).toHaveText("販売管理システム刷新");
   });
 
+  test("全案件の稼働状況を人別とチーム別で切り替えられる", async ({ page }) => {
+    await login(page);
+    await page.getByRole("button", { name: "稼働状況", exact: true }).click();
+
+    const workload = page.getByRole("region", { name: "稼働状況" });
+    await expect(workload).toBeVisible();
+    await expect(page.getByRole("heading", { name: "稼働状況", level: 1 })).toBeVisible();
+    await expect(workload.getByText("表示メンバー")).toBeVisible();
+    await expect(workload.getByRole("combobox", { name: "表示チーム" })).toHaveValue("all");
+    await expect(page.getByRole("button", { name: "ガント", exact: true })).toHaveCount(0);
+
+    await workload.getByRole("button", { name: "チーム別", exact: true }).click();
+    await expect(workload.getByText("表示チーム", { exact: true })).toBeVisible();
+    await expect(workload.getByRole("button", { name: "クラウド基盤チーム" })).toBeVisible();
+    await expect(workload.getByRole("button", { name: "業務システム事業部" })).toBeVisible();
+    await expect(workload.getByText(/チーム$/).first()).toBeVisible();
+
+    await workload.getByRole("button", { name: "販売管理システム刷新", exact: true }).first().click();
+    await expect(page.getByRole("button", { name: "タスク追加" })).toBeVisible();
+    await expect(
+      page
+        .getByRole("complementary", { name: "メインナビゲーション" })
+        .getByRole("button", { name: "ガント", exact: true }),
+    ).toHaveAttribute("aria-current", "page");
+  });
+
   test("プロジェクトカードからGanttへ移動し、ショートカットを開ける", async ({ page }) => {
     await login(page);
 
