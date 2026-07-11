@@ -384,6 +384,7 @@ function getProjectFieldChanges(
 ) {
   const changes: TaskFieldChange[] = [];
   addChange(changes, "プロジェクト名", before.workspace, after.workspace);
+  addChange(changes, "プロジェクトNo.", before.projectNo ?? "", after.projectNo ?? "");
   addChange(changes, "管理コード", before.name, after.name);
   addChange(
     changes,

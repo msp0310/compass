@@ -287,6 +287,15 @@
   white-space: nowrap;
 }
 
+.portfolio-card-header .portfolio-project-no {
+  overflow: hidden;
+  color: #8290a3;
+  font-size: 10px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .portfolio-card-actions {
   display: inline-flex;
   flex: 0 0 auto;

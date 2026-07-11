@@ -29,6 +29,7 @@ export function ProjectSettingsPage({
 }: ProjectSettingsPageProps) {
   const [name, setName] = useState(project.name);
   const [workspace, setWorkspace] = useState(project.workspace);
+  const [projectNo, setProjectNo] = useState(project.projectNo ?? "");
   const [projectTeamId, setProjectTeamId] = useState(project.teamId);
   const [lifecycleStatus, setLifecycleStatus] = useState<ProjectLifecycleStatus>(
     getProjectLifecycleStatus(project),
@@ -45,6 +46,7 @@ export function ProjectSettingsPage({
   useEffect(() => {
     setName(project.name);
     setWorkspace(project.workspace);
+    setProjectNo(project.projectNo ?? "");
     setProjectTeamId(project.teamId);
     setLifecycleStatus(getProjectLifecycleStatus(project));
     setProjectMemberIds(project.memberIds ?? team.memberIds);
@@ -87,6 +89,7 @@ export function ProjectSettingsPage({
       memberIds: projectMemberIds.filter((memberId) => availableMemberIds.has(memberId)),
       teamId: projectTeamId,
       name: name.trim() || project.name,
+      projectNo: projectNo.trim() || null,
       workspace: workspace.trim() || project.workspace,
       rangeStart,
       rangeEnd,
@@ -109,6 +112,10 @@ export function ProjectSettingsPage({
 
       <div className="master-settings-summary project-settings-summary">
         <div>
+          <span>プロジェクトNo.</span>
+          <strong>{projectNo || "未設定"}</strong>
+        </div>
+        <div>
           <span>ステータス</span>
           <strong>{projectLifecycleLabels[lifecycleStatus]}</strong>
         </div>
@@ -127,6 +134,16 @@ export function ProjectSettingsPage({
           <label>
             プロジェクト名
             <input onChange={(event) => setWorkspace(event.target.value)} value={workspace} />
+          </label>
+          <label>
+            プロジェクトNo.
+            <input
+              autoComplete="off"
+              maxLength={64}
+              onChange={(event) => setProjectNo(event.target.value)}
+              placeholder="例: PJ-2026-001"
+              value={projectNo}
+            />
           </label>
           <label>
             所属チーム

@@ -18,6 +18,7 @@ export type CreateProjectFromTemplateInput = {
   members: Member[];
   projectIndex: number;
   projectName: string;
+  projectNo: string;
   startDate: string;
   teamId: string;
   templateId: ProjectTemplateId;
@@ -327,6 +328,7 @@ export function createProjectFromTemplate({
   members,
   projectIndex,
   projectName,
+  projectNo,
   startDate,
   teamId,
   templateId,
@@ -417,6 +419,7 @@ export function createProjectFromTemplate({
     lifecycleStatus: "planning",
     memberIds: members.map((member) => member.id),
     name: safeProjectName,
+    projectNo: projectNo.trim() || null,
     nextMilestone,
     rangeEnd: addWorkingDays(projectEnd, 5, calendar, includeCalendar),
     rangeStart: startDate,

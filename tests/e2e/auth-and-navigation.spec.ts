@@ -34,6 +34,12 @@ test.describe("Miraiの認証とプロジェクト導線", () => {
     });
     await expect(projectCard).toHaveCount(1);
     await expect(projectCard.locator("header strong")).toHaveText("販売管理システム刷新");
+    await expect(projectCard).toContainText("プロジェクトNo. PJ-2025-001");
+
+    await page
+      .getByPlaceholder("プロジェクトNo.・案件名・マイルストーンで検索")
+      .fill("PJ-2025-001");
+    await expect(projectCard).toBeVisible();
   });
 
   test("分析メニューからチーム分析を開き、人別とチーム別で切り替えられる", async ({ page }) => {

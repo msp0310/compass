@@ -1,10 +1,4 @@
-import type {
-  CalendarDefinition,
-  Member,
-  Project,
-  ScheduleTask,
-  Team,
-} from "../types/schedule";
+import type { CalendarDefinition, Member, Project, ScheduleTask, Team } from "../types/schedule";
 
 export const calendar: CalendarDefinition = {
   id: "jp-standard-2025",
@@ -89,6 +83,7 @@ export const teams: Team[] = [
 
 export const project: Project = {
   id: "site-renewal",
+  projectNo: "PJ-2025-001",
   teamId: "business-solutions",
   name: "SI案件 プロジェクト管理",
   workspace: "販売管理システム刷新",
@@ -435,6 +430,7 @@ export const tasks: ScheduleTask[] = [
 
 export const crmProject: Project = {
   id: "crm-integration",
+  projectNo: "PJ-2025-002",
   teamId: "business-solutions",
   name: "CRM連携基盤構築",
   workspace: "CRM連携基盤構築",
@@ -574,6 +570,7 @@ export const crmTasks: ScheduleTask[] = [
 
 export const cloudProject: Project = {
   id: "cloud-migration",
+  projectNo: "PJ-2025-003",
   teamId: "cloud-platform",
   name: "クラウド移行支援",
   workspace: "認証基盤クラウド移行",

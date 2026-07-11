@@ -5,6 +5,7 @@ import type { Team } from "../../../types/schedule";
 
 export type CreateProjectTemplateInput = {
   projectName: string;
+  projectNo: string;
   startDate: string;
   templateId: ProjectTemplateId;
   workspace: string;
@@ -29,6 +30,7 @@ export function ProjectCreateSheet({
   const [templateId, setTemplateId] = useState<ProjectTemplateId>("standard-si");
   const [workspace, setWorkspace] = useState(`新規SIプロジェクト ${nextProjectIndex}`);
   const [projectName, setProjectName] = useState("SI案件 プロジェクト管理");
+  const [projectNo, setProjectNo] = useState("");
   const [startDate, setStartDate] = useState(defaultStartDate);
 
   function submit() {
@@ -37,6 +39,7 @@ export function ProjectCreateSheet({
     if (!safeWorkspace || !safeProjectName || !startDate) return;
     onCreateProject({
       projectName: safeProjectName,
+      projectNo: projectNo.trim(),
       startDate,
       templateId,
       workspace: safeWorkspace,
@@ -61,6 +64,16 @@ export function ProjectCreateSheet({
       <label className="field-stack">
         プロジェクト名
         <input onChange={(event) => setWorkspace(event.target.value)} value={workspace} />
+      </label>
+      <label className="field-stack">
+        プロジェクトNo.
+        <input
+          autoComplete="off"
+          maxLength={64}
+          onChange={(event) => setProjectNo(event.target.value)}
+          placeholder="例: PJ-2026-001"
+          value={projectNo}
+        />
       </label>
       <label className="field-stack">
         管理名

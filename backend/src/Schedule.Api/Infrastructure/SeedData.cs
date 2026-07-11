@@ -658,7 +658,14 @@ public static class SeedData
                 rangeEnd,
                 1,
                 50,
-                "open")]);
+                "open")],
+            id switch
+            {
+                "site-renewal" => "PJ-2025-001",
+                "crm-integration" => "PJ-2025-002",
+                "cloud-migration" => "PJ-2025-003",
+                _ => null
+            });
     }
 
     private static string GetStaffingRole(string memberId) => memberId switch

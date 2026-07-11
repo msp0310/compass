@@ -1873,6 +1873,7 @@ export function AppWorkbench({
       members: templateMembers.length > 0 ? templateMembers : schedule.members,
       projectIndex: nextProjectIndex,
       projectName: input.projectName,
+      projectNo: input.projectNo,
       startDate: input.startDate,
       teamId: activeTeamId,
       templateId: input.templateId,

@@ -170,6 +170,9 @@ public sealed class ScheduleService(ScheduleDbContext db)
         existingProject.TeamId = request.Project.TeamId;
         existingProject.Name = request.Project.Name;
         existingProject.Workspace = request.Project.Workspace;
+        existingProject.ProjectNo = string.IsNullOrWhiteSpace(request.Project.ProjectNo)
+            ? null
+            : request.Project.ProjectNo.Trim();
         existingProject.LifecycleStatus = request.Project.LifecycleStatus;
         existingProject.RangeStart = request.Project.RangeStart;
         existingProject.RangeEnd = request.Project.RangeEnd;

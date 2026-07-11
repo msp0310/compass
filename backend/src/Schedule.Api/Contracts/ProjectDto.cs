@@ -15,4 +15,5 @@ public sealed record ProjectDto(
     string? ArchivedAt,
     int Version,
     IReadOnlyList<ProjectAssignmentDto>? Assignments = null,
-    IReadOnlyList<StaffingDemandDto>? StaffingDemands = null);
+    IReadOnlyList<StaffingDemandDto>? StaffingDemands = null,
+    string? ProjectNo = null);

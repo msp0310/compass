@@ -178,7 +178,14 @@ export function Topbar({
       allProjects.filter((item) => {
         if (!normalizedProjectQuery) return true;
         const team = teamById.get(item.teamId);
-        return [item.workspace, item.name, item.id, team?.name ?? "", team?.code ?? ""]
+        return [
+          item.workspace,
+          item.name,
+          item.projectNo ?? "",
+          item.id,
+          team?.name ?? "",
+          team?.code ?? "",
+        ]
           .join(" ")
           .toLowerCase()
           .includes(normalizedProjectQuery);
@@ -456,7 +463,7 @@ export function Topbar({
                         className="project-switcher-search"
                         onChange={(event) => setProjectQuery(event.target.value)}
                         onKeyDown={handleProjectSearchKeyDown}
-                        placeholder="プロジェクト・チームで検索"
+                        placeholder="プロジェクトNo.・案件名・チームで検索"
                         ref={projectSearchInputRef}
                         value={projectQuery}
                       />

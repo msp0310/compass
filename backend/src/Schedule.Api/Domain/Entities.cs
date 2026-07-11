@@ -77,6 +77,7 @@ public sealed class ProjectEntity
     public string TeamId { get; set; } = "";
     public string Name { get; set; } = "";
     public string Workspace { get; set; } = "";
+    public string? ProjectNo { get; set; }
     public string? LifecycleStatus { get; set; }
     public string RangeStart { get; set; } = "";
     public string RangeEnd { get; set; } = "";

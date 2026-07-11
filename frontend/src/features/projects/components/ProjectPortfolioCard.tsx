@@ -53,6 +53,9 @@ export function ProjectPortfolioCard({
         <div>
           <span>{item.team?.name ?? item.project.teamId}</span>
           <strong>{item.project.workspace}</strong>
+          <small className="portfolio-project-no">
+            プロジェクトNo. {item.project.projectNo || "未設定"}
+          </small>
         </div>
         <div className="portfolio-card-actions">
           <select

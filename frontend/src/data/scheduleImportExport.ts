@@ -1319,6 +1319,8 @@ function parseProject(value: unknown): Project {
             readString(id, "project.memberIds"),
           ),
     name: readString(record.name, "project.name"),
+    projectNo:
+      record.projectNo == null ? undefined : readString(record.projectNo, "project.projectNo"),
     nextMilestone: {
       date: readDate(nextMilestone.date, "project.nextMilestone.date"),
       title: readString(nextMilestone.title, "project.nextMilestone.title"),

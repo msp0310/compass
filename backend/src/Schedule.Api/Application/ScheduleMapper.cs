@@ -92,7 +92,8 @@ public static class ScheduleMapper
                     demand.RequiredCount,
                     demand.AllocationPercent,
                     demand.Status))
-                .ToArray());
+                .ToArray(),
+            entity.ProjectNo);
     }
 
     /// <summary>タスクエンティティと関連付けをAPI DTOへ変換します。</summary>
@@ -245,6 +246,7 @@ public static class ScheduleMapper
             TeamId = dto.TeamId,
             Name = dto.Name,
             Workspace = dto.Workspace,
+            ProjectNo = string.IsNullOrWhiteSpace(dto.ProjectNo) ? null : dto.ProjectNo.Trim(),
             LifecycleStatus = dto.LifecycleStatus,
             RangeStart = dto.RangeStart,
             RangeEnd = dto.RangeEnd,

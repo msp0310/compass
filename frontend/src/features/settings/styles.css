@@ -716,6 +716,7 @@
 
 .project-settings-summary {
   max-width: 980px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .project-settings-content {

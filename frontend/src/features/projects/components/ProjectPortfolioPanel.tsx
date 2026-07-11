@@ -292,7 +292,7 @@ export function ProjectPortfolioPanel({
           <input
             aria-label="プロジェクト検索"
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="案件名・マイルストーン・遅延タスクで検索"
+            placeholder="プロジェクトNo.・案件名・マイルストーンで検索"
             value={query}
           />
         </label>
@@ -492,6 +492,7 @@ function matchesPortfolioQuery(item: ProjectPortfolioItem, query: string) {
   return [
     item.project.workspace,
     item.project.name,
+    item.project.projectNo ?? "",
     item.team?.name ?? "",
     projectLifecycleLabels[item.lifecycleStatus],
     item.nextMilestone.title,

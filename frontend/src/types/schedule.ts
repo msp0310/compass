@@ -83,6 +83,7 @@ export type Team = {
 
 export type Project = {
   id: string;
+  projectNo?: string | null;
   teamId: string;
   name: string;
   workspace: string;
