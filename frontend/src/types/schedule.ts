@@ -245,7 +245,18 @@ export type DailyReport = {
   submittedAt?: string;
   createdAt: string;
   updatedAt: string;
+  unreadCommentCount?: number;
   version: number;
+};
+
+export type DailyReportReminder = {
+  id: string;
+  teamId: string;
+  date: string;
+  recipientMemberId: string;
+  senderName: string;
+  createdAt: string;
+  readAt?: string;
 };
 
 export type TaskAssigneeAllocation = {

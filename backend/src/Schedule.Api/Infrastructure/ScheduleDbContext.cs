@@ -16,6 +16,8 @@ public sealed class ScheduleDbContext(DbContextOptions<ScheduleDbContext> option
     public DbSet<ProjectMemberEntity> ProjectMembers => Set<ProjectMemberEntity>();
     public DbSet<ProjectWorkLogEntity> ProjectWorkLogs => Set<ProjectWorkLogEntity>();
     public DbSet<DailyReportEntity> DailyReports => Set<DailyReportEntity>();
+    public DbSet<DailyReportReadEntity> DailyReportReads => Set<DailyReportReadEntity>();
+    public DbSet<DailyReportReminderEntity> DailyReportReminders => Set<DailyReportReminderEntity>();
     public DbSet<ProjectAssignmentEntity> ProjectAssignments => Set<ProjectAssignmentEntity>();
     public DbSet<StaffingDemandEntity> StaffingDemands => Set<StaffingDemandEntity>();
     public DbSet<AttachmentEntity> Attachments => Set<AttachmentEntity>();
@@ -49,6 +51,7 @@ public sealed class ScheduleDbContext(DbContextOptions<ScheduleDbContext> option
         modelBuilder.Entity<CalendarHolidayEntity>().HasKey(entity => new { entity.CalendarId, entity.Date });
         modelBuilder.Entity<TaskAssignmentEntity>().HasKey(entity => new { entity.TaskId, entity.MemberId });
         modelBuilder.Entity<TaskDependencyEntity>().HasKey(entity => new { entity.TaskId, entity.DependsOnTaskId });
+        modelBuilder.Entity<DailyReportReadEntity>().HasKey(entity => new { entity.ReportId, entity.UserId });
 
         modelBuilder.Entity<ProjectEntity>()
             .HasOne(entity => entity.Calendar)
@@ -112,6 +115,10 @@ public sealed class ScheduleDbContext(DbContextOptions<ScheduleDbContext> option
         modelBuilder.Entity<ProjectWorkLogEntity>().HasIndex(entity => new { entity.ProjectId, entity.Date });
         modelBuilder.Entity<ProjectWorkLogEntity>().HasIndex(entity => entity.DailyReportId);
         modelBuilder.Entity<DailyReportEntity>().HasIndex(entity => new { entity.MemberId, entity.Date }).IsUnique();
+        modelBuilder.Entity<DailyReportReminderEntity>()
+            .HasIndex(entity => new { entity.TeamId, entity.Date, entity.RecipientMemberId });
+        modelBuilder.Entity<DailyReportReminderEntity>()
+            .HasIndex(entity => new { entity.RecipientMemberId, entity.ReadAt });
         modelBuilder.Entity<ProjectAssignmentEntity>().HasIndex(entity => new { entity.ProjectId, entity.MemberId });
         modelBuilder.Entity<StaffingDemandEntity>().HasIndex(entity => new { entity.ProjectId, entity.Status });
         modelBuilder.Entity<AttachmentEntity>().HasIndex(entity => new

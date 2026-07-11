@@ -1,6 +1,9 @@
 import {
   ArrowRightIcon,
+  BellAlertIcon,
   CheckCircleIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   ClockIcon,
   ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
@@ -11,8 +14,10 @@ import type { DailyReport, Member } from "../../../types/schedule";
 import * as styles from "./TeamDailyReportsView.css";
 
 type TeamDailyReportsViewProps = {
+  canManage: boolean;
   members: Member[];
   onOpenReport: (report: DailyReport) => void;
+  onRemind: (date: string, memberIds: string[]) => Promise<void>;
   reports: DailyReport[];
   schedules: ScheduleSnapshot[];
   teamName: string;
@@ -21,14 +26,18 @@ type TeamDailyReportsViewProps = {
 
 /** チーム全員の日報提出状況と案件別実績を日付単位で確認します。 */
 export function TeamDailyReportsView({
+  canManage,
   members,
   onOpenReport,
+  onRemind,
   reports,
   schedules,
   teamName,
   todayKey,
 }: TeamDailyReportsViewProps) {
   const [selectedDate, setSelectedDate] = useState(todayKey);
+  const [selectedMemberIds, setSelectedMemberIds] = useState<Set<string>>(new Set());
+  const [sending, setSending] = useState(false);
   const dateOptions = useMemo(
     () => [...new Set([todayKey, ...reports.map((report) => report.date)])].sort().reverse(),
     [reports, todayKey],
@@ -38,6 +47,27 @@ export function TeamDailyReportsView({
   const submitted = reportsForDate.filter((report) => report.status === "submitted").length;
   const totalHours = reportsForDate.reduce((sum, report) => sum + sumHours(report), 0);
   const blockerCount = reportsForDate.filter((report) => report.blockers?.trim()).length;
+  const missingMemberIds = members
+    .filter((member) => !reportByMember.has(member.id))
+    .map((member) => member.id);
+
+  function moveDate(days: number) {
+    const date = new Date(`${selectedDate}T00:00:00`);
+    date.setDate(date.getDate() + days);
+    setSelectedDate(date.toISOString().slice(0, 10));
+    setSelectedMemberIds(new Set());
+  }
+
+  async function remindSelected() {
+    if (selectedMemberIds.size === 0) return;
+    setSending(true);
+    try {
+      await onRemind(selectedDate, [...selectedMemberIds]);
+      setSelectedMemberIds(new Set());
+    } finally {
+      setSending(false);
+    }
+  }
 
   return (
     <section className={styles.teamView} aria-label="みんなの日報">
@@ -46,16 +76,45 @@ export function TeamDailyReportsView({
           <strong>{formatLongDate(selectedDate)}</strong>
           <span>{teamName}の作業内容と提出状況</span>
         </div>
-        <label className={styles.datePicker}>
-          <span>対象日</span>
-          <select value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)}>
-            {dateOptions.map((date) => (
-              <option key={date} value={date}>
-                {formatLongDate(date)}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className={styles.toolbarActions}>
+          {canManage && missingMemberIds.length > 0 ? (
+            <button
+              className={styles.remindButton}
+              disabled={selectedMemberIds.size === 0 || sending}
+              onClick={remindSelected}
+              type="button"
+            >
+              <BellAlertIcon />
+              {selectedMemberIds.size > 0
+                ? `${selectedMemberIds.size}名へリマインド`
+                : "未提出者を選択"}
+            </button>
+          ) : null}
+          <div className={styles.dateNavigation} aria-label="日付移動">
+            <button aria-label="前日" onClick={() => moveDate(-1)} type="button">
+              <ChevronLeftIcon />
+            </button>
+            <button onClick={() => setSelectedDate(todayKey)} type="button">
+              今日
+            </button>
+            <button aria-label="翌日" onClick={() => moveDate(1)} type="button">
+              <ChevronRightIcon />
+            </button>
+          </div>
+          <label className={styles.datePicker}>
+            <span>対象日</span>
+            <select value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)}>
+              {!dateOptions.includes(selectedDate) ? (
+                <option value={selectedDate}>{formatLongDate(selectedDate)}</option>
+              ) : null}
+              {dateOptions.map((date) => (
+                <option key={date} value={date}>
+                  {formatLongDate(date)}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
       </header>
 
       <div className={styles.summaryGrid}>
@@ -83,7 +142,21 @@ export function TeamDailyReportsView({
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>メンバー</th>
+              <th>
+                {canManage && missingMemberIds.length > 0 ? (
+                  <input
+                    aria-label="未提出者をすべて選択"
+                    checked={selectedMemberIds.size === missingMemberIds.length}
+                    onChange={(event) =>
+                      setSelectedMemberIds(
+                        event.target.checked ? new Set(missingMemberIds) : new Set(),
+                      )
+                    }
+                    type="checkbox"
+                  />
+                ) : null}
+                メンバー
+              </th>
               <th>提出</th>
               <th>本日のまとめ</th>
               <th>案件</th>
@@ -96,12 +169,29 @@ export function TeamDailyReportsView({
             {members.map((member) => {
               const report = reportByMember.get(member.id);
               const projectNames = report
-                ? [...new Set(report.entries.map((entry) => projectName(entry.projectId, schedules)))]
+                ? [
+                    ...new Set(
+                      report.entries.map((entry) => projectName(entry.projectId, schedules)),
+                    ),
+                  ]
                 : [];
               return (
                 <tr key={member.id} className={!report ? styles.missingRow : undefined}>
                   <td>
                     <div className={styles.memberCell}>
+                      {canManage && !report ? (
+                        <input
+                          aria-label={`${member.name}をリマインド対象に選択`}
+                          checked={selectedMemberIds.has(member.id)}
+                          onChange={(event) => {
+                            const next = new Set(selectedMemberIds);
+                            if (event.target.checked) next.add(member.id);
+                            else next.delete(member.id);
+                            setSelectedMemberIds(next);
+                          }}
+                          type="checkbox"
+                        />
+                      ) : null}
                       <span>{member.initials}</span>
                       <div>
                         <strong>{member.name}</strong>
@@ -122,7 +212,14 @@ export function TeamDailyReportsView({
                       {report?.status === "submitted" ? "提出済み" : report ? "下書き" : "未提出"}
                     </span>
                   </td>
-                  <td className={styles.summaryCell}>{report?.summary || "報告はまだありません"}</td>
+                  <td className={styles.summaryCell}>
+                    {report?.summary || "報告はまだありません"}
+                    {report?.unreadCommentCount ? (
+                      <small className={styles.unread}>
+                        {report.unreadCommentCount}件の未読コメント
+                      </small>
+                    ) : null}
+                  </td>
                   <td>
                     <div className={styles.projectList}>
                       {projectNames.length > 0
@@ -183,7 +280,9 @@ function SummaryCard({
 }
 
 function projectName(projectId: string, schedules: ScheduleSnapshot[]) {
-  return schedules.find((schedule) => schedule.project.id === projectId)?.project.workspace ?? projectId;
+  return (
+    schedules.find((schedule) => schedule.project.id === projectId)?.project.workspace ?? projectId
+  );
 }
 
 function sumHours(report: DailyReport) {

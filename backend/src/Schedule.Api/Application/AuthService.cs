@@ -233,7 +233,7 @@ public sealed class AuthService(ScheduleDbContext db)
     /// <summary>永続化エンティティから認証レスポンス用DTOへ変換します。</summary>
     public static AuthUserDto MapUser(UserEntity user)
     {
-        return new AuthUserDto(user.Id, user.Email, user.Name, user.Role);
+        return new AuthUserDto(user.Id, user.MemberId, user.Email, user.Name, user.Role);
     }
 
     /// <summary>AuthorizationヘッダーからBearerトークンを安全に取り出します。</summary>

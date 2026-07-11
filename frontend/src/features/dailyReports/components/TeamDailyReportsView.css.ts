@@ -20,6 +20,31 @@ export const datePicker = style({
   fontSize: 10,
   fontWeight: 800,
 });
+export const toolbarActions = style({ display: "flex", alignItems: "center", gap: 8 });
+export const dateNavigation = style({
+  display: "inline-flex",
+  height: 34,
+  alignItems: "center",
+  overflow: "hidden",
+  border: "1px solid #cdd8e6",
+  borderRadius: 6,
+  background: "#fff",
+});
+export const remindButton = style({
+  display: "inline-flex",
+  height: 34,
+  alignItems: "center",
+  gap: 5,
+  border: "1px solid #abc1ef",
+  borderRadius: 6,
+  color: "#2057c6",
+  background: "#f2f6ff",
+  padding: "0 10px",
+  fontSize: 9,
+  fontWeight: 900,
+  cursor: "pointer",
+  selectors: { "&:disabled": { cursor: "default", opacity: 0.5 } },
+});
 export const summaryGrid = style({
   display: "grid",
   gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
@@ -58,7 +83,18 @@ export const table = style({
 });
 export const missingRow = style({ background: "#fafbfd" });
 export const memberCell = style({ display: "flex", alignItems: "center", gap: 9 });
-export const summaryCell = style({ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" });
+export const summaryCell = style({
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+});
+export const unread = style({
+  display: "block",
+  marginTop: 3,
+  color: "#245ed6",
+  fontSize: 8,
+  fontWeight: 900,
+});
 export const projectList = style({ display: "flex", minWidth: 0, flexWrap: "wrap", gap: 4 });
 export const hoursCell = style({ color: "#20334f", fontWeight: 900 });
 export const submitted = style({
@@ -104,6 +140,7 @@ export const openButton = style({
 });
 
 globalStyle(`${toolbar} > div`, { display: "grid", gap: 3 });
+globalStyle(`${toolbar} > ${toolbarActions}`, { display: "flex" });
 globalStyle(`${toolbar} > div > strong`, { color: "#263750", fontSize: 14 });
 globalStyle(`${toolbar} > div > span`, { color: "#7b899c", fontSize: 10, fontWeight: 700 });
 globalStyle(`${datePicker} select`, {
@@ -117,6 +154,23 @@ globalStyle(`${datePicker} select`, {
   fontSize: 10,
   fontWeight: 800,
 });
+globalStyle(`${dateNavigation} > button`, {
+  display: "grid",
+  height: "100%",
+  minWidth: 30,
+  placeItems: "center",
+  border: 0,
+  borderRight: "1px solid #dde5ef",
+  color: "#53657e",
+  background: "transparent",
+  padding: "0 8px",
+  fontSize: 9,
+  fontWeight: 800,
+  cursor: "pointer",
+});
+globalStyle(`${dateNavigation} > button:last-child`, { borderRight: 0 });
+globalStyle(`${dateNavigation} svg`, { width: 13, height: 13 });
+globalStyle(`${remindButton} svg`, { width: 14, height: 14 });
 globalStyle(`${summaryCard} > span`, {
   display: "grid",
   width: 34,
@@ -162,7 +216,11 @@ globalStyle(`${memberCell} > span`, {
   fontWeight: 900,
 });
 globalStyle(`${memberCell} > div`, { display: "grid", gap: 2, minWidth: 0 });
-globalStyle(`${memberCell} strong`, { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" });
+globalStyle(`${memberCell} strong`, {
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+});
 globalStyle(`${memberCell} small`, { color: "#8490a2", fontSize: 8 });
 globalStyle(`${projectList} > span`, {
   maxWidth: "100%",

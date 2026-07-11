@@ -25,7 +25,10 @@ export const viewSwitch = style({
   overflow: "hidden",
   background: "#fff",
 });
-export const viewSwitchActive = style({ color: "#174dbd !important", background: "#edf4ff !important" });
+export const viewSwitchActive = style({
+  color: "#174dbd !important",
+  background: "#edf4ff !important",
+});
 export const layout = style({
   display: "grid",
   gridTemplateColumns: "190px minmax(0, 1fr)",
@@ -266,6 +269,7 @@ export const actualSummary = style({
   color: "#40516a",
   fontSize: 10,
 });
+export const actualWarning = style({ color: "#b75b18", fontSize: 9, fontWeight: 800 });
 export const comments = style({ display: "grid", gap: 8 });
 export const comment = style({
   display: "grid",

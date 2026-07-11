@@ -6,6 +6,7 @@ export { ApiRequestError as AuthRequestError } from "./apiClient";
 export type AuthUser = {
   email: string;
   id: string;
+  memberId?: string | null;
   name: string;
   role: string;
 };

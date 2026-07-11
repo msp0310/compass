@@ -9,8 +9,15 @@ public static class DailyReportEndpoints
     public static IEndpointRouteBuilder MapDailyReportEndpoints(this IEndpointRouteBuilder app)
     {
         var reports = app.MapGroup("/api/daily-reports");
-        reports.MapGet("/", async (DailyReportService service, CancellationToken cancellationToken) =>
-            Results.Ok(await service.ListAsync(cancellationToken)));
+        reports.MapGet("/", async (
+            string? teamId,
+            HttpContext context,
+            DailyReportService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (context.Items["CurrentUser"] is not AuthUserDto user) return Results.Unauthorized();
+            return Results.Ok(await service.ListAsync(user, teamId, cancellationToken));
+        });
 
         reports.MapPut("/{reportId}", async (
             string reportId,
@@ -37,13 +44,93 @@ public static class DailyReportEndpoints
             {
                 return Results.Conflict(new { message = "日報が更新されています。", currentVersion = conflict.CurrentVersion });
             }
+            catch (UnauthorizedAccessException error)
+            {
+                return Results.Json(new { message = error.Message }, statusCode: StatusCodes.Status403Forbidden);
+            }
+        });
+
+        reports.MapPost("/{reportId}/comments", async (
+            string reportId,
+            HttpContext context,
+            AddDailyReportCommentRequest request,
+            DailyReportService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (context.Items["CurrentUser"] is not AuthUserDto user) return Results.Unauthorized();
+            if (string.IsNullOrWhiteSpace(request.Body)) return Results.BadRequest();
+            var report = await service.AddCommentAsync(reportId, request, user, cancellationToken);
+            return report is null ? Results.NotFound() : Results.Ok(report);
+        });
+
+        reports.MapPost("/{reportId}/read", async (
+            string reportId,
+            HttpContext context,
+            DailyReportService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (context.Items["CurrentUser"] is not AuthUserDto user) return Results.Unauthorized();
+            return await service.MarkReadAsync(reportId, user, cancellationToken)
+                ? Results.NoContent()
+                : Results.NotFound();
+        });
+
+        reports.MapGet("/reminders", async (
+            HttpContext context,
+            DailyReportService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (context.Items["CurrentUser"] is not AuthUserDto user) return Results.Unauthorized();
+            return Results.Ok(await service.ListRemindersAsync(user, cancellationToken));
+        });
+
+        reports.MapPost("/reminders", async (
+            HttpContext context,
+            SendDailyReportReminderRequest request,
+            DailyReportService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (context.Items["CurrentUser"] is not AuthUserDto user) return Results.Unauthorized();
+            try
+            {
+                return Results.Ok(await service.SendRemindersAsync(request, user, cancellationToken));
+            }
+            catch (UnauthorizedAccessException error)
+            {
+                return Results.Json(new { message = error.Message }, statusCode: StatusCodes.Status403Forbidden);
+            }
+        });
+
+        reports.MapPost("/reminders/{reminderId}/read", async (
+            string reminderId,
+            HttpContext context,
+            DailyReportService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (context.Items["CurrentUser"] is not AuthUserDto user) return Results.Unauthorized();
+            return await service.MarkReminderReadAsync(reminderId, user, cancellationToken)
+                ? Results.NoContent()
+                : Results.NotFound();
         });
 
         reports.MapDelete("/{reportId}", async (
             string reportId,
+            HttpContext context,
             DailyReportService service,
             CancellationToken cancellationToken) =>
-            await service.DeleteAsync(reportId, cancellationToken) ? Results.NoContent() : Results.NotFound());
+        {
+            if (context.Items["CurrentUser"] is not AuthUserDto user) return Results.Unauthorized();
+            try
+            {
+                return await service.DeleteAsync(reportId, user, cancellationToken)
+                    ? Results.NoContent()
+                    : Results.NotFound();
+            }
+            catch (UnauthorizedAccessException error)
+            {
+                return Results.Json(new { message = error.Message }, statusCode: StatusCodes.Status403Forbidden);
+            }
+        });
         return app;
     }
 }

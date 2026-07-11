@@ -223,6 +223,29 @@ public sealed class DailyReportEntity
     public int Version { get; set; } = 1;
 }
 
+/// <summary>日報コメントのユーザー別既読位置です。</summary>
+public sealed class DailyReportReadEntity
+{
+    public string ReportId { get; set; } = "";
+    public string UserId { get; set; } = "";
+    public int CommentCount { get; set; }
+    public string ReadAt { get; set; } = "";
+}
+
+/// <summary>未提出の日報に対するチーム内リマインドです。</summary>
+public sealed class DailyReportReminderEntity
+{
+    [Key]
+    public string Id { get; set; } = "";
+    public string TeamId { get; set; } = "";
+    public string Date { get; set; } = "";
+    public string RecipientMemberId { get; set; } = "";
+    public string SenderUserId { get; set; } = "";
+    public string SenderName { get; set; } = "";
+    public string CreatedAt { get; set; } = "";
+    public string? ReadAt { get; set; }
+}
+
 /// <summary>プロジェクトに適用する稼働カレンダーのエンティティです。</summary>
 public sealed class CalendarEntity
 {

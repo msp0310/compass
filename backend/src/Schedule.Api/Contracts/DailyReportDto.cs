@@ -14,4 +14,5 @@ public sealed record DailyReportDto(
     string? SubmittedAt,
     string CreatedAt,
     string UpdatedAt,
-    int Version);
+    int Version,
+    int UnreadCommentCount);

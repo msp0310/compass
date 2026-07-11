@@ -18,6 +18,7 @@ import {
   buildWorkspaceConfigChangeReview,
 } from "../lib/changeReview";
 import { type AuthUser } from "../data/authRepository";
+import { listDailyReportReminders } from "../data/dailyReportRepository";
 import { type ProjectSummary, type ScheduleSnapshot } from "../data/scheduleRepository";
 import { apiScheduleRepository } from "../data/apiScheduleRepository";
 import { createProjectFromTemplate } from "../data/projectTemplates";
@@ -55,6 +56,7 @@ import type {
   ActivityLogEntry,
   ActivityTone,
   CalendarDefinition,
+  DailyReportReminder,
   GanttScale,
   GanttTimeUnit,
   Member,
@@ -344,6 +346,7 @@ export function AppWorkbench({
   const [activeTeamId, setActiveTeamId] = useState(initialAppState.activeTeamId);
   const [activeProjectId, setActiveProjectId] = useState(initialAppState.activeProjectId);
   const [activeTab, setActiveTab] = useState<ViewTab>(initialAppState.activeTab);
+  const [dailyReportReminders, setDailyReportReminders] = useState<DailyReportReminder[]>([]);
   const [filters, setFilters] = useState<ScheduleFilters>(initialAppState.filters);
   const [collapsedIdsByProject, setCollapsedIdsByProject] = useState<Record<string, string[]>>(
     initialAppState.collapsedIdsByProject,
@@ -351,6 +354,17 @@ export function AppWorkbench({
   const [filterOpen, setFilterOpen] = useState(initialAppState.filterOpen);
   const [calendarAware, setCalendarAware] = useState(initialAppState.calendarAware);
   const [columnVisibility, setColumnVisibility] = useState(initialAppState.columnVisibility);
+  useEffect(() => {
+    let active = true;
+    listDailyReportReminders()
+      .then((items) => {
+        if (active) setDailyReportReminders(items);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [activeTab]);
   const {
     pendingProjectImport,
     pendingTaskCsvImport,
@@ -798,8 +812,14 @@ export function AppWorkbench({
               tone: "warning" as const,
             }
           : null,
+      ...dailyReportReminders.map((reminder) => ({
+        detail: `${reminder.date} / ${reminder.senderName}から届きました`,
+        id: reminder.id,
+        title: "日報の提出をお願いします",
+        tone: "warning" as const,
+      })),
     ].filter((notification): notification is TopbarNotification => Boolean(notification));
-  }, [healthReport, resourceRows, tasks]);
+  }, [dailyReportReminders, healthReport, resourceRows, tasks]);
   const currentDraft = useMemo(
     () =>
       createPersistableDraft({
@@ -2753,6 +2773,7 @@ export function AppWorkbench({
               project={schedule.project}
               tasks={tasks}
               todayKey={todayKey}
+              workLogs={schedule.workLogs ?? []}
             />
           ) : null}
           {showMainProjectViews && activeTab === "Issues" ? (
