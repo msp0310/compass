@@ -138,6 +138,14 @@ test.describe("Miraiの認証とプロジェクト導線", () => {
     await dailyReport.getByRole("button", { name: "コメントを追加" }).click();
     await expect(dailyReport.getByText("確認しました。明日の対応もお願いします。")).toBeVisible();
 
+    await dailyReport.getByRole("button", { name: "みんなの日報" }).click();
+    const teamReports = dailyReport.getByRole("region", { name: "みんなの日報" });
+    await expect(teamReports).toContainText("1 / 6名");
+    await expect(teamReports.getByRole("row", { name: /山田 健太/ })).toContainText(
+      "基本設計レビューを実施しました。",
+    );
+    await expect(teamReports.getByRole("row", { name: /伊藤 大輔/ })).toContainText("未提出");
+
     const savedReports = (await (
       await request.get("/api/daily-reports", { headers })
     ).json()) as Array<{ date: string; id: string; memberId: string }>;

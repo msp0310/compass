@@ -15,6 +15,17 @@ export const description = style({
   fontSize: 12,
   fontWeight: 700,
 });
+export const pageActions = style({ display: "flex", alignItems: "center", gap: 10 });
+export const viewSwitch = style({
+  display: "inline-flex",
+  height: 34,
+  alignItems: "center",
+  border: "1px solid #cbd8e9",
+  borderRadius: 6,
+  overflow: "hidden",
+  background: "#fff",
+});
+export const viewSwitchActive = style({ color: "#174dbd !important", background: "#edf4ff !important" });
 export const layout = style({
   display: "grid",
   gridTemplateColumns: "190px minmax(0, 1fr)",
@@ -287,6 +298,18 @@ export const message = style({
 });
 
 globalStyle(`${iconButton} > svg`, { width: 15, height: 15 });
+globalStyle(`${viewSwitch} > button`, {
+  height: "100%",
+  border: 0,
+  borderRight: "1px solid #dbe3ee",
+  color: "#5f6f86",
+  background: "transparent",
+  padding: "0 12px",
+  fontSize: 10,
+  fontWeight: 800,
+  cursor: "pointer",
+});
+globalStyle(`${viewSwitch} > button:last-child`, { borderRight: 0 });
 globalStyle(`${markdownField} > textarea`, {
   minHeight: 112,
   resize: "vertical",

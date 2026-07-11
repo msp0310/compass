@@ -19,6 +19,7 @@ import type {
   WorkLogCategory,
 } from "../../../types/schedule";
 import { MarkdownPreview } from "../../../components/common/MarkdownPreview";
+import { TeamDailyReportsView } from "./TeamDailyReportsView";
 import * as styles from "./DailyReportPage.css";
 
 type DailyReportPageProps = {
@@ -43,12 +44,19 @@ export function DailyReportPage({ currentUser, schedules, todayKey }: DailyRepor
   const [draft, setDraft] = useState<DailyReport | null>(null);
   const [comment, setComment] = useState("");
   const [message, setMessage] = useState("読み込み中...");
+  const [viewMode, setViewMode] = useState<"mine" | "team">("mine");
   const members = useMemo(() => collectMembers(schedules), [schedules]);
   const currentMember = members.find((member) => member.name === currentUser.name) ?? members[0];
+  const personalReports = useMemo(
+    () => reports.filter((report) => report.memberId === currentMember?.id),
+    [currentMember?.id, reports],
+  );
   const visibleReports = useMemo(
     () =>
-      draft && !reports.some((report) => report.id === draft.id) ? [draft, ...reports] : reports,
-    [draft, reports],
+      draft && !personalReports.some((report) => report.id === draft.id)
+        ? [draft, ...personalReports]
+        : personalReports,
+    [draft, personalReports],
   );
 
   useEffect(() => {
@@ -87,6 +95,11 @@ export function DailyReportPage({ currentUser, schedules, todayKey }: DailyRepor
   function selectReport(report: DailyReport) {
     setSelectedId(report.id);
     setDraft(structuredClone(report));
+  }
+
+  function openTeamReport(report: DailyReport) {
+    selectReport(report);
+    setViewMode("mine");
   }
 
   async function persist(status: DailyReport["status"] = draft?.status ?? "draft") {
@@ -154,12 +167,40 @@ export function DailyReportPage({ currentUser, schedules, todayKey }: DailyRepor
           <h2 className={styles.heading}>日報</h2>
           <span className={styles.description}>一日の作業をまとめ、案件・タスク別の実績へ反映</span>
         </div>
-        <button className={styles.primaryButton} onClick={createReport} type="button">
-          <PlusIcon className={styles.buttonIcon} />
-          日報を作成
-        </button>
+        <div className={styles.pageActions}>
+          <div className={styles.viewSwitch} aria-label="日報表示">
+            <button
+              className={viewMode === "mine" ? styles.viewSwitchActive : ""}
+              onClick={() => setViewMode("mine")}
+              type="button"
+            >
+              自分の日報
+            </button>
+            <button
+              className={viewMode === "team" ? styles.viewSwitchActive : ""}
+              onClick={() => setViewMode("team")}
+              type="button"
+            >
+              みんなの日報
+            </button>
+          </div>
+          {viewMode === "mine" ? (
+            <button className={styles.primaryButton} onClick={createReport} type="button">
+              <PlusIcon className={styles.buttonIcon} />
+              日報を作成
+            </button>
+          ) : null}
+        </div>
       </header>
-      <div className={styles.layout}>
+      {viewMode === "team" ? (
+        <TeamDailyReportsView
+          members={members}
+          onOpenReport={openTeamReport}
+          reports={reports}
+          schedules={schedules}
+          todayKey={todayKey}
+        />
+      ) : <div className={styles.layout}>
         <aside className={styles.reportList} aria-label="日報一覧">
           <div className={styles.listHeading}>
             <strong>最近の日報</strong>
@@ -202,7 +243,7 @@ export function DailyReportPage({ currentUser, schedules, todayKey }: DailyRepor
             <span>入力した作業時間は案件実績へ自動反映されます。</span>
           </div>
         )}
-      </div>
+      </div>}
       {message && reports.length > 0 ? <div className={styles.message}>{message}</div> : null}
     </section>
   );
