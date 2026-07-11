@@ -205,6 +205,45 @@ test.describe("Miraiの認証とプロジェクト導線", () => {
     await expect.poll(() => taskBar.evaluate((element) => element.style.left)).toBe(originalLeft);
   });
 
+  test("複数選択したガントバーをまとめてドラッグ移動できる", async ({ page }) => {
+    await login(page);
+    const projectCard = page.locator("article.portfolio-card").filter({
+      hasText: "販売管理システム刷新",
+    });
+    await projectCard.getByRole("button", { name: "Ganttへ" }).click();
+
+    const firstRow = page.locator('.task-table-row[data-task-id="db-if-design"]');
+    const secondRow = page.locator('.task-table-row[data-task-id="basic-review"]');
+    await firstRow.click();
+    await secondRow.click({ modifiers: ["Meta"] });
+    await expect(firstRow).toHaveClass(/selected/);
+    await expect(secondRow).toHaveClass(/selected/);
+
+    const firstBar = page.locator('.timeline-canvas .gantt-bar[data-task-id="db-if-design"]');
+    const secondBar = page.locator('.timeline-canvas .gantt-bar[data-task-id="basic-review"]');
+    const firstBefore = await firstBar.boundingBox();
+    const secondBefore = await secondBar.boundingBox();
+    if (!firstBefore || !secondBefore) throw new Error("複数移動するバーが見つかりません。");
+
+    await page.mouse.move(
+      firstBefore.x + firstBefore.width / 2,
+      firstBefore.y + firstBefore.height / 2,
+    );
+    await page.mouse.down();
+    await page.mouse.move(firstBefore.x + firstBefore.width / 2 + 24, firstBefore.y + 6);
+    await expect(page.locator(".drag-preview-bubble")).toContainText("2件");
+    await page.mouse.up();
+
+    const firstAfter = await firstBar.boundingBox();
+    const secondAfter = await secondBar.boundingBox();
+    expect(firstAfter).not.toBeNull();
+    expect(secondAfter).not.toBeNull();
+    const firstDelta = (firstAfter?.x ?? 0) - firstBefore.x;
+    const secondDelta = (secondAfter?.x ?? 0) - secondBefore.x;
+    expect(firstDelta).toBeGreaterThan(0);
+    expect(secondDelta).toBeCloseTo(firstDelta, 0);
+  });
+
   test("タスク表示をガントと表で切り替えられる", async ({ page }) => {
     await login(page);
     const projectCard = page.locator("article.portfolio-card").filter({

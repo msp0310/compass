@@ -33,6 +33,7 @@ type TimelineGridProps = {
   onBodyScroll: () => void;
   onTaskContextMenu: (taskId: string, event: MouseEvent<HTMLElement>) => void;
   onMoveTask: (taskId: string, deltaDays: number) => void;
+  onMoveSelectedTasks: (deltaDays: number) => void;
   onOpenTaskInspector: (taskId: string) => void;
   onResizeTask: (taskId: string, edge: "start" | "end", deltaDays: number) => void;
   onSelectTask: (taskId: string, options?: { additive?: boolean; range?: boolean }) => void;
@@ -60,6 +61,7 @@ export function TimelineGrid({
   onBodyScroll,
   onTaskContextMenu,
   onMoveTask,
+  onMoveSelectedTasks,
   onOpenTaskInspector,
   onResizeTask,
   onSelectTask,
@@ -169,6 +171,7 @@ export function TimelineGrid({
               members={members}
               key={task.id}
               onMoveTask={onMoveTask}
+              onMoveSelectedTasks={onMoveSelectedTasks}
               onResizeTask={onResizeTask}
               onContextMenu={(event) => onTaskContextMenu(task.id, event)}
               onOpenInspector={() => onOpenTaskInspector(task.id)}
@@ -176,6 +179,7 @@ export function TimelineGrid({
               dependencyIssues={dependencyIssueByTaskId.get(task.id) ?? []}
               searchMatched={taskMatchesQuery(task, query)}
               selected={selectedTaskIds.has(task.id)}
+              selectedTaskCount={selectedTaskIds.size}
               task={task}
               timeUnit={timeUnit}
               timeline={timeline}
@@ -247,6 +251,7 @@ type TimelineRowProps = {
   index: number;
   members: Member[];
   onMoveTask: (taskId: string, deltaDays: number) => void;
+  onMoveSelectedTasks: (deltaDays: number) => void;
   onContextMenu: (event: MouseEvent<HTMLElement>) => void;
   onOpenInspector: () => void;
   onResizeTask: (taskId: string, edge: "start" | "end", deltaDays: number) => void;
@@ -254,6 +259,7 @@ type TimelineRowProps = {
   dependencyIssues: DependencyIssue[];
   searchMatched: boolean;
   selected: boolean;
+  selectedTaskCount: number;
   task: TaskRow;
   timeUnit: GanttTimeUnit;
   timeline: TimelineDay[];
@@ -265,6 +271,7 @@ function TimelineRow({
   index,
   members,
   onMoveTask,
+  onMoveSelectedTasks,
   onContextMenu,
   onOpenInspector,
   onResizeTask,
@@ -272,6 +279,7 @@ function TimelineRow({
   dependencyIssues,
   searchMatched,
   selected,
+  selectedTaskCount,
   task,
   timeUnit,
   timeline,
@@ -342,7 +350,14 @@ function TimelineRow({
     if ((mode === "move" && !canMove) || (mode !== "move" && !canResize)) {
       return;
     }
-    onSelect(getSelectionOptions(event));
+    const selectionOptions = getSelectionOptions(event);
+    const moveSelectionTogether =
+      mode === "move" &&
+      selected &&
+      selectedTaskCount > 1 &&
+      !selectionOptions.additive &&
+      !selectionOptions.range;
+    onSelect(selectionOptions);
     event.preventDefault();
     event.stopPropagation();
     const element = event.currentTarget.closest(".gantt-bar, .milestone") as HTMLElement | null;
@@ -372,10 +387,13 @@ function TimelineRow({
       const lineSlot =
         mode === "end" ? span.offset + span.duration + deltaUnits : span.offset + deltaUnits;
       const lineLeft = clamp(lineSlot, 0, timeline.length) * dayWidth;
-      const label = formatDragPreviewLabel(mode, deltaUnits, timeUnit, {
+      const previewLabel = formatDragPreviewLabel(mode, deltaUnits, timeUnit, {
         end: nextEnd,
         start: nextStart,
       });
+      const label = moveSelectionTogether
+        ? `${selectedTaskCount}件・${previewLabel}`
+        : previewLabel;
       const previewPx = deltaUnits * dayWidth;
 
       element.dataset.dragPreview = label;
@@ -487,7 +505,9 @@ function TimelineRow({
       cleanup();
       if (!active || latestDelta === 0) return;
       if (mode === "move") {
-        onMoveTask(task.id, getDateDeltaForTimeUnit(task.start, timeUnit, latestDelta));
+        const deltaDays = getDateDeltaForTimeUnit(task.start, timeUnit, latestDelta);
+        if (moveSelectionTogether) onMoveSelectedTasks(deltaDays);
+        else onMoveTask(task.id, deltaDays);
       } else {
         onResizeTask(
           task.id,

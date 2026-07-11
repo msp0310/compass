@@ -1044,6 +1044,7 @@ export function GanttWorkbench({
             onBodyScroll={handleTimelineScroll}
             onTaskContextMenu={openTaskContextMenu}
             onMoveTask={onMoveTask}
+            onMoveSelectedTasks={onBulkDateShift}
             onOpenTaskInspector={onOpenTaskInspector}
             onResizeTask={onResizeTask}
             onSelectTask={onSelectTask}
