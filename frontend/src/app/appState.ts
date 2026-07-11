@@ -305,7 +305,8 @@ export function createInitialAppState(
     columnVisibility: normalizeColumnVisibility(draft?.columnVisibility),
     collapsedIdsByProject: draft?.collapsedIdsByProject ?? {},
     favoriteProjectIds: new Set(draft?.favoriteProjectIds ?? []),
-    filterOpen: draft?.filterOpen ?? false,
+    // フィルターは作業領域を狭めるため、起動時は常に閉じます。
+    filterOpen: false,
     filters: draft?.filters ?? initialFilters,
     resourceDisplaySettings: draft?.resourceDisplaySettings ?? defaultResourceDisplaySettings,
     resourceScope: draft?.resourceScope ?? "project",

@@ -1673,6 +1673,7 @@ export function AppWorkbench({
       setShowCreateSheet(false);
       setShowProjectCreateSheet(false);
       setShowShortcutHelp(false);
+      setFilterOpen(false);
       if (options.updateHash !== false) {
         writeProjectHash(loadedSchedule.project.id, options.historyMode ?? "push");
       }
