@@ -35,22 +35,22 @@ type NavSubItem = {
 
 const globalNavItems: NavItem[] = [
   { label: "案件一覧", icon: FolderOpenIcon, tab: "Projects" },
-  { label: "稼働・要員計画", icon: UserGroupIcon, tab: "Workload" },
   { label: "日報", icon: DocumentTextIcon, tab: "DailyReports" },
-  { label: "マイ分析", icon: ChartBarIcon, tab: "PersonalAnalytics" },
+  {
+    children: [
+      { label: "個人分析", tab: "PersonalAnalytics" },
+      { label: "プロジェクト分析", tab: "Analysis" },
+      { label: "チーム分析", tab: "Workload" },
+    ],
+    label: "分析",
+    icon: ChartBarIcon,
+    tab: "PersonalAnalytics",
+  },
 ];
 
 const projectNavItems: NavItem[] = [
   { label: "概要", icon: HomeIcon, tab: "Status" },
-  {
-    children: [
-      { label: "プロジェクト分析", tab: "Analysis" },
-      { label: "週次報告", tab: "WeeklyReport" },
-    ],
-    label: "分析",
-    icon: ChartBarIcon,
-    tab: "Analysis",
-  },
+  { label: "週次報告", icon: ChartBarIcon, tab: "WeeklyReport" },
   { label: "ガント", icon: ListBulletIcon, tab: "Gantt" },
   { label: "課題", icon: ExclamationTriangleIcon, tab: "Issues" },
   { label: "作業時間", icon: WrenchScrewdriverIcon, tab: "WorkLogs" },

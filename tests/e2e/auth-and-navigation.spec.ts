@@ -36,13 +36,16 @@ test.describe("Miraiの認証とプロジェクト導線", () => {
     await expect(projectCard.locator("header strong")).toHaveText("販売管理システム刷新");
   });
 
-  test("全案件の稼働・要員計画を人別とチーム別で切り替えられる", async ({ page }) => {
+  test("分析メニューからチーム分析を開き、人別とチーム別で切り替えられる", async ({ page }) => {
     await login(page);
-    await page.getByRole("button", { name: "稼働・要員計画", exact: true }).click();
+    await page.getByRole("button", { name: "分析", exact: true }).click();
+    await page.getByRole("button", { name: "チーム分析", exact: true }).click();
 
-    const workload = page.getByRole("region", { name: "稼働・要員計画" });
+    const workload = page.getByRole("region", { name: "チーム分析・要員計画" });
     await expect(workload).toBeVisible();
-    await expect(page.getByRole("heading", { name: "稼働・要員計画", level: 1 })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "チーム分析・要員計画", level: 1 }),
+    ).toBeVisible();
     await expect(workload.getByText("表示メンバー")).toBeVisible();
     await expect(workload.getByRole("combobox", { name: "表示チーム" })).toHaveValue("all");
     await expect(workload.getByText("2025/5 - 2026/4")).toBeVisible();
@@ -73,8 +76,9 @@ test.describe("Miraiの認証とプロジェクト導線", () => {
 
   test("要員要求から仮アサインを計画へ反映できる", async ({ page }) => {
     await login(page);
-    await page.getByRole("button", { name: "稼働・要員計画", exact: true }).click();
-    const workload = page.getByRole("region", { name: "稼働・要員計画" });
+    await page.getByRole("button", { name: "分析", exact: true }).click();
+    await page.getByRole("button", { name: "チーム分析", exact: true }).click();
+    const workload = page.getByRole("region", { name: "チーム分析・要員計画" });
 
     await workload.getByRole("button", { name: "要員要求追加" }).click();
     const demandEditor = page.getByRole("complementary", { name: "要員要求編集" });
@@ -162,8 +166,9 @@ test.describe("Miraiの認証とプロジェクト導線", () => {
     await deleteDialog.getByRole("button", { name: "キャンセル" }).click();
     await expect(deleteDialog).toHaveCount(0);
 
-    await page.getByRole("button", { name: "マイ分析", exact: true }).click();
-    const personalAnalytics = page.getByRole("region", { name: "マイ分析" });
+    await page.getByRole("button", { name: "分析", exact: true }).click();
+    await page.getByRole("button", { name: "個人分析", exact: true }).click();
+    const personalAnalytics = page.getByRole("region", { name: "個人分析" });
     await expect(personalAnalytics.getByLabel("対象年")).toHaveValue("2025");
     await expect(personalAnalytics.getByLabel("対象メンバー")).toBeVisible();
     await expect(personalAnalytics).toContainText("2025年にやったこと");

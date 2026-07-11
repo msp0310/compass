@@ -130,11 +130,11 @@ export function PersonalAnalyticsPage({
   const projectRows = buildProjectRows(allLogs, schedules);
 
   return (
-    <section className={styles.page} aria-label="マイ分析">
+    <section className={styles.page} aria-label="個人分析">
       <header className={styles.header}>
         <div>
           <span>{selectedMember?.name ?? currentUser.name}</span>
-          <h2>マイ分析</h2>
+          <h2>個人分析</h2>
           <p>日々の作業実績から、年間の活動とこれまでの案件経験を振り返ります。</p>
         </div>
         <div className={styles.pickers}>

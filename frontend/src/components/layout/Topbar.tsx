@@ -156,9 +156,9 @@ export function Topbar({
         : isDailyReportsContext
           ? "日報"
           : isPersonalAnalyticsContext
-            ? "マイ分析"
+            ? "個人分析"
             : isWorkloadContext
-              ? "稼働・要員計画"
+              ? "チーム分析・要員計画"
               : project.workspace;
   const contextLabel = isAdminContext
     ? "管理設定"
@@ -167,9 +167,9 @@ export function Topbar({
       : isDailyReportsContext
         ? "日報"
         : isPersonalAnalyticsContext
-          ? "マイ分析"
+          ? "個人分析"
           : isWorkloadContext
-            ? "稼働・要員計画"
+            ? "チーム分析"
             : "案件一覧";
   const teamById = useMemo(() => new Map(teams.map((team) => [team.id, team])), [teams]);
   const normalizedProjectQuery = projectQuery.trim().toLowerCase();

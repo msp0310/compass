@@ -22,12 +22,12 @@ const viewTabLabels: Record<ViewTab, string> = {
   Gantt: "ガント",
   Issues: "課題",
   Milestones: "マイルストーン",
-  PersonalAnalytics: "マイ分析",
+  PersonalAnalytics: "個人分析",
   Projects: "案件一覧",
   Resource: "リソース",
   Status: "概要",
   WorkLogs: "作業時間",
-  Workload: "稼働・要員計画",
+  Workload: "チーム分析",
   WeeklyReport: "週次報告",
 };
 

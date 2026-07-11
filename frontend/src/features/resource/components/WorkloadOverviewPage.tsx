@@ -244,15 +244,15 @@ export function WorkloadOverviewPage({
   }
 
   return (
-    <section className={styles.page} aria-label="稼働・要員計画">
+    <section className={styles.page} aria-label="チーム分析・要員計画">
       <header className={styles.header}>
         <div>
-          <h2 className={styles.heading}>稼働・要員計画</h2>
+          <h2 className={styles.heading}>チーム分析・要員計画</h2>
           <span className={styles.description}>
             全案件の稼働を確認し、必要な要員とアサインを週単位で計画
           </span>
         </div>
-        <div className={styles.segmented} aria-label="稼働・要員計画の表示軸">
+        <div className={styles.segmented} aria-label="チーム分析・要員計画の表示軸">
           <button
             className={`${styles.segment} ${mode === "plan" ? styles.segmentActive : ""}`}
             onClick={() => setMode("plan")}
