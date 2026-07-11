@@ -6,4 +6,5 @@ public sealed record AuthUserDto(
     string? MemberId,
     string Email,
     string Name,
-    string Role);
+    string Role,
+    bool PasswordResetRequired);

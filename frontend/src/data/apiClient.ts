@@ -23,6 +23,14 @@ export async function requestJson<T>(
   if (init?.body && !(init.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
   }
+  const method = (init?.method ?? "GET").toUpperCase();
+  if (!new Set(["GET", "HEAD", "OPTIONS"]).has(method)) {
+    const csrfToken = document.cookie
+      .split("; ")
+      .find((item) => item.startsWith("mirai_csrf="))
+      ?.slice("mirai_csrf=".length);
+    if (csrfToken) headers.set("X-CSRF-Token", decodeURIComponent(csrfToken));
+  }
 
   const controller = new AbortController();
   const timeoutId = globalThis.setTimeout(
@@ -32,6 +40,7 @@ export async function requestJson<T>(
   try {
     const response = await fetch(`${apiBaseUrl}${path}`, {
       ...init,
+      credentials: "include",
       headers,
       signal: init?.signal ?? controller.signal,
     });

@@ -3,7 +3,7 @@ namespace Schedule.Api.Contracts;
 /// <summary>ProjectDtoのAPI入出力契約です。</summary>
 public sealed record ProjectDto(
     string Id,
-    string TeamId,
+    string? TeamId,
     string Name,
     string Workspace,
     string? LifecycleStatus,
@@ -16,4 +16,5 @@ public sealed record ProjectDto(
     int Version,
     IReadOnlyList<ProjectAssignmentDto>? Assignments = null,
     IReadOnlyList<StaffingDemandDto>? StaffingDemands = null,
-    string? ProjectNo = null);
+    string? ProjectNo = null,
+    IReadOnlyList<ProjectMemberDto>? Memberships = null);

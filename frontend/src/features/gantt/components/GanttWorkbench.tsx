@@ -45,6 +45,7 @@ type GanttWorkbenchProps = {
   activeFilterCount: number;
   calendarAware: boolean;
   canPasteTask: boolean;
+  canEditPlan?: boolean;
   columnVisibility: GanttColumnVisibility;
   collapsedIds: Set<string>;
   filterOpen: boolean;
@@ -215,6 +216,7 @@ export function GanttWorkbench({
   activeFilterCount,
   calendarAware,
   canPasteTask,
+  canEditPlan = true,
   columnVisibility,
   collapsedIds,
   filterOpen,
@@ -982,10 +984,15 @@ export function GanttWorkbench({
 
   return (
     <section className="workbench">
+      {!canEditPlan ? (
+        <div className="gantt-permission-notice" role="status">
+          計画は参照専用です。担当タスクの状態・進捗・実績日は更新できます。
+        </div>
+      ) : null}
       <GanttToolbar
         activeFilterCount={activeFilterCount}
         calendarAware={calendarAware}
-        canUseTaskActions={selectedTaskCount > 0}
+        canUseTaskActions={canEditPlan && selectedTaskCount > 0}
         columnVisibility={columnVisibility}
         filterOpen={filterOpen}
         filters={filters}

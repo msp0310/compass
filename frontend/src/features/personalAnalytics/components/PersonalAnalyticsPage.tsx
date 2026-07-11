@@ -13,6 +13,7 @@ import type { DailyReport, WorkLogCategory } from "../../../types/schedule";
 import * as styles from "./PersonalAnalyticsPage.css";
 
 type PersonalAnalyticsPageProps = {
+  canViewOthers: boolean;
   currentUser: AuthUser;
   schedules: ScheduleSnapshot[];
   todayKey: string;
@@ -39,6 +40,7 @@ type PersonalLog = {
 
 /** 案件横断の作業実績から、メンバーの年次・累計活動を振り返ります。 */
 export function PersonalAnalyticsPage({
+  canViewOthers,
   currentUser,
   schedules,
   todayKey,
@@ -54,9 +56,6 @@ export function PersonalAnalyticsPage({
   const currentMember =
     members.find((item) => item.id === currentUser.memberId) ??
     members.find((item) => item.name === currentUser.name);
-  const canViewOthers =
-    ["admin", "manager"].includes(currentUser.role.toLowerCase()) ||
-    ["PM", "PL"].includes(currentMember?.role.toUpperCase() ?? "");
   const [selectedMemberId, setSelectedMemberId] = useState(currentMember?.id ?? "");
   const selectedMember =
     members.find((item) => item.id === selectedMemberId) ?? currentMember ?? members[0];

@@ -10,13 +10,15 @@ import {
   AuthRequestError,
   type SaveMemberAccountInput,
 } from "../../../data/authRepository";
+import { listAuditLogs, type AuditLog } from "../../../data/administrationRepository";
 
-type MasterSettingsSection = "teams" | "members" | "calendar";
+type MasterSettingsSection = "teams" | "members" | "calendar" | "audit";
 
 type MasterSettingsPageProps = {
   activeTeamProjectCount: number;
   baseDate: string;
   calendar: CalendarDefinition;
+  canManageMembers: boolean;
   memberAssignmentCounts: Record<string, number>;
   members: Member[];
   onCreateMember: (member: Member, teamId: string | null) => void;
@@ -45,6 +47,7 @@ export function MasterSettingsPage({
   activeTeamProjectCount,
   baseDate,
   calendar,
+  canManageMembers,
   memberAssignmentCounts,
   members,
   onCreateMember,
@@ -83,11 +86,19 @@ export function MasterSettingsPage({
   const [accountMembersError, setAccountMembersError] = useState<string | null>(null);
   const [savingUserRowKey, setSavingUserRowKey] = useState<string | null>(null);
   const [temporaryPasswords, setTemporaryPasswords] = useState<Record<string, string>>({});
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
 
   useEffect(() => {
     setEditingTeamId(team.id);
     setNewMemberTeamId(team.id);
   }, [team.id]);
+
+  useEffect(() => {
+    if (!canManageMembers && activeSection === "members") {
+      setActiveSection("teams");
+    }
+  }, [activeSection, canManageMembers]);
 
   useEffect(() => {
     setTeamName(selectedTeam.name);
@@ -122,6 +133,15 @@ export function MasterSettingsPage({
     if (activeSection !== "members") return;
     void loadMemberAccounts();
   }, [activeSection]);
+
+  useEffect(() => {
+    if (activeSection !== "audit" || !canManageMembers) return;
+    setAuditLoading(true);
+    listAuditLogs()
+      .then(setAuditLogs)
+      .catch(() => setAuditLogs([]))
+      .finally(() => setAuditLoading(false));
+  }, [activeSection, canManageMembers]);
 
   function saveTeam() {
     onSaveTeam({
@@ -163,7 +183,7 @@ export function MasterSettingsPage({
         loginEmail: trimmedEmail,
         loginEnabled: false,
         name: trimmedName,
-        permissionRole: "member",
+        permissionRole: "user",
         role: newMemberRole.trim() || "SE",
         status: "active",
       },
@@ -300,7 +320,7 @@ export function MasterSettingsPage({
           <span>{selectedTeam.name}</span>
           <h2>管理設定</h2>
         </div>
-        <strong>チーム / メンバー / カレンダー</strong>
+        <strong>{canManageMembers ? "チーム / メンバー / カレンダー / 監査ログ" : "チーム / カレンダー"}</strong>
       </div>
 
       <div className="master-settings-layout">
@@ -312,13 +332,15 @@ export function MasterSettingsPage({
           >
             チーム
           </button>
-          <button
-            className={activeSection === "members" ? "active" : ""}
-            onClick={() => setActiveSection("members")}
-            type="button"
-          >
-            メンバー
-          </button>
+          {canManageMembers ? (
+            <button
+              className={activeSection === "members" ? "active" : ""}
+              onClick={() => setActiveSection("members")}
+              type="button"
+            >
+              メンバー
+            </button>
+          ) : null}
           <button
             className={activeSection === "calendar" ? "active" : ""}
             onClick={() => setActiveSection("calendar")}
@@ -326,6 +348,15 @@ export function MasterSettingsPage({
           >
             カレンダー
           </button>
+          {canManageMembers ? (
+            <button
+              className={activeSection === "audit" ? "active" : ""}
+              onClick={() => setActiveSection("audit")}
+              type="button"
+            >
+              監査ログ
+            </button>
+          ) : null}
         </nav>
 
         <div className="master-settings-content">
@@ -449,6 +480,24 @@ export function MasterSettingsPage({
                           {member.role}
                           {!isMemberActive(member) ? " / 休止中" : ""}
                         </small>
+                        {selectedTeam.memberIds.includes(member.id) ? (
+                          <select
+                            aria-label={`${member.name}のチーム権限`}
+                            onChange={(event) =>
+                              onSaveTeam({
+                                ...selectedTeam,
+                                memberships: [
+                                  ...(selectedTeam.memberships ?? selectedTeam.memberIds.map((memberId) => ({ memberId, role: "member" as const }))).filter((item) => item.memberId !== member.id),
+                                  { memberId: member.id, role: event.target.value as "manager" | "member" },
+                                ],
+                              })
+                            }
+                            value={(selectedTeam.memberships ?? []).find((item) => item.memberId === member.id)?.role ?? "member"}
+                          >
+                            <option value="member">メンバー</option>
+                            <option value="manager">チーム管理者</option>
+                          </select>
+                        ) : null}
                       </label>
                     ))}
                   </div>
@@ -463,7 +512,7 @@ export function MasterSettingsPage({
             </>
           ) : null}
 
-          {activeSection === "members" ? (
+          {canManageMembers && activeSection === "members" ? (
             <>
               <section className="settings-card member-create-card">
                 <div className="settings-card-heading">
@@ -659,10 +708,70 @@ export function MasterSettingsPage({
               </div>
             </>
           ) : null}
+
+          {canManageMembers && activeSection === "audit" ? (
+            <section className="settings-card audit-log-card">
+              <div className="settings-card-heading">
+                <strong>監査ログ</strong>
+                <span>{auditLoading ? "読み込み中" : `直近${auditLogs.length}件`}</span>
+              </div>
+              <div className="audit-log-table-wrap">
+                <table className="audit-log-table">
+                  <thead>
+                    <tr>
+                      <th>日時</th>
+                      <th>操作者</th>
+                      <th>操作</th>
+                      <th>対象</th>
+                      <th>IP</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {auditLogs.map((log) => (
+                      <tr key={log.id}>
+                        <td>{formatAuditDate(log.createdAt)}</td>
+                        <td>{log.userName}</td>
+                        <td>{auditActionLabels[log.action] ?? log.action}</td>
+                        <td>{formatAuditTarget(log)}</td>
+                        <td>{log.ipAddress ?? "-"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {!auditLoading && auditLogs.length === 0 ? (
+                  <p className="settings-empty">監査ログはまだありません。</p>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
         </div>
       </div>
     </section>
   );
+}
+
+const auditActionLabels: Record<string, string> = {
+  "attachment.delete": "添付削除",
+  "attachment.upload": "添付追加",
+  "auth.login": "ログイン",
+  "auth.logout": "ログアウト",
+  "auth.password.change": "パスワード変更",
+  "member.account.save": "アカウント更新",
+  "member.password.reset": "パスワード再設定",
+  "project.activity.save": "案件運用データ保存",
+  "project.schedule.save": "案件計画保存",
+  "task.actual.update": "タスク実績更新",
+};
+
+function formatAuditDate(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("ja-JP");
+}
+
+function formatAuditTarget(log: AuditLog) {
+  const type = log.targetType ?? log.scopeType;
+  const id = log.targetId ?? log.scopeId;
+  return id ? `${type} / ${id}` : type;
 }
 
 function formatHolidayDate(dateKey: string) {

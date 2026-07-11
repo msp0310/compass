@@ -6,4 +6,5 @@ public sealed record TeamDto(
     string Name,
     string Code,
     string Description,
-    IReadOnlyList<string> MemberIds);
+    IReadOnlyList<string> MemberIds,
+    IReadOnlyList<TeamMemberDto>? Memberships = null);

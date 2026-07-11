@@ -11,6 +11,10 @@ import projectSettings from "./markdown/09-project-settings.md?raw";
 import adminSettings from "./markdown/10-admin-settings.md?raw";
 import importExport from "./markdown/11-import-export.md?raw";
 import issues from "./markdown/12-issues.md?raw";
+import dailyReports from "./markdown/13-daily-reports.md?raw";
+import workLogs from "./markdown/14-worklogs.md?raw";
+import analytics from "./markdown/15-analytics.md?raw";
+import permissions from "./markdown/16-permissions.md?raw";
 
 export type HelpDocumentId =
   | "overview"
@@ -25,7 +29,11 @@ export type HelpDocumentId =
   | "projectSettings"
   | "adminSettings"
   | "importExport"
-  | "issues";
+  | "issues"
+  | "dailyReports"
+  | "workLogs"
+  | "analytics"
+  | "permissions";
 
 export type HelpDocument = {
   category: "基本" | "案件" | "設定";
@@ -37,6 +45,9 @@ export type HelpDocument = {
 export const helpDocuments: HelpDocument[] = [
   { category: "基本", content: overview, id: "overview", title: "ヘルプの使い方" },
   { category: "基本", content: login, id: "login", title: "ログイン" },
+  { category: "基本", content: permissions, id: "permissions", title: "権限とセキュリティ" },
+  { category: "基本", content: dailyReports, id: "dailyReports", title: "日報" },
+  { category: "基本", content: analytics, id: "analytics", title: "分析" },
   { category: "案件", content: projects, id: "projects", title: "案件一覧" },
   { category: "案件", content: gantt, id: "gantt", title: "ガント" },
   { category: "案件", content: status, id: "status", title: "概要" },
@@ -44,6 +55,7 @@ export const helpDocuments: HelpDocument[] = [
   { category: "案件", content: calendar, id: "calendar", title: "カレンダー" },
   { category: "案件", content: milestones, id: "milestones", title: "マイルストーン" },
   { category: "案件", content: issues, id: "issues", title: "課題" },
+  { category: "案件", content: workLogs, id: "workLogs", title: "作業時間" },
   { category: "案件", content: activity, id: "activity", title: "履歴" },
   { category: "設定", content: projectSettings, id: "projectSettings", title: "案件設定" },
   { category: "設定", content: adminSettings, id: "adminSettings", title: "管理設定" },

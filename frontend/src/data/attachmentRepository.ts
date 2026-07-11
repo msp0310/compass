@@ -1,11 +1,8 @@
 import type { Attachment, AttachmentOwnerType } from "../types/schedule";
-import { authRepository } from "./authRepository";
 import { requestJson } from "./apiClient";
 
 async function requestAuthenticated<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
-  const token = authRepository.getAccessToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
   return requestJson<T>(path, { ...init, headers });
 }
 
@@ -51,10 +48,7 @@ export function deleteAttachment(projectId: string, attachmentId: string) {
 
 /** 認証付きで添付をダウンロードします。 */
 export async function downloadAttachment(attachment: Attachment) {
-  const headers = new Headers();
-  const token = authRepository.getAccessToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
-  const response = await fetch(attachment.downloadUrl, { headers });
+  const response = await fetch(attachment.downloadUrl, { credentials: "include" });
   if (!response.ok) {
     throw new Error("ファイルをダウンロードできませんでした。");
   }

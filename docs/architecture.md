@@ -25,6 +25,25 @@ Miraiの主な情報構造は `Team > Project > Task` です。
 - 担当者と依存関係も差分反映する
 - 不正な親ID、依存先、期間、重複タスクIDはAPI境界で400にする
 - 競合は409として画面の再送導線へ渡す
+- メンバーの実績入力は `PATCH /api/projects/{projectId}/tasks/{taskId}/actual` へ分離し、計画日を受け付けない
+- メンバーが案件全体保存を行う場合は計画フィンガープリントを照合し、課題・コメント・本人の作業時間だけを反映する
+- チーム・メンバー・標準カレンダー・案件作成は専用管理APIを正本とする
+
+## 権限境界
+
+- システム権限: `admin` / `user`
+- チーム権限: `manager` / `member`
+- 案件権限: `owner` / `planner` / `member` / `viewer`
+- 職種 `PM / PL / SE / FE / BE / QA` は表示・要員計画用で、操作権限と混在させない
+- チーム管理者だけでは案件計画を変更できず、案件 `owner` または `planner` が必要
+- メンバーは担当タスクの実績、課題、コメント、本人の作業時間を更新できる
+
+## 認証・監査
+
+- セッションは12時間のHttpOnly Cookie、変更APIはDouble Submit CookieのCSRFトークンで保護する
+- 初回・再設定後はパスワード変更を完了するまで業務APIを拒否する
+- ログインはIP単位で毎分5回に制限する
+- 案件、チーム、メンバー、実績変更を監査ログへ記録する
 
 ## SQLite運用
 
@@ -34,10 +53,12 @@ Miraiの主な情報構造は `Team > Project > Task` です。
 - 外部キー制約
 - `synchronous = NORMAL`
 
-開発用の初期アカウントとサンプル案件はDevelopment環境だけで投入します。本番環境ではスキーマだけを準備し、初期管理者の作成経路を別途用意します。
+開発用の初期アカウントとサンプル案件はDevelopment環境だけで投入します。本番の空DBでは環境変数から初期管理者を一度だけ作成し、初回ログイン後のパスワード変更を必須にします。
 
 新規DBはEF Core Migrationで作成し、旧EnsureCreated DBは初回起動時にベースライン登録してから未適用Migrationを適用します。
 新しい永続化項目を追加する場合は、Migration、既存DBの更新経路、ロールバック方針をセットで用意します。
+
+本番コンテナは非rootで実行し、DBと添付を `/data` ボリュームへ保存します。`scripts/backup.sh` でSQLiteオンラインバックアップと添付を同じアーカイブへ退避します。
 
 ## フロントエンド性能
 
@@ -49,5 +70,4 @@ Miraiの主な情報構造は `Team > Project > Task` です。
 
 ## 検証基準
 
-`npm run test:e2e` で認証、案件一覧、遅延取得、Gantt操作、保存競合、入力検証を確認します。
-`npm run test:performance` では、10万案件の一覧判断、10万段階層、3,000タスクのResource集計を計測します。
+`dotnet test backend/ScheduleManager.sln` で権限境界を検証します。フロントは `npm run check` と `npm run build`、ブラウザーでCookieログイン、ガント表示、コンソールエラーを確認します。

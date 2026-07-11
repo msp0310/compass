@@ -4,6 +4,8 @@ export type ProjectStatus = "active" | "archived";
 export type ProjectLifecycleStatus = "planning" | "inProgress" | "completed";
 export type ProjectAssignmentStatus = "draft" | "confirmed";
 export type StaffingDemandStatus = "open" | "filled";
+export type ProjectRole = "owner" | "planner" | "member" | "viewer";
+export type TeamRole = "manager" | "member";
 export type ProjectIssuePriority = "critical" | "high" | "medium" | "low";
 export type ProjectIssueStatus = "open" | "inProgress" | "blocked" | "resolved" | "closed";
 export type ProjectIssueType = "bug" | "change" | "question" | "risk" | "task";
@@ -79,17 +81,40 @@ export type Team = {
   code: string;
   description: string;
   memberIds: string[];
+  memberships?: TeamMembership[];
+};
+
+export type TeamMembership = {
+  memberId: string;
+  role: TeamRole;
+};
+
+export type ProjectMembership = {
+  memberId: string;
+  role: ProjectRole;
+};
+
+export type ProjectAccess = {
+  role: ProjectRole | TeamRole | "admin";
+  canView: boolean;
+  canEditPlan: boolean;
+  canManageProject: boolean;
+  canManageStaffing: boolean;
+  canEnterActual: boolean;
+  canComment: boolean;
+  canApproveBaseline: boolean;
 };
 
 export type Project = {
   id: string;
   projectNo?: string | null;
-  teamId: string;
+  teamId: string | null;
   name: string;
   workspace: string;
   version?: number;
   lifecycleStatus?: ProjectLifecycleStatus;
   memberIds?: string[];
+  memberships?: ProjectMembership[];
   rangeStart: string;
   rangeEnd: string;
   nextMilestone: {
@@ -282,6 +307,8 @@ export type ScheduleTask = {
   dependencies?: string[];
   description?: string;
   effortHours?: number;
+  actualStart?: string;
+  actualEnd?: string;
   baselineStart?: string;
   baselineEnd?: string;
   baselineCapturedAt?: string;

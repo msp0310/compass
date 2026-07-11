@@ -20,7 +20,7 @@ export type CreateProjectFromTemplateInput = {
   projectName: string;
   projectNo: string;
   startDate: string;
-  teamId: string;
+  teamId: string | null;
   templateId: ProjectTemplateId;
   workspace: string;
 };

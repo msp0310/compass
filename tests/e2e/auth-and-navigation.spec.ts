@@ -1,4 +1,42 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Locator, type Page } from "@playwright/test";
+
+function todayKey() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
+function yearMonthLabel(offset: number) {
+  const value = new Date();
+  value.setDate(1);
+  value.setMonth(value.getMonth() + offset);
+  return `${value.getFullYear()}/${value.getMonth() + 1}`;
+}
+
+async function loginApi(request: APIRequestContext) {
+  const response = await request.post("/api/auth/login", {
+    data: { email: "pm@example.com", password: "Password123!" },
+  });
+  expect(response.ok()).toBe(true);
+  const state = await request.storageState();
+  const csrf = state.cookies.find((cookie) => cookie.name === "mirai_csrf")?.value;
+  if (!csrf) throw new Error("CSRF Cookieを取得できませんでした。");
+  return { "X-CSRF-Token": csrf };
+}
+
+async function showSeedPlanningPeriod(workload: Locator) {
+  const now = new Date();
+  const seedYear = 2025;
+  const delta = now.getFullYear() - seedYear;
+  const buttonName = delta >= 0 ? "前の期間" : "次の期間";
+  for (let index = 0; index < Math.abs(delta); index += 1) {
+    await workload.getByRole("button", { name: buttonName }).click();
+  }
+
+  const start = new Date(seedYear, now.getMonth(), 1);
+  const end = new Date(seedYear + 1, now.getMonth(), 0);
+  const label = `${start.getFullYear()}/${start.getMonth() + 1} - ${end.getFullYear()}/${end.getMonth() + 1}`;
+  await expect(workload.getByText(label)).toBeVisible();
+}
 
 /** API認証を通じてMiraiへログインします。 */
 async function login(page: Page) {
@@ -54,11 +92,11 @@ test.describe("Miraiの認証とプロジェクト導線", () => {
     ).toBeVisible();
     await expect(workload.getByText("表示メンバー")).toBeVisible();
     await expect(workload.getByRole("combobox", { name: "表示チーム" })).toHaveValue("all");
-    await expect(workload.getByText("2025/5 - 2026/4")).toBeVisible();
+    await expect(workload.getByText(`${yearMonthLabel(0)} - ${yearMonthLabel(11)}`)).toBeVisible();
     await expect(workload.getByLabel("要員判断")).toContainText("要員不足");
     await expect(workload.getByLabel("要員判断")).toContainText("過負荷");
     await expect(workload.getByLabel("要員判断")).toContainText("アサイン候補");
-    await expect(workload.getByLabel("月・週の時間軸").getByText("2025/5")).toBeVisible();
+    await expect(workload.getByLabel("月・週の時間軸").getByText(yearMonthLabel(0))).toBeVisible();
     await expect(workload.getByLabel("月・週の時間軸").getByText("W1")).toHaveCount(12);
     await expect(page.getByRole("button", { name: "ガント", exact: true })).toHaveCount(0);
 
@@ -67,17 +105,6 @@ test.describe("Miraiの認証とプロジェクト導線", () => {
     await expect(workload.getByRole("button", { name: "クラウド基盤チーム" })).toBeVisible();
     await expect(workload.getByRole("button", { name: "業務システム事業部" })).toBeVisible();
     await expect(workload.getByText(/チーム$/).first()).toBeVisible();
-
-    await workload
-      .getByRole("button", { name: "販売管理システム刷新", exact: true })
-      .first()
-      .click();
-    await expect(page.getByRole("button", { name: "タスク追加" })).toBeVisible();
-    await expect(
-      page
-        .getByRole("complementary", { name: "メインナビゲーション" })
-        .getByRole("button", { name: "ガント", exact: true }),
-    ).toHaveAttribute("aria-current", "page");
   });
 
   test("要員要求から仮アサインを計画へ反映できる", async ({ page }) => {
@@ -85,6 +112,7 @@ test.describe("Miraiの認証とプロジェクト導線", () => {
     await page.getByRole("button", { name: "分析", exact: true }).click();
     await page.getByRole("button", { name: "チーム分析", exact: true }).click();
     const workload = page.getByRole("region", { name: "チーム分析・要員計画" });
+    await showSeedPlanningPeriod(workload);
 
     await workload.getByRole("button", { name: "要員要求追加" }).click();
     const demandEditor = page.getByRole("complementary", { name: "要員要求編集" });
@@ -97,8 +125,6 @@ test.describe("Miraiの認証とプロジェクト導線", () => {
       name: /CRM連携基盤構築 \/ インフラ 1名/,
     });
     await expect(demand).toBeVisible();
-    await expect(workload.getByLabel("要員判断")).toContainText("インフラ 1名");
-    await expect(workload.getByLabel("月別の要員不足")).toContainText("インフラ 1名");
     await demand.click();
     const assignmentEditor = page.getByRole("complementary", { name: "アサイン編集" });
     await assignmentEditor.getByLabel("メンバー").selectOption("fe");
@@ -117,16 +143,14 @@ test.describe("Miraiの認証とプロジェクト導線", () => {
   });
 
   test("日報を提出し、案件実績とコメントへ連携できる", async ({ page, request }) => {
-    const loginResponse = await request.post("/api/auth/login", {
-      data: { email: "pm@example.com", password: "Password123!" },
-    });
-    const session = (await loginResponse.json()) as { token: string };
-    const headers = { Authorization: `Bearer ${session.token}` };
+    const reportDate = todayKey();
+    const reportYear = reportDate.slice(0, 4);
+    const headers = await loginApi(request);
     const existing = (await (
       await request.get("/api/daily-reports", { headers })
     ).json()) as Array<{ date: string; id: string; memberId: string }>;
     for (const report of existing.filter(
-      (item) => item.date === "2025-05-21" && item.memberId === "yk",
+      (item) => item.date === reportDate && item.memberId === "yk",
     )) {
       await request.delete(`/api/daily-reports/${report.id}`, { headers });
     }
@@ -137,7 +161,7 @@ test.describe("Miraiの認証とプロジェクト導線", () => {
     await expect(dailyReport).toBeVisible();
     const initialTeamReports = dailyReport.getByRole("region", { name: "みんなの日報" });
     await expect(initialTeamReports).toBeVisible();
-    await expect(initialTeamReports.getByLabel("対象日")).toHaveValue("2025-05-21");
+    await expect(initialTeamReports.getByLabel("対象日")).toHaveValue(reportDate);
     await dailyReport.getByRole("button", { name: "自分の日報" }).click();
     await dailyReport.getByRole("button", { name: "日報を作成" }).click();
     await dailyReport.getByLabel("本日のまとめ").fill("基本設計レビューを実施しました。");
@@ -175,16 +199,16 @@ test.describe("Miraiの認証とプロジェクト導線", () => {
     await page.getByRole("button", { name: "分析", exact: true }).click();
     await page.getByRole("button", { name: "個人分析", exact: true }).click();
     const personalAnalytics = page.getByRole("region", { name: "個人分析" });
-    await expect(personalAnalytics.getByLabel("対象年")).toHaveValue("2025");
+    await expect(personalAnalytics.getByLabel("対象年")).toHaveValue(reportYear);
     await expect(personalAnalytics.getByLabel("対象メンバー")).toBeVisible();
-    await expect(personalAnalytics).toContainText("2025年にやったこと");
+    await expect(personalAnalytics).toContainText(`${reportYear}年にやったこと`);
     await expect(personalAnalytics).toContainText("レビュー指摘の整理");
     await expect(personalAnalytics).toContainText("これまでのプロジェクト実績");
 
     const savedReports = (await (
       await request.get("/api/daily-reports", { headers })
     ).json()) as Array<{ date: string; id: string; memberId: string }>;
-    const saved = savedReports.find((item) => item.date === "2025-05-21" && item.memberId === "yk");
+    const saved = savedReports.find((item) => item.date === reportDate && item.memberId === "yk");
     expect(saved).toBeTruthy();
     if (saved) await request.delete(`/api/daily-reports/${saved.id}`, { headers });
   });

@@ -18,6 +18,9 @@ public static class SeedData
     public static async Task EnsureSeededAsync(
         ScheduleDbContext db,
         bool seedDevelopmentData,
+        string? initialAdminEmail,
+        string? initialAdminPassword,
+        string? initialAdminName,
         CancellationToken cancellationToken)
     {
         await ConfigureSqliteAsync(db, cancellationToken);
@@ -39,6 +42,12 @@ public static class SeedData
         await db.Database.MigrateAsync(cancellationToken);
         if (!seedDevelopmentData)
         {
+            await EnsureInitialAdminAsync(
+                db,
+                initialAdminEmail,
+                initialAdminPassword,
+                initialAdminName,
+                cancellationToken);
             return;
         }
 
@@ -84,12 +93,14 @@ public static class SeedData
         teams[0].Members.AddRange(BusinessTeamMemberIds.Select(memberId => new TeamMemberEntity
         {
             TeamId = teams[0].Id,
-            MemberId = memberId
+            MemberId = memberId,
+            TeamRole = memberId == "yk" ? TeamRoles.Manager : TeamRoles.Member
         }));
         teams[1].Members.AddRange(CloudTeamMemberIds.Select(memberId => new TeamMemberEntity
         {
             TeamId = teams[1].Id,
-            MemberId = memberId
+            MemberId = memberId,
+            TeamRole = memberId == "yk" ? TeamRoles.Manager : TeamRoles.Member
         }));
 
         AddProject(
@@ -228,6 +239,52 @@ public static class SeedData
                 Task("cloud-switch", "cloud-root", "3. 本番切替", "phase", "notStarted", "2025-06-19", "2025-06-27", 0, ["yk", "be", "qa"], "#f7933d", true)
             ]);
 
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>空の本番DBへ環境変数で指定された初期管理者を一度だけ作成します。</summary>
+    private static async Task EnsureInitialAdminAsync(
+        ScheduleDbContext db,
+        string? email,
+        string? password,
+        string? name,
+        CancellationToken cancellationToken)
+    {
+        if (await db.Users.AnyAsync(cancellationToken)) return;
+        email = email?.Trim();
+        password = password?.Trim();
+        name = string.IsNullOrWhiteSpace(name) ? "初期管理者" : name.Trim();
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password) ||
+            password.Length is < 12 or > 128)
+        {
+            throw new InvalidOperationException(
+                "空の本番DBではSchedule:InitialAdminEmailと12文字以上のSchedule:InitialAdminPasswordが必要です。");
+        }
+
+        const string memberId = "initial-admin";
+        db.Members.Add(new MemberEntity
+        {
+            Id = memberId,
+            Name = name,
+            Initials = "ADM",
+            Role = "PM",
+            Color = "#2f6feb",
+            CapacityHours = 37.5m,
+            Status = "active"
+        });
+        db.Users.Add(new UserEntity
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            MemberId = memberId,
+            Email = email,
+            EmailNormalized = email.ToLowerInvariant(),
+            Name = name,
+            Role = SystemRoles.Admin,
+            PasswordHash = PasswordHasher.HashPassword(password),
+            IsActive = true,
+            CreatedAt = DateTimeOffset.UtcNow.ToString("O"),
+            PasswordResetRequired = true
+        });
         await db.SaveChangesAsync(cancellationToken);
     }
 
@@ -613,7 +670,7 @@ public static class SeedData
             Initials = initials,
             Role = role,
             Color = color,
-            CapacityHours = 7.5m,
+            CapacityHours = 37.5m,
             Status = "active"
         };
     }
@@ -818,7 +875,13 @@ public static class SeedData
             .Select(memberId => new ProjectMemberEntity
             {
                 ProjectId = project.Id,
-                MemberId = memberId
+                MemberId = memberId,
+                ProjectRole = memberId switch
+                {
+                    "yk" => ProjectRoles.Owner,
+                    "st" => ProjectRoles.Planner,
+                    _ => ProjectRoles.Member
+                }
             })
             .ToList();
         projectEntity.Tasks = tasks

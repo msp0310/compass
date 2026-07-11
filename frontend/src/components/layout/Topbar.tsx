@@ -172,12 +172,13 @@ export function Topbar({
             ? "チーム分析"
             : "案件一覧";
   const teamById = useMemo(() => new Map(teams.map((team) => [team.id, team])), [teams]);
+  const hasUnassignedProjects = allProjects.some((item) => item.teamId == null);
   const normalizedProjectQuery = projectQuery.trim().toLowerCase();
   const filteredProjects = useMemo(
     () =>
       allProjects.filter((item) => {
         if (!normalizedProjectQuery) return true;
-        const team = teamById.get(item.teamId);
+        const team = item.teamId ? teamById.get(item.teamId) : undefined;
         return [
           item.workspace,
           item.name,
@@ -405,6 +406,7 @@ export function Topbar({
                 }}
                 value={activeTeamId}
               >
+                {hasUnassignedProjects ? <option value="">未所属</option> : null}
                 {teams.map((team) => (
                   <option key={team.id} value={team.id}>
                     {team.name}
@@ -469,7 +471,7 @@ export function Topbar({
                       />
                       <div className="project-switcher-list">
                         {projectSwitcherItems.map((item, index) => {
-                          const team = teamById.get(item.teamId);
+                          const team = item.teamId ? teamById.get(item.teamId) : undefined;
                           const isActiveProject = item.id === project.id;
                           const isFavoriteProject = favoriteProjectIds.has(item.id);
                           const isArchivedProject = item.status === "archived";
@@ -497,7 +499,7 @@ export function Topbar({
                               <div>
                                 <strong>{item.workspace}</strong>
                                 <span>
-                                  {team?.name ?? item.teamId} / {item.name}
+                                  {team?.name ?? "未所属"} / {item.name}
                                 </span>
                               </div>
                               {isArchivedProject ? (

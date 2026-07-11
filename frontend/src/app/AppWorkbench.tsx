@@ -91,6 +91,7 @@ import { findMissingProjectIds, mergeScheduleIntoWorkspace } from "./projectLoad
 import { useTaskHistory } from "../features/gantt/hooks/useTaskHistory";
 import { useProjectActivityActions } from "../features/projects/hooks/useProjectActivityActions";
 import { useTaskActions } from "../features/gantt/hooks/useTaskActions";
+import { useTaskActualUpdater } from "../features/gantt/hooks/useTaskActualUpdater";
 import { useScheduleSync } from "./useScheduleSync";
 import { useTaskSelection } from "../features/gantt/hooks/useTaskSelection";
 import { useWorkbenchOverlays, type PendingTaskCsvImport } from "./useWorkbenchOverlays";
@@ -442,7 +443,7 @@ export function AppWorkbench({
     () =>
       projectSummaries
         .map((summary) => summary.project)
-        .filter((project) => project.teamId === activeTeamId && !isProjectArchived(project)),
+        .filter((project) => project.teamId === (activeTeamId || null) && !isProjectArchived(project)),
     [activeTeamId, projectSummaries],
   );
   const workspaceProjects = useMemo(
@@ -456,6 +457,8 @@ export function AppWorkbench({
   const schedule =
     workspace.schedules.find((snapshot) => snapshot.project.id === activeProjectId) ??
     workspace.schedules[0];
+  const canEditPlan = schedule.access?.canEditPlan ?? true;
+  const canEnterActual = schedule.access?.canEnterActual ?? true;
   const { commitTasks, initializeProject, replaceProject, redo, taskHistories, tasks, undo } =
     useTaskHistory({
       initialHistories: initialAppState.taskHistories,
@@ -523,8 +526,8 @@ export function AppWorkbench({
     taskFocusRequest,
     taskInspectorTaskId,
   } = useTaskSelection({ visibleRows });
-  const activeTeam =
-    workspace.teams.find((team) => team.id === schedule.project.teamId) ?? workspace.teams[0];
+  const activeTeam = workspace.teams.find((team) => team.id === schedule.project.teamId);
+  const managementTeam = activeTeam ?? workspace.teams[0];
   const projectMembers = useMemo(() => {
     const projectMemberIds = new Set(
       getProjectAssignedMembers({
@@ -541,12 +544,32 @@ export function AppWorkbench({
     );
     return scopedMembers.length > 0 ? scopedMembers : getActiveMembers(schedule.members);
   }, [activeTeam, schedule.members, schedule.project, tasks]);
+  const guardedCommitTasks = canEditPlan
+    ? commitTasks
+    : () => addToast({ title: "計画の編集権限がありません", tone: "warning" });
+  const updateTaskActual = useTaskActualUpdater({
+    onReplaceProject: replaceProject,
+    onToast: addToast,
+    projectId: schedule.project.id,
+    projectVersion: schedule.project.version,
+    setWorkspace,
+    tasks,
+  });
   const taskActions = useTaskActions({
+    canComment: schedule.access?.canComment ?? false,
+    canEditPlan,
+    canEnterActual,
     calendar: schedule.calendar,
     calendarAware,
     clearTaskSelection,
-    commitTasks,
+    commitTasks: guardedCommitTasks,
     onActivity: recordActivity,
+    onUpdateComment: (taskId, patch) => {
+      commitTasks((current) =>
+        current.map((task) => (task.id === taskId ? { ...task, ...patch } : task)),
+      );
+    },
+    onUpdateActual: updateTaskActual,
     onToast: addToast,
     projectMembers,
     projectRangeStart: schedule.project.rangeStart,
@@ -584,7 +607,7 @@ export function AppWorkbench({
     () =>
       currentReviewSchedules.filter(
         (snapshot) =>
-          snapshot.project.teamId === activeTeamId && !isProjectArchived(snapshot.project),
+          snapshot.project.teamId === (activeTeamId || null) && !isProjectArchived(snapshot.project),
       ),
     [activeTeamId, currentReviewSchedules],
   );
@@ -600,7 +623,7 @@ export function AppWorkbench({
     const targetTeamIds =
       activeTab === "Workload" || activeTab === "DailyReports" || activeTab === "PersonalAnalytics"
         ? workspace.teams.map((team) => team.id)
-        : [activeTeamId];
+        : [activeTeamId || null];
     const missingProjectIds = [
       ...new Set(
         targetTeamIds.flatMap((teamId) =>
@@ -1102,11 +1125,11 @@ export function AppWorkbench({
   }
 
   /** 現在の案件・チーム選択をローカル保存します。 */
-  function persistNavigationState(projectId: string, teamId: string) {
+  function persistNavigationState(projectId: string, teamId: string | null) {
     const nextSavedDraft = {
       ...savedDraftRef.current,
       activeProjectId: projectId,
-      activeTeamId: teamId,
+      activeTeamId: teamId ?? "",
     };
     const saved = saveLocalScheduleDraft(nextSavedDraft);
     savedDraftRef.current = nextSavedDraft;
@@ -1360,7 +1383,7 @@ export function AppWorkbench({
         snapshot.project.id === project.id ? { ...snapshot, project } : snapshot,
       ),
     }));
-    setActiveTeamId(project.teamId);
+    setActiveTeamId(project.teamId ?? "");
     setShowMasterSettings(false);
     setShowProjectSettings(false);
     addToast({ detail: project.workspace, title: "プロジェクト設定を保存しました" });
@@ -1509,7 +1532,7 @@ export function AppWorkbench({
       next.delete(projectId);
       return next;
     });
-    setActiveTeamId(fallbackSchedule.project.teamId);
+    setActiveTeamId(fallbackSchedule.project.teamId ?? "");
     setActiveProjectId(fallbackSchedule.project.id);
     persistNavigationState(fallbackSchedule.project.id, fallbackSchedule.project.teamId);
     writeProjectHash(fallbackSchedule.project.id, "replace");
@@ -1554,7 +1577,7 @@ export function AppWorkbench({
         };
       }),
     }));
-    setActiveTeamId(targetSchedule.project.teamId);
+    setActiveTeamId(targetSchedule.project.teamId ?? "");
     setActiveProjectId(projectId);
     persistNavigationState(projectId, targetSchedule.project.teamId);
     writeProjectHash(projectId);
@@ -1581,7 +1604,19 @@ export function AppWorkbench({
   }
 
   /** チームマスターを更新します。 */
-  function updateTeam(team: Team) {
+  async function updateTeam(team: Team) {
+    team = {
+      ...team,
+      memberships: team.memberIds.map(
+        (memberId) => team.memberships?.find((item) => item.memberId === memberId) ?? { memberId, role: "member" },
+      ),
+    };
+    try {
+      team = await apiScheduleRepository.saveTeam(team);
+    } catch (error) {
+      addToast({ detail: error instanceof Error ? error.message : "保存できませんでした。", title: "チーム設定の保存に失敗しました", tone: "warning" });
+      return;
+    }
     setWorkspace((current) => ({
       ...current,
       teams: current.teams.map((item) => (item.id === team.id ? team : item)),
@@ -1596,7 +1631,13 @@ export function AppWorkbench({
   }
 
   /** チームマスターを追加します。 */
-  function createTeam(team: Team) {
+  async function createTeam(team: Team) {
+    try {
+      team = await apiScheduleRepository.saveTeam(team);
+    } catch (error) {
+      addToast({ detail: error instanceof Error ? error.message : "追加できませんでした。", title: "チームの追加に失敗しました", tone: "warning" });
+      return;
+    }
     setWorkspace((current) => ({
       ...current,
       teams: [...current.teams, team],
@@ -1611,7 +1652,13 @@ export function AppWorkbench({
   }
 
   /** メンバー情報を更新します。 */
-  function updateMember(member: Member) {
+  async function updateMember(member: Member) {
+    try {
+      member = await apiScheduleRepository.saveMember(member);
+    } catch (error) {
+      addToast({ detail: error instanceof Error ? error.message : "保存できませんでした。", title: "メンバーの保存に失敗しました", tone: "warning" });
+      return;
+    }
     setWorkspace((current) => ({
       ...current,
       schedules: current.schedules.map((snapshot) => ({
@@ -1667,7 +1714,13 @@ export function AppWorkbench({
   }
 
   /** メンバーを追加します。 */
-  function createMember(member: Member, teamId: string | null) {
+  async function createMember(member: Member, teamId: string | null) {
+    try {
+      member = await apiScheduleRepository.saveMember(member);
+    } catch (error) {
+      addToast({ detail: error instanceof Error ? error.message : "追加できませんでした。", title: "メンバーの追加に失敗しました", tone: "warning" });
+      return;
+    }
     setWorkspace((current) => ({
       ...current,
       schedules: current.schedules.map((snapshot) => ({
@@ -1699,10 +1752,28 @@ export function AppWorkbench({
       title: `メンバーを追加: ${member.name}`,
       tone: "success",
     });
+    if (teamId) {
+      const targetTeam = workspace.teams.find((item) => item.id === teamId);
+      if (targetTeam) await updateTeam({ ...targetTeam, memberIds: Array.from(new Set([...targetTeam.memberIds, member.id])) });
+    }
   }
 
   /** チームとメンバーの所属を切り替えます。 */
-  function toggleTeamMember(teamId: string, memberId: string, enabled: boolean) {
+  async function toggleTeamMember(teamId: string, memberId: string, enabled: boolean) {
+    const target = workspace.teams.find((team) => team.id === teamId);
+    if (!target) return;
+    const savedTeam = {
+      ...target,
+      memberIds: enabled
+        ? Array.from(new Set([...target.memberIds, memberId]))
+        : target.memberIds.filter((id) => id !== memberId),
+    };
+    try {
+      await apiScheduleRepository.saveTeam(savedTeam);
+    } catch (error) {
+      addToast({ detail: error instanceof Error ? error.message : "保存できませんでした。", title: "チーム所属の更新に失敗しました", tone: "warning" });
+      return;
+    }
     setWorkspace((current) => ({
       ...current,
       teams: current.teams.map((team) => {
@@ -1725,15 +1796,32 @@ export function AppWorkbench({
   }
 
   /** チームの標準カレンダーを更新します。 */
-  function updateTeamCalendarMaster(calendar: CalendarDefinition) {
+  async function updateTeamCalendarMaster(calendar: CalendarDefinition) {
+    if (!activeTeam) {
+      addToast({ title: "未所属案件にはチーム標準カレンダーがありません", tone: "warning" });
+      return;
+    }
     const teamId = activeTeam.id;
-    const targetProjectCount = workspace.schedules.filter(
-      (snapshot) => snapshot.project.teamId === teamId,
+    try {
+      calendar = await apiScheduleRepository.saveTeamCalendar(teamId, calendar);
+    } catch (error) {
+      addToast({ detail: error instanceof Error ? error.message : "保存できませんでした。", title: "標準カレンダーの保存に失敗しました", tone: "warning" });
+      return;
+    }
+    const targetProjectCount = projectSummaries.filter(
+      (summary) => summary.project.teamId === teamId,
     ).length;
     setWorkspace((current) => ({
       ...current,
       schedules: current.schedules.map((snapshot) =>
-        snapshot.project.teamId === teamId ? { ...snapshot, calendar } : snapshot,
+        snapshot.project.teamId === teamId
+          ? { ...snapshot, calendar, project: { ...snapshot.project, version: (snapshot.project.version ?? 0) + 1 } }
+          : snapshot,
+      ),
+      projectSummaries: (current.projectSummaries ?? []).map((summary) =>
+        summary.project.teamId === teamId
+          ? { ...summary, project: { ...summary.project, version: (summary.project.version ?? 0) + 1 } }
+          : summary,
       ),
     }));
     addToast({
@@ -1791,7 +1879,7 @@ export function AppWorkbench({
       if (projectLoadRequestIdRef.current !== requestId) return;
       setWorkspace((current) => mergeScheduleIntoWorkspace(current, loadedSchedule));
       initializeProject(projectId, loadedSchedule.tasks);
-      setActiveTeamId(loadedSchedule.project.teamId);
+      setActiveTeamId(loadedSchedule.project.teamId ?? "");
       setActiveProjectId(loadedSchedule.project.id);
       persistNavigationState(loadedSchedule.project.id, loadedSchedule.project.teamId);
       clearTaskSelection();
@@ -1862,7 +1950,7 @@ export function AppWorkbench({
   }
 
   /** テンプレートからプロジェクトを作成します。 */
-  function createProject(input: CreateProjectTemplateInput) {
+  async function createProject(input: CreateProjectTemplateInput) {
     const activeTeamMemberIds = new Set(activeTeam?.memberIds ?? []);
     const templateMembers = getActiveMembers(schedule.members).filter((member) =>
       activeTeamMemberIds.has(member.id),
@@ -1875,22 +1963,29 @@ export function AppWorkbench({
       projectName: input.projectName,
       projectNo: input.projectNo,
       startDate: input.startDate,
-      teamId: activeTeamId,
+      teamId: activeTeamId || null,
       templateId: input.templateId,
       workspace: input.workspace,
     });
-    const nextSummary = createProjectSummaryFromSnapshot(nextSchedule);
+    let createdSchedule: ScheduleSnapshot;
+    try {
+      createdSchedule = await apiScheduleRepository.createProject(nextSchedule);
+    } catch (error) {
+      addToast({ detail: error instanceof Error ? error.message : "作成できませんでした。", title: "プロジェクトの追加に失敗しました", tone: "warning" });
+      return;
+    }
+    const nextSummary = createProjectSummaryFromSnapshot(createdSchedule);
     setWorkspace((current) => ({
       ...current,
       projectSummaries: [...(current.projectSummaries ?? []), nextSummary],
-      schedules: [...current.schedules, nextSchedule],
+      schedules: [...current.schedules, createdSchedule],
     }));
-    replaceProject(nextSchedule.project.id, nextSchedule.tasks);
-    setActiveTeamId(nextSchedule.project.teamId);
-    setActiveProjectId(nextSchedule.project.id);
-    writeProjectHash(nextSchedule.project.id);
-    selectOnlyTask(nextSchedule.tasks[0]?.id ?? null);
-    setCollapsedIdsForProject(nextSchedule.project.id, new Set());
+    replaceProject(createdSchedule.project.id, createdSchedule.tasks);
+    setActiveTeamId(createdSchedule.project.teamId ?? "");
+    setActiveProjectId(createdSchedule.project.id);
+    writeProjectHash(createdSchedule.project.id);
+    selectOnlyTask(createdSchedule.tasks[0]?.id ?? null);
+    setCollapsedIdsForProject(createdSchedule.project.id, new Set());
     setActiveTab("Gantt");
     setPendingTaskCsvImport(null);
     setPendingProjectImport(null);
@@ -2255,7 +2350,7 @@ export function AppWorkbench({
           membersToCreate.length === 0
             ? current.teams
             : current.teams.map((team) =>
-                team.id === activeTeam.id
+                team.id === activeTeam?.id
                   ? {
                       ...team,
                       memberIds: uniqueStrings([
@@ -2314,7 +2409,7 @@ export function AppWorkbench({
     const projectIdChanged = importedProjectId !== imported.project.id;
     const existingTeamIds = new Set(workspace.teams.map((team) => team.id));
     const importedTeamId = imported.team?.id ?? imported.project.teamId;
-    const teamExists = existingTeamIds.has(importedTeamId);
+    const teamExists = importedTeamId != null && existingTeamIds.has(importedTeamId);
     const nextTeamId = teamExists
       ? importedTeamId
       : imported.team
@@ -2324,7 +2419,7 @@ export function AppWorkbench({
       imported.team && !teamExists
         ? {
             ...imported.team,
-            id: nextTeamId,
+            id: nextTeamId ?? imported.team.id,
           }
         : null;
     const nextTasks = normalizeSummaryTasks(imported.tasks);
@@ -2361,7 +2456,7 @@ export function AppWorkbench({
       next.delete(imported.project.id);
       return next;
     });
-    setActiveTeamId(nextTeamId);
+    setActiveTeamId(nextTeamId ?? "");
     setActiveProjectId(importedProjectId);
     writeProjectHash(importedProjectId);
     setActiveTab("Gantt");
@@ -2568,7 +2663,7 @@ export function AppWorkbench({
     (filters.assigneeId !== "all" ? 1 : 0);
   const nextProjectIndex =
     projectSummaries.filter(
-      (summary) => summary.project.teamId === activeTeamId && !isProjectArchived(summary.project),
+      (summary) => summary.project.teamId === (activeTeamId || null) && !isProjectArchived(summary.project),
     ).length + 1;
   const importExistingProject = pendingProjectImport
     ? (projectSummaries.find(
@@ -2598,6 +2693,8 @@ export function AppWorkbench({
         }
         projectSettingsOpen={showProjectSettings}
         settingsOpen={showMasterSettings}
+        showAdminSettings={currentUser.role === "admin" || (schedule.access?.canManageStaffing ?? false)}
+        showProjectSettings={schedule.access?.canManageProject ?? true}
       />
       <main className="workspace">
         {loadingProjectId || teamResourcesLoading ? (
@@ -2659,11 +2756,12 @@ export function AppWorkbench({
           teams={workspace.teams}
         />
         <Suspense fallback={<ViewLoading label="ビューを読み込み中" />}>
-          {showMasterSettings ? (
+          {showMasterSettings && managementTeam ? (
             <MasterSettingsPage
               activeTeamProjectCount={activeTeamReviewSchedules.length}
               baseDate={schedule.project.rangeStart}
               calendar={schedule.calendar}
+              canManageMembers={currentUser.role === "admin"}
               memberAssignmentCounts={memberAssignmentCounts}
               members={schedule.members}
               onCreateMember={createMember}
@@ -2673,7 +2771,7 @@ export function AppWorkbench({
               onSaveTeam={updateTeam}
               onToggleTeamMember={toggleTeamMember}
               onUpdateMemberLifecycle={updateMemberLifecycle}
-              team={activeTeam}
+              team={managementTeam}
               teams={workspace.teams}
             />
           ) : null}
@@ -2693,6 +2791,7 @@ export function AppWorkbench({
             <GanttWorkbench
               activeFilterCount={activeFilterCount}
               calendarAware={calendarAware}
+              canEditPlan={canEditPlan}
               columnVisibility={columnVisibility}
               collapsedIds={collapsedIds}
               filterOpen={filterOpen}
@@ -2856,16 +2955,26 @@ export function AppWorkbench({
               todayKey={todayKey}
             />
           ) : null}
-          {showMainProjectViews && activeTab === "DailyReports" ? (
+          {showMainProjectViews && activeTab === "DailyReports" && managementTeam ? (
             <DailyReportPage
               currentUser={currentUser}
               schedules={currentReviewSchedules}
-              team={activeTeam}
+              team={managementTeam}
               todayKey={todayKey}
             />
           ) : null}
           {showMainProjectViews && activeTab === "PersonalAnalytics" ? (
             <PersonalAnalyticsPage
+              canViewOthers={
+                currentUser.role === "admin" ||
+                workspace.teams.some((team) =>
+                  (team.memberships ?? []).some(
+                    (membership) =>
+                      membership.memberId === currentUser.memberId &&
+                      membership.role === "manager",
+                  ),
+                )
+              }
               currentUser={currentUser}
               schedules={currentReviewSchedules}
               todayKey={todayKey}
@@ -2931,6 +3040,7 @@ export function AppWorkbench({
             attachments={schedule.attachments ?? []}
             calendar={schedule.calendar}
             calendarAware={calendarAware}
+            canComment={schedule.access?.canComment ?? false}
             focusRequest={taskFocusRequest}
             members={projectMembers}
             onClose={closeTaskInspector}

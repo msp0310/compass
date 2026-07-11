@@ -71,9 +71,10 @@ export function DailyReportPage({ currentUser, schedules, team, todayKey }: Dail
     members[0];
   const canManageTeam =
     currentUser.role === "admin" ||
-    currentUser.role === "manager" ||
-    currentMember?.role === "PM" ||
-    currentMember?.role === "PL";
+    (team.memberships ?? []).some(
+      (membership) =>
+        membership.memberId === currentUser.memberId && membership.role === "manager",
+    );
   const personalReports = useMemo(
     () => reports.filter((report) => report.memberId === currentMember?.id),
     [currentMember?.id, reports],

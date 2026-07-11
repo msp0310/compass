@@ -11,12 +11,14 @@ public static class DailyReportEndpoints
         var reports = app.MapGroup("/api/daily-reports");
         reports.MapGet("/", async (
             string? teamId,
+            int? page,
+            int? pageSize,
             HttpContext context,
             DailyReportService service,
             CancellationToken cancellationToken) =>
         {
             if (context.Items["CurrentUser"] is not AuthUserDto user) return Results.Unauthorized();
-            return Results.Ok(await service.ListAsync(user, teamId, cancellationToken));
+            return Results.Ok(await service.ListAsync(user, teamId, page ?? 1, pageSize ?? 100, cancellationToken));
         });
 
         reports.MapPut("/{reportId}", async (

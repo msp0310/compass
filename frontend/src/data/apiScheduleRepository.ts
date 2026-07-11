@@ -71,6 +71,60 @@ export const apiScheduleRepository: ScheduleRepository = {
     };
   },
 
+  async createProject(schedule) {
+    await requestAuthenticatedJson(`/projects`, {
+      body: JSON.stringify({
+        calendar: schedule.calendar,
+        changeReason: "新規作成",
+        expectedVersion: null,
+        issues: schedule.issues ?? [],
+        members: schedule.members,
+        project: schedule.project,
+        tasks: schedule.tasks,
+        workLogs: schedule.workLogs ?? [],
+      }),
+      method: "POST",
+    });
+    return this.getProjectSchedule(schedule.project.id);
+  },
+
+  async saveTeam(team) {
+    return requestAuthenticatedJson(`/admin/teams/${encodeURIComponent(team.id)}`, {
+      body: JSON.stringify(team),
+      method: "PUT",
+    });
+  },
+
+  async saveMember(member) {
+    return requestAuthenticatedJson(`/admin/members/${encodeURIComponent(member.id)}`, {
+      body: JSON.stringify(member),
+      method: "PUT",
+    });
+  },
+
+  async saveTeamCalendar(teamId, calendar) {
+    return requestAuthenticatedJson(`/admin/teams/${encodeURIComponent(teamId)}/calendar`, {
+      body: JSON.stringify(calendar),
+      method: "PUT",
+    });
+  },
+
+  async updateTaskActual(projectId, taskId, actual, expectedProjectVersion) {
+    return requestAuthenticatedJson(
+      `/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/actual`,
+      {
+        body: JSON.stringify({
+          actualEnd: actual.actualEnd ?? null,
+          actualStart: actual.actualStart ?? null,
+          expectedProjectVersion: expectedProjectVersion ?? null,
+          progress: actual.progress,
+          status: actual.status,
+        }),
+        method: "PATCH",
+      },
+    );
+  },
+
   /** 選択案件の内容だけをプロジェクト単位で保存します。 */
   async saveWorkspace(
     workspace: ScheduleWorkspace,

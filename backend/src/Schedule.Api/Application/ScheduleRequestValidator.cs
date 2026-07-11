@@ -27,6 +27,11 @@ public static class ScheduleRequestValidator
             {
                 return $"タスク「{task.Title}」の期間が不正です。";
             }
+
+            if (!TryValidateActualRange(task.ActualStart, task.ActualEnd))
+            {
+                return $"タスク「{task.Title}」の実績期間が不正です。";
+            }
         }
 
         foreach (var task in request.Tasks)
@@ -47,6 +52,15 @@ public static class ScheduleRequestValidator
             projectStart > projectEnd)
         {
             return "プロジェクト期間が不正です。";
+        }
+
+        var memberships = request.Project.Memberships ?? [];
+        if (memberships.Any(membership =>
+                string.IsNullOrWhiteSpace(membership.MemberId) ||
+                !ProjectRoles.IsValid(membership.Role)) ||
+            memberships.Select(membership => membership.MemberId).Distinct().Count() != memberships.Count)
+        {
+            return "案件メンバーまたは案件内権限が不正です。";
         }
 
         foreach (var assignment in request.Project.Assignments ?? [])
@@ -77,6 +91,36 @@ public static class ScheduleRequestValidator
             return "稼働曜日の値が不正です。";
         }
 
+        foreach (var workLog in request.WorkLogs ?? [])
+        {
+            if (!DateOnly.TryParse(workLog.Date, out _) ||
+                string.IsNullOrWhiteSpace(workLog.MemberId) ||
+                workLog.Hours is < 0 or > 24 ||
+                string.IsNullOrWhiteSpace(workLog.Summary))
+            {
+                return $"作業時間「{workLog.Id}」の日付、担当者、時間、または内容が不正です。";
+            }
+        }
+
         return null;
+    }
+
+    private static bool TryValidateActualRange(string? actualStart, string? actualEnd)
+    {
+        if (actualStart is null && actualEnd is null) return true;
+        DateOnly? parsedStart = null;
+        DateOnly? parsedEnd = null;
+        if (actualStart is not null)
+        {
+            if (!DateOnly.TryParse(actualStart, out var value)) return false;
+            parsedStart = value;
+        }
+        if (actualEnd is not null)
+        {
+            if (!DateOnly.TryParse(actualEnd, out var value)) return false;
+            parsedEnd = value;
+        }
+        if (actualStart is null || actualEnd is null) return true;
+        return parsedStart <= parsedEnd;
     }
 }

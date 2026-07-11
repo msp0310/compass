@@ -7,13 +7,17 @@ using Schedule.Api.Infrastructure;
 namespace Schedule.Api.Application;
 
 /// <summary>日報と案件別作業実績を同一トランザクションで保存します。</summary>
-public sealed class DailyReportService(ScheduleDbContext db)
+public sealed class DailyReportService(
+    ScheduleDbContext db,
+    ProjectAuthorizationService projectAuthorization)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public async Task<IReadOnlyList<DailyReportDto>> ListAsync(
         AuthUserDto user,
         string? teamId,
+        int page,
+        int pageSize,
         CancellationToken cancellationToken)
     {
         var query = db.DailyReports.AsNoTracking();
@@ -28,7 +32,7 @@ public sealed class DailyReportService(ScheduleDbContext db)
                 .Select(item => item.MemberId);
             query = query.Where(report => memberIds.Contains(report.MemberId));
         }
-        else if (!await IsManagerAsync(user, cancellationToken))
+        else if (!IsSystemAdmin(user))
         {
             if (string.IsNullOrWhiteSpace(user.MemberId)) return [];
             query = query.Where(report => report.MemberId == user.MemberId);
@@ -38,6 +42,8 @@ public sealed class DailyReportService(ScheduleDbContext db)
             .AsNoTracking()
             .OrderByDescending(report => report.Date)
             .ThenBy(report => report.MemberId)
+            .Skip((Math.Max(1, page) - 1) * Math.Clamp(pageSize, 1, 200))
+            .Take(Math.Clamp(pageSize, 1, 200))
             .ToListAsync(cancellationToken);
         var reportIds = reports.Select(report => report.Id).ToArray();
         var reads = await db.DailyReportReads
@@ -53,7 +59,7 @@ public sealed class DailyReportService(ScheduleDbContext db)
         AuthUserDto user,
         CancellationToken cancellationToken)
     {
-        if (!await CanEditMemberAsync(user, request.MemberId, cancellationToken))
+        if (!CanEditMember(user, request.MemberId))
         {
             throw new UnauthorizedAccessException("この日報を編集する権限がありません。");
         }
@@ -70,6 +76,14 @@ public sealed class DailyReportService(ScheduleDbContext db)
         if (existingProjectIds.Count != projectIds.Length)
         {
             throw new ArgumentException("日報明細に存在しないプロジェクトが含まれています。");
+        }
+        foreach (var projectId in projectIds)
+        {
+            var access = await projectAuthorization.GetProjectAccessAsync(user, projectId, cancellationToken);
+            if (!access.CanView)
+            {
+                throw new UnauthorizedAccessException("参照権限のないプロジェクトは日報へ登録できません。");
+            }
         }
 
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
@@ -249,7 +263,7 @@ public sealed class DailyReportService(ScheduleDbContext db)
     {
         var report = await db.DailyReports.FirstOrDefaultAsync(item => item.Id == reportId, cancellationToken);
         if (report is null) return false;
-        if (!await CanEditMemberAsync(user, report.MemberId, cancellationToken))
+        if (!CanEditMember(user, report.MemberId))
         {
             throw new UnauthorizedAccessException("この日報を削除する権限がありません。");
         }
@@ -291,18 +305,15 @@ public sealed class DailyReportService(ScheduleDbContext db)
         entity.CreatedAt,
         entity.ReadAt);
 
-    private async Task<bool> CanEditMemberAsync(
-        AuthUserDto user,
-        string memberId,
-        CancellationToken cancellationToken) =>
-        user.MemberId == memberId || await IsManagerAsync(user, cancellationToken);
+    private static bool CanEditMember(AuthUserDto user, string memberId) =>
+        user.MemberId == memberId || IsSystemAdmin(user);
 
     private async Task<bool> CanViewMemberAsync(
         AuthUserDto user,
         string memberId,
         CancellationToken cancellationToken)
     {
-        if (user.MemberId == memberId || await IsManagerAsync(user, cancellationToken)) return true;
+        if (user.MemberId == memberId || IsSystemAdmin(user)) return true;
         if (string.IsNullOrWhiteSpace(user.MemberId)) return false;
         return await db.TeamMembers.AnyAsync(
             own => own.MemberId == user.MemberId && db.TeamMembers.Any(
@@ -314,7 +325,7 @@ public sealed class DailyReportService(ScheduleDbContext db)
         AuthUserDto user,
         string teamId,
         CancellationToken cancellationToken) =>
-        await IsManagerAsync(user, cancellationToken) ||
+        IsSystemAdmin(user) ||
         (!string.IsNullOrWhiteSpace(user.MemberId) && await db.TeamMembers.AnyAsync(
             item => item.TeamId == teamId && item.MemberId == user.MemberId,
             cancellationToken));
@@ -324,22 +335,16 @@ public sealed class DailyReportService(ScheduleDbContext db)
         string teamId,
         CancellationToken cancellationToken)
     {
-        if (await IsManagerAsync(user, cancellationToken)) return true;
+        if (IsSystemAdmin(user)) return true;
         if (string.IsNullOrWhiteSpace(user.MemberId)) return false;
         return await db.TeamMembers.AnyAsync(
             item => item.TeamId == teamId && item.MemberId == user.MemberId &&
-                (item.Member!.Role == "PM" || item.Member.Role == "PL"),
+                item.TeamRole == TeamRoles.Manager,
             cancellationToken);
     }
 
-    private async Task<bool> IsManagerAsync(AuthUserDto user, CancellationToken cancellationToken)
-    {
-        if (user.Role.Equals("admin", StringComparison.OrdinalIgnoreCase) ||
-            user.Role.Equals("manager", StringComparison.OrdinalIgnoreCase)) return true;
-        return !string.IsNullOrWhiteSpace(user.MemberId) && await db.Members.AnyAsync(
-            member => member.Id == user.MemberId && (member.Role == "PM" || member.Role == "PL"),
-            cancellationToken);
-    }
+    private static bool IsSystemAdmin(AuthUserDto user) =>
+        user.Role.Equals(SystemRoles.Admin, StringComparison.OrdinalIgnoreCase);
 }
 
 public sealed class DailyReportConflictException(int currentVersion) : Exception

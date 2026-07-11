@@ -1,26 +1,34 @@
 # API / Frontend Integration Notes
 
-## Current Implementation
+## 取得境界
 
-- Frontend bootstraps team and project-list data from `GET /api/workspace/summary`.
-- Project details are loaded on demand from `GET /api/projects/{projectId}/schedule`.
-- Project Gantt saves are scoped to one project through `PUT /api/projects/{projectId}/schedule`.
-- SQLite seed data is created by the API on first startup, so the frontend no longer needs mock data for initial display.
-- Frontend keeps localStorage as a browser cache for view state and unsaved/offline recovery, but project data is now API-originated.
-- Project `version` is returned from the API and sent back as `expectedVersion` on save for optimistic conflict checks.
+- `GET /api/workspace/summary`: チームと軽量案件集計
+- `GET /api/projects/{projectId}/schedule`: 選択案件のタスク・課題・実績・カレンダー
+- `GET /api/daily-reports?page=1&pageSize=100`: 日報のページング取得
+- 全案件の詳細をまとめるAPIは提供しない
 
-## Design Decisions
+## 更新境界
 
-- Save scope is project Gantt first. Team and master settings can become separate API endpoints later.
-- `team > project > task` remains the product model. A project may have no assigned team later, but that should be represented as `teamId: null` on the API model when implemented.
-- Schedule changes should be stored as events, not derived only from the latest task row.
-- Brabio import can stay frontend-first for preview-less XLSX parsing during prototyping, but long term the API should own import job persistence and validation results.
+- `PUT /api/projects/{projectId}/schedule`: PM / PLによる案件計画保存。メンバーは計画項目が不変の場合に限り、課題・コメント・本人の作業時間を保存
+- `PATCH /api/projects/{projectId}/tasks/{taskId}/actual`: 担当者の実績入力
+- `POST /api/projects`: 案件作成
+- `PUT /api/admin/teams/{teamId}`: チームと所属・チーム権限
+- `PUT /api/admin/members/{memberId}`: メンバーマスター
+- `PUT /api/admin/teams/{teamId}/calendar`: チーム配下案件の標準カレンダー一括反映
+- `GET /api/admin/audit-logs`: システム管理者向け監査ログ
 
-## Follow-Up Tasks
+## 認証
 
-- Add migration-based DB management instead of `EnsureCreated` before production use.
-- Split project settings, team/member master, calendar master, and task operations into narrower endpoints.
-- Add authentication and organization scoping before multi-user usage.
-- Add a conflict resolution UI for HTTP 409 responses.
-- Persist import jobs and source file metadata for Brabio migration traceability.
-- Expose schedule-change analytics APIs for PM analysis: changed task count, date delta totals, phase heatmap, and change frequency trend.
+フロントはBearerトークンを保存しません。ログインでHttpOnlyセッションCookieとCSRF Cookieを受け取り、`fetch`は`credentials: include`で送信します。GET以外は共通APIクライアントが`X-CSRF-Token`を付与します。
+
+`passwordResetRequired`が有効な場合はパスワード変更画面だけを表示し、変更後に再ログインします。
+
+## エラー
+
+- `400`: 入力値不正
+- `401`: 未ログイン・セッション切れ
+- `403`: 権限不足・CSRF失敗・パスワード変更必須
+- `409`: 楽観ロック競合
+- `429`: ログイン試行超過
+
+フロントには最上位Error Boundaryがあり、予期しない描画例外ではエラーIDと再読み込み導線を表示します。

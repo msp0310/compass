@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { LoginScreen } from "./features/auth/components/LoginScreen";
+import { PasswordChangeScreen } from "./features/auth/components/PasswordChangeScreen";
 import { AppWorkbench } from "./app/AppWorkbench";
 import { authRepository, AuthRequestError } from "./data/authRepository";
 import { apiScheduleRepository, ApiRequestError } from "./data/apiScheduleRepository";
@@ -43,6 +44,7 @@ export function App() {
   const [bootState, setBootState] = useState<AppBootState>({ status: "loading" });
   const [reloadRequestId, setReloadRequestId] = useState(0);
   const [loginSubmitting, setLoginSubmitting] = useState(false);
+  const [passwordChangeError, setPasswordChangeError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -144,12 +146,29 @@ export function App() {
     setBootState({ status: "loading" });
   }
 
+  async function changePassword(currentPassword: string, newPassword: string) {
+    setLoginSubmitting(true);
+    setPasswordChangeError(null);
+    try {
+      await authRepository.changePassword(currentPassword, newPassword);
+      setAuthState({ error: "パスワードを変更しました。もう一度ログインしてください。", status: "signedOut" });
+    } catch (error) {
+      setPasswordChangeError(error instanceof Error ? error.message : "パスワードを変更できませんでした。");
+    } finally {
+      setLoginSubmitting(false);
+    }
+  }
+
   if (authState.status === "checking") {
     return <AppBootScreen title="認証状態を確認中" />;
   }
 
   if (authState.status === "signedOut") {
     return <LoginScreen error={authState.error} loading={loginSubmitting} onLogin={login} />;
+  }
+
+  if (authState.user.passwordResetRequired) {
+    return <PasswordChangeScreen error={passwordChangeError} loading={loginSubmitting} onChangePassword={changePassword} />;
   }
 
   if (bootState.status === "loading") {

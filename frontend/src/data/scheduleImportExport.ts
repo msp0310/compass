@@ -251,16 +251,12 @@ export function createTaskCsvImportDraft(source: string): TaskCsvImportDraft {
 
 /** BrabioのXLSXを読み込み、確認画面へ渡す中間データを作成します。 */
 export async function createBrabioXlsxImportDraft(file: File): Promise<BrabioXlsxImportData> {
-  const xlsx = await import("xlsx");
-  const workbook = xlsx.read(await file.arrayBuffer(), {
-    cellDates: true,
-    type: "array",
-  });
+  const xlsx = await import("@e965/xlsx");
+  const workbook = xlsx.read(await file.arrayBuffer(), { cellDates: true, type: "array" });
   const firstSheetName = workbook.SheetNames[0];
   if (!firstSheetName) {
     throw new ProjectImportError("Brabio XLSXにシートがありません。");
   }
-
   const rows = xlsx.utils.sheet_to_json<unknown[]>(workbook.Sheets[firstSheetName], {
     blankrows: false,
     defval: "",

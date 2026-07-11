@@ -59,7 +59,7 @@ export function mergeScheduleIntoWorkspace(
 export function findMissingProjectIds(
   summaries: ProjectSummary[],
   schedules: ScheduleSnapshot[],
-  teamId: string,
+  teamId: string | null,
 ): string[] {
   const loadedProjectIds = new Set(schedules.map((schedule) => schedule.project.id));
   return summaries

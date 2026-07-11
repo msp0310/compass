@@ -16,7 +16,7 @@ type ProjectCreateSheetProps = {
   nextProjectIndex: number;
   onClose: () => void;
   onCreateProject: (input: CreateProjectTemplateInput) => void;
-  team: Team;
+  team?: Team;
 };
 
 /** テンプレートから新しいプロジェクトを作成する画面です。 */
@@ -55,10 +55,10 @@ export function ProjectCreateSheet({
         </button>
       </div>
       <div className="project-create-team">
-        <span>{team.code}</span>
+        <span>{team?.code ?? "未"}</span>
         <div>
-          <strong>{team.name}</strong>
-          <small>{team.memberIds.length}名のチーム</small>
+          <strong>{team?.name ?? "未所属"}</strong>
+          <small>{team ? `${team.memberIds.length}名のチーム` : "所属チームなし"}</small>
         </div>
       </div>
       <label className="field-stack">

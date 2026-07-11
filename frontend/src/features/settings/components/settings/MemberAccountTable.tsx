@@ -50,8 +50,7 @@ type MemberAccountRowProps = {
 
 const roleOptions = [
   { label: "管理者", value: "admin" },
-  { label: "マネージャー", value: "manager" },
-  { label: "メンバー", value: "member" },
+  { label: "一般ユーザー", value: "user" },
 ];
 
 /** メンバーのログイン情報と管理者権限を一覧で管理します。 */
@@ -713,11 +712,10 @@ function roleLabel(role: string) {
 
 function normalizeRole(role: string) {
   const normalized = role.trim().toLowerCase();
-  if (normalized === "admin" || normalized === "manager" || normalized === "member") {
+  if (normalized === "admin" || normalized === "user") {
     return normalized;
   }
-  if (normalized === "pm" || normalized === "pl") return "manager";
-  return "member";
+  return "user";
 }
 
 function formatAvailabilityDate(dateKey: string) {

@@ -52,11 +52,16 @@ type ToastCallback = (input: {
 }) => void;
 
 type UseTaskActionsOptions = {
+  canComment: boolean;
+  canEditPlan: boolean;
+  canEnterActual: boolean;
   calendar: CalendarDefinition;
   calendarAware: boolean;
   clearTaskSelection: () => void;
   commitTasks: (updater: (current: ScheduleTask[]) => ScheduleTask[]) => void;
   onActivity: ActivityCallback;
+  onUpdateComment: (taskId: string, patch: Pick<ScheduleTask, "comments">) => void;
+  onUpdateActual: (taskId: string, patch: Partial<ScheduleTask>) => void;
   onToast: ToastCallback;
   projectMembers: Member[];
   projectRangeStart: string;
@@ -80,11 +85,16 @@ type UseTaskActionsOptions = {
  * 画面本体から日程計算・階層移動・一括操作を分離し、操作の追加やテストを容易にします。
  */
 export function useTaskActions({
+  canComment,
+  canEditPlan,
+  canEnterActual,
   calendar,
   calendarAware,
   clearTaskSelection,
   commitTasks,
   onActivity,
+  onUpdateComment,
+  onUpdateActual,
   onToast,
   projectMembers,
   projectRangeStart,
@@ -128,6 +138,19 @@ export function useTaskActions({
 
   /** updateTaskを実行します。 */
   function updateTask(taskId: string, patch: Partial<ScheduleTask>) {
+    if (!canEditPlan) {
+      if (canComment && Object.keys(patch).every((key) => key === "comments")) {
+        onUpdateComment(taskId, { comments: patch.comments });
+        return;
+      }
+      const actualKeys = new Set(["status", "progress", "actualStart", "actualEnd"]);
+      if (canEnterActual && Object.keys(patch).every((key) => actualKeys.has(key))) {
+        onUpdateActual(taskId, patch);
+        return;
+      }
+      onToast({ title: "計画の編集権限がありません", tone: "warning" });
+      return;
+    }
     commitTasks((current) => updateTaskById(current, taskId, patch, calendar, calendarAware));
   }
 

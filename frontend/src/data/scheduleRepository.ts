@@ -8,9 +8,11 @@ import type {
   ScheduleChangeLog,
   ScheduleTask,
   Team,
+  ProjectAccess,
 } from "../types/schedule";
 
 export type ScheduleSnapshot = {
+  access?: ProjectAccess;
   attachments?: Attachment[];
   calendar: CalendarDefinition;
   changeLogs?: ScheduleChangeLog[];
@@ -23,6 +25,7 @@ export type ScheduleSnapshot = {
 
 /** 案件一覧で使う、タスク明細を含まない軽量な集計です。 */
 export type ProjectSummary = {
+  access?: ProjectAccess;
   completedTaskCount: number;
   delayedTaskCount: number;
   memberCount: number;
@@ -79,6 +82,21 @@ export type ScheduleRepository = {
   getProjectSchedule(projectId: string): Promise<ScheduleSnapshot>;
   /** API接続状態を取得します。 */
   getSyncStatus(): Promise<ScheduleRepositorySyncStatus>;
+  /** 新規案件をAPIへ作成します。 */
+  createProject(schedule: ScheduleSnapshot): Promise<ScheduleSnapshot>;
+  /** チームマスターを保存します。 */
+  saveTeam(team: Team): Promise<Team>;
+  /** メンバーマスターを保存します。 */
+  saveMember(member: Member): Promise<Member>;
+  /** チーム配下案件へ標準カレンダーを一括保存します。 */
+  saveTeamCalendar(teamId: string, calendar: CalendarDefinition): Promise<CalendarDefinition>;
+  /** 計画を変更せずタスク実績だけを保存します。 */
+  updateTaskActual(
+    projectId: string,
+    taskId: string,
+    actual: Pick<ScheduleTask, "status" | "progress" | "actualStart" | "actualEnd">,
+    expectedProjectVersion?: number,
+  ): Promise<ScheduleSnapshot>;
   /** 指定案件の変更を保存します。 */
   saveWorkspace(
     workspace: ScheduleWorkspace,

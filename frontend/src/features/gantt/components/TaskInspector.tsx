@@ -37,6 +37,7 @@ type TaskInspectorProps = {
   attachments: Attachment[];
   calendar: CalendarDefinition;
   calendarAware: boolean;
+  canComment: boolean;
   focusRequest: {
     requestId: number;
     target: TaskInspectorFocusTarget;
@@ -66,6 +67,7 @@ export function TaskInspector({
   attachments,
   calendar,
   calendarAware,
+  canComment,
   focusRequest,
   members,
   onClose,
@@ -725,14 +727,14 @@ export function TaskInspector({
         </div>
         <textarea
           className="task-comment-input"
-          disabled={task.type === "summary" || task.type === "phase"}
+          disabled={!canComment || task.type === "summary" || task.type === "phase"}
           onChange={(event) => setCommentText(event.target.value)}
           placeholder="進捗メモ、確認結果、次アクションなど"
           value={commentText}
         />
         <button
           className="task-detail-primary"
-          disabled={!commentText.trim() || task.type === "summary" || task.type === "phase"}
+          disabled={!canComment || !commentText.trim() || task.type === "summary" || task.type === "phase"}
           onClick={addComment}
           type="button"
         >

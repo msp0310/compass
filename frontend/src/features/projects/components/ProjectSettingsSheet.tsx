@@ -5,7 +5,7 @@ import {
   projectLifecycleLabels,
   projectLifecycleOptions,
 } from "../../../lib/projects";
-import type { Member, Project, ProjectLifecycleStatus, Team } from "../../../types/schedule";
+import type { Member, Project, ProjectLifecycleStatus, ProjectMembership, ProjectRole, Team } from "../../../types/schedule";
 
 type ProjectSettingsPageProps = {
   activeProjectCount: number;
@@ -13,7 +13,7 @@ type ProjectSettingsPageProps = {
   onArchiveProject: (projectId: string) => void;
   onSaveProject: (project: Project) => void;
   project: Project;
-  team: Team;
+  team?: Team;
   teams: Team[];
 };
 
@@ -30,12 +30,15 @@ export function ProjectSettingsPage({
   const [name, setName] = useState(project.name);
   const [workspace, setWorkspace] = useState(project.workspace);
   const [projectNo, setProjectNo] = useState(project.projectNo ?? "");
-  const [projectTeamId, setProjectTeamId] = useState(project.teamId);
+  const [projectTeamId, setProjectTeamId] = useState(project.teamId ?? "");
   const [lifecycleStatus, setLifecycleStatus] = useState<ProjectLifecycleStatus>(
     getProjectLifecycleStatus(project),
   );
   const [projectMemberIds, setProjectMemberIds] = useState<string[]>(
-    project.memberIds ?? team.memberIds,
+    project.memberIds ?? team?.memberIds ?? [],
+  );
+  const [projectMemberships, setProjectMemberships] = useState<ProjectMembership[]>(
+    project.memberships ?? (project.memberIds ?? team?.memberIds ?? []).map((memberId) => ({ memberId, role: "member" })),
   );
   const [rangeStart, setRangeStart] = useState(project.rangeStart);
   const [rangeEnd, setRangeEnd] = useState(project.rangeEnd);
@@ -47,15 +50,16 @@ export function ProjectSettingsPage({
     setName(project.name);
     setWorkspace(project.workspace);
     setProjectNo(project.projectNo ?? "");
-    setProjectTeamId(project.teamId);
+    setProjectTeamId(project.teamId ?? "");
     setLifecycleStatus(getProjectLifecycleStatus(project));
-    setProjectMemberIds(project.memberIds ?? team.memberIds);
+    setProjectMemberIds(project.memberIds ?? team?.memberIds ?? []);
+    setProjectMemberships(project.memberships ?? (project.memberIds ?? team?.memberIds ?? []).map((memberId) => ({ memberId, role: "member" })));
     setRangeStart(project.rangeStart);
     setRangeEnd(project.rangeEnd);
     setMilestoneTitle(project.nextMilestone.title);
     setMilestoneDate(project.nextMilestone.date);
     setArchiveConfirm(false);
-  }, [project, team.memberIds]);
+  }, [project, team?.memberIds]);
 
   const invalidRange = rangeStart > rangeEnd;
   const milestoneOutside = milestoneDate < rangeStart || milestoneDate > rangeEnd;
@@ -72,22 +76,35 @@ export function ProjectSettingsPage({
     setProjectTeamId(teamId);
     const nextTeam = teams.find((item) => item.id === teamId);
     setProjectMemberIds(nextTeam?.memberIds ?? []);
+    setProjectMemberships((nextTeam?.memberIds ?? []).map((memberId) => ({ memberId, role: "member" })));
   }
 
   function toggleProjectMember(memberId: string) {
-    setProjectMemberIds((current) =>
-      current.includes(memberId) ? current.filter((id) => id !== memberId) : [...current, memberId],
-    );
+    setProjectMemberIds((current) => {
+      const enabled = !current.includes(memberId);
+      setProjectMemberships((memberships) => enabled
+        ? [...memberships.filter((item) => item.memberId !== memberId), { memberId, role: "member" }]
+        : memberships.filter((item) => item.memberId !== memberId));
+      return enabled ? [...current, memberId] : current.filter((id) => id !== memberId);
+    });
+  }
+
+  function changeProjectRole(memberId: string, role: ProjectRole) {
+    setProjectMemberships((current) => [
+      ...current.filter((item) => item.memberId !== memberId),
+      { memberId, role },
+    ]);
   }
 
   function saveProject() {
     if (invalidRange) return;
-    const availableMemberIds = new Set(selectedProjectTeam?.memberIds ?? team.memberIds);
+    const availableMemberIds = new Set(selectedProjectTeam?.memberIds ?? team?.memberIds ?? []);
     onSaveProject({
       ...project,
       lifecycleStatus,
       memberIds: projectMemberIds.filter((memberId) => availableMemberIds.has(memberId)),
-      teamId: projectTeamId,
+      memberships: projectMemberships.filter((item) => projectMemberIds.includes(item.memberId) && availableMemberIds.has(item.memberId)),
+      teamId: projectTeamId || null,
       name: name.trim() || project.name,
       projectNo: projectNo.trim() || null,
       workspace: workspace.trim() || project.workspace,
@@ -104,7 +121,7 @@ export function ProjectSettingsPage({
     <section className="project-settings-page" aria-label="プロジェクト設定">
       <div className="master-settings-page-header">
         <div>
-          <span>{team.name}</span>
+          <span>{team?.name ?? "未所属"}</span>
           <h2>プロジェクト設定</h2>
         </div>
         <strong>{project.workspace}</strong>
@@ -151,6 +168,7 @@ export function ProjectSettingsPage({
               onChange={(event) => changeProjectTeamId(event.target.value)}
               value={projectTeamId}
             >
+              <option value="">未所属</option>
               {teams.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.name}
@@ -237,6 +255,18 @@ export function ProjectSettingsPage({
                   {member.role}
                   {!isMemberActive(member) ? " / 休止中" : ""}
                 </small>
+                {projectMemberIds.includes(member.id) ? (
+                  <select
+                    aria-label={`${member.name}のプロジェクト権限`}
+                    onChange={(event) => changeProjectRole(member.id, event.target.value as ProjectRole)}
+                    value={projectMemberships.find((item) => item.memberId === member.id)?.role ?? "member"}
+                  >
+                    <option value="owner">PM / オーナー</option>
+                    <option value="planner">PL / 計画編集</option>
+                    <option value="member">メンバー / 実績入力</option>
+                    <option value="viewer">閲覧者</option>
+                  </select>
+                ) : null}
               </label>
             ))}
           </div>

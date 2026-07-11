@@ -74,6 +74,8 @@ type SidebarProps = {
   projectName: string;
   projectSettingsOpen: boolean;
   settingsOpen: boolean;
+  showAdminSettings: boolean;
+  showProjectSettings: boolean;
 };
 
 /** 全体ナビゲーションと、案件選択時だけ表示するプロジェクト操作を管理します。 */
@@ -88,6 +90,8 @@ export function Sidebar({
   projectNavigationVisible,
   projectSettingsOpen,
   settingsOpen,
+  showAdminSettings,
+  showProjectSettings,
 }: SidebarProps) {
   return (
     <aside className={styles.sidebar} aria-label="メインナビゲーション">
@@ -107,7 +111,7 @@ export function Sidebar({
             activeTab={activeTab}
             ariaLabel={`選択中案件 ${projectName} のメニュー`}
             helpOpen={helpOpen}
-            items={projectNavItems}
+            items={showProjectSettings ? projectNavItems : projectNavItems.filter((item) => item.action !== "projectSettings")}
             label="案件内"
             onMasterSettingsOpen={onMasterSettingsOpen}
             onNavigate={onNavigate}
@@ -116,7 +120,7 @@ export function Sidebar({
             settingsOpen={settingsOpen}
           />
         ) : null}
-        <NavGroup
+        {showAdminSettings ? <NavGroup
           activeTab={activeTab}
           helpOpen={helpOpen}
           items={adminNavItems}
@@ -125,7 +129,7 @@ export function Sidebar({
           onProjectSettingsOpen={onProjectSettingsOpen}
           projectSettingsOpen={projectSettingsOpen}
           settingsOpen={settingsOpen}
-        />
+        /> : null}
       </div>
       <button
         aria-current={helpOpen ? "page" : undefined}

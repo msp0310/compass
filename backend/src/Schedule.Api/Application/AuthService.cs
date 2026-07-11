@@ -9,11 +9,13 @@ namespace Schedule.Api.Application;
 /// <summary>ログイン、セッション、メンバーアカウントを扱う認証サービスです。</summary>
 public sealed class AuthService(ScheduleDbContext db)
 {
+    public const string SessionCookieName = "mirai_session";
+    public const string CsrfCookieName = "mirai_csrf";
     private static readonly TimeSpan SessionLifetime = TimeSpan.FromHours(12);
-    private const string DefaultRole = "member";
+    private const string DefaultRole = SystemRoles.User;
 
     /// <summary>有効なユーザーを認証し、ハッシュ化したトークンのセッションを発行します。</summary>
-    public async Task<AuthSessionDto?> LoginAsync(
+    public async Task<AuthLoginResult?> LoginAsync(
         string email,
         string password,
         CancellationToken cancellationToken)
@@ -48,7 +50,7 @@ public sealed class AuthService(ScheduleDbContext db)
         db.AuthSessions.Add(session);
         await db.SaveChangesAsync(cancellationToken);
 
-        return new AuthSessionDto(MapUser(user), token, session.ExpiresAt);
+        return new AuthLoginResult(new AuthSessionDto(MapUser(user), session.ExpiresAt), token, CreateToken());
     }
 
     /// <summary>メンバーと紐づくログインアカウントを管理画面向けに取得します。</summary>
@@ -233,7 +235,7 @@ public sealed class AuthService(ScheduleDbContext db)
     /// <summary>永続化エンティティから認証レスポンス用DTOへ変換します。</summary>
     public static AuthUserDto MapUser(UserEntity user)
     {
-        return new AuthUserDto(user.Id, user.MemberId, user.Email, user.Name, user.Role);
+        return new AuthUserDto(user.Id, user.MemberId, user.Email, user.Name, user.Role, user.PasswordResetRequired);
     }
 
     /// <summary>AuthorizationヘッダーからBearerトークンを安全に取り出します。</summary>
@@ -244,6 +246,30 @@ public sealed class AuthService(ScheduleDbContext db)
         return authorization.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
             ? authorization[prefix.Length..].Trim()
             : null;
+    }
+
+    /// <summary>HttpOnly Cookieを優先し、移行期間中はBearerも受け付けます。</summary>
+    public static string? GetSessionToken(HttpRequest request)
+    {
+        return request.Cookies[SessionCookieName] ?? GetBearerToken(request);
+    }
+
+    /// <summary>ログイン中ユーザーのパスワードを検証して変更します。</summary>
+    public async Task<bool> ChangePasswordAsync(
+        AuthUserDto currentUser,
+        ChangePasswordRequest request,
+        CancellationToken cancellationToken)
+    {
+        var user = await db.Users.SingleOrDefaultAsync(entity => entity.Id == currentUser.Id, cancellationToken);
+        if (user is null || !PasswordHasher.VerifyPassword(request.CurrentPassword, user.PasswordHash)) return false;
+        if (request.NewPassword.Length < 12 || request.NewPassword.Length > 128)
+            throw new ArgumentException("新しいパスワードは12文字以上128文字以下で入力してください。");
+        user.PasswordHash = PasswordHasher.HashPassword(request.NewPassword);
+        user.PasswordChangedAt = DateTimeOffset.UtcNow.ToString("O");
+        user.PasswordResetRequired = false;
+        await RevokeUserSessionsAsync(user.Id, cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
+        return true;
     }
 
     /// <summary>セッションに使用する暗号学的に安全なトークンを生成します。</summary>
@@ -262,7 +288,12 @@ public sealed class AuthService(ScheduleDbContext db)
     private static string NormalizeRole(string role)
     {
         var normalized = role.Trim().ToLowerInvariant();
-        return normalized.Length == 0 ? DefaultRole : normalized;
+        return normalized switch
+        {
+            SystemRoles.Admin => SystemRoles.Admin,
+            SystemRoles.User or "member" => SystemRoles.User,
+            _ => DefaultRole
+        };
     }
 
     /// <summary>メンバーに紐づく一意なユーザーIDを作成します。</summary>
@@ -306,6 +337,9 @@ public sealed class AuthService(ScheduleDbContext db)
             .Replace('/', '_');
     }
 }
+
+/// <summary>Cookie発行に必要な秘密値と公開セッション情報です。</summary>
+public sealed record AuthLoginResult(AuthSessionDto Session, string SessionToken, string CsrfToken);
 
 /// <summary>メンバーアカウント更新の成功、未検出、競合を表します。</summary>
 public sealed class MemberAccountMutationResult

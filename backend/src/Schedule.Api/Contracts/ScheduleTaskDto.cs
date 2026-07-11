@@ -22,4 +22,6 @@ public sealed record ScheduleTaskDto(
     string? BaselineCapturedAt,
     IReadOnlyList<TaskChecklistItemDto>? Checklist,
     IReadOnlyList<TaskCommentDto>? Comments,
-    IReadOnlyList<TaskReferenceLinkDto>? Links);
+    IReadOnlyList<TaskReferenceLinkDto>? Links,
+    string? ActualStart = null,
+    string? ActualEnd = null);

@@ -100,13 +100,14 @@ export function ProjectPortfolioPanel({
   const [filter, setFilter] = useState<PortfolioFilter>("inProgress");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<PortfolioSort>("priority");
+  const normalizedTeamId = activeTeamId || null;
   const team = teams.find((item) => item.id === activeTeamId);
   const teamSchedules = schedules.filter(
     (snapshot) =>
-      snapshot.project.teamId === activeTeamId && snapshot.project.status !== "archived",
+      snapshot.project.teamId === normalizedTeamId && snapshot.project.status !== "archived",
   );
   const teamProjectCount = projectSummaries.filter(
-    (summary) => summary.project.teamId === activeTeamId && summary.project.status !== "archived",
+    (summary) => summary.project.teamId === normalizedTeamId && summary.project.status !== "archived",
   ).length;
   const teamDetailsComplete = teamSchedules.length >= teamProjectCount;
   const schedulesByProjectId = useMemo(
@@ -118,7 +119,7 @@ export function ProjectPortfolioPanel({
       projectSummaries
         .filter(
           (summary) =>
-            summary.project.teamId === activeTeamId && summary.project.status !== "archived",
+            summary.project.teamId === normalizedTeamId && summary.project.status !== "archived",
         )
         .map((summary) => {
           const snapshot = schedulesByProjectId.get(summary.project.id);
@@ -137,7 +138,7 @@ export function ProjectPortfolioPanel({
               });
         }),
     [
-      activeTeamId,
+      normalizedTeamId,
       calendarAware,
       favoriteProjectIds,
       projectSummaries,
@@ -200,13 +201,18 @@ export function ProjectPortfolioPanel({
   const hasActiveFilter = filter !== "all" || normalizedQuery.length > 0;
   const teamCards = useMemo(
     () =>
-      teams.map((item) => ({
+      [
+        ...teams.map((item) => ({
         activeProjectCount: projectSummaries.filter(
           (summary) => summary.project.teamId === item.id && summary.project.status !== "archived",
         ).length,
         memberCount: item.memberIds.length,
         team: item,
-      })),
+        })),
+        ...(projectSummaries.some((summary) => summary.project.teamId == null)
+          ? [{ activeProjectCount: projectSummaries.filter((summary) => summary.project.teamId == null && summary.project.status !== "archived").length, memberCount: 0, team: null }]
+          : []),
+      ],
     [projectSummaries, teams],
   );
 
@@ -215,7 +221,7 @@ export function ProjectPortfolioPanel({
       <div className="portfolio-header">
         <div className="portfolio-heading">
           <span>選択中のチーム</span>
-          <h2>{team?.name ?? "チーム未設定"}</h2>
+          <h2>{team?.name ?? "未所属"}</h2>
         </div>
         <div className="portfolio-header-actions">
           <button
@@ -232,17 +238,17 @@ export function ProjectPortfolioPanel({
       <div className="portfolio-team-strip" aria-label="チーム選択">
         {teamCards.map((item) => (
           <button
-            aria-current={item.team.id === activeTeamId ? "true" : undefined}
+            aria-current={(item.team?.id ?? "") === activeTeamId ? "true" : undefined}
             className={
-              item.team.id === activeTeamId ? "portfolio-team-card active" : "portfolio-team-card"
+              (item.team?.id ?? "") === activeTeamId ? "portfolio-team-card active" : "portfolio-team-card"
             }
-            key={item.team.id}
-            onClick={() => onTeamChange(item.team.id)}
+            key={item.team?.id ?? "unassigned"}
+            onClick={() => onTeamChange(item.team?.id ?? "")}
             type="button"
           >
-            <span>{item.team.code}</span>
+            <span>{item.team?.code ?? "未"}</span>
             <div>
-              <strong>{item.team.name}</strong>
+              <strong>{item.team?.name ?? "未所属"}</strong>
               <small>
                 {item.activeProjectCount}案件 / {item.memberCount}名
               </small>

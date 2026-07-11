@@ -689,7 +689,8 @@ function formatProjectLifecycleStatus(project: Project) {
   return projectLifecycleLabels[getProjectLifecycleStatus(project)];
 }
 
-function formatTeamName(teamId: string, teams: Team[]) {
+function formatTeamName(teamId: string | null, teams: Team[]) {
+  if (teamId === null) return "未所属";
   return teams.find((team) => team.id === teamId)?.name ?? teamId;
 }
 

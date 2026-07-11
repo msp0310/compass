@@ -7,4 +7,5 @@ public sealed record ScheduleSnapshotDto(
     IReadOnlyList<MemberDto> Members,
     ProjectDto Project,
     IReadOnlyList<ScheduleTaskDto> Tasks,
-    IReadOnlyList<ProjectWorkLogDto> WorkLogs);
+    IReadOnlyList<ProjectWorkLogDto> WorkLogs,
+    ProjectAccessDto? Access = null);

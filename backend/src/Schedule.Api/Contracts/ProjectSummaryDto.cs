@@ -7,4 +7,5 @@ public sealed record ProjectSummaryDto(
     int CompletedTaskCount,
     int DelayedTaskCount,
     int Progress,
-    int MemberCount);
+    int MemberCount,
+    ProjectAccessDto? Access = null);

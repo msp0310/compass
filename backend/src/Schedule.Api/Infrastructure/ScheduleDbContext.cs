@@ -28,6 +28,7 @@ public sealed class ScheduleDbContext(DbContextOptions<ScheduleDbContext> option
     public DbSet<TaskDependencyEntity> TaskDependencies => Set<TaskDependencyEntity>();
     public DbSet<ScheduleChangeLogEntity> ScheduleChangeLogs => Set<ScheduleChangeLogEntity>();
     public DbSet<ImportJobEntity> ImportJobs => Set<ImportJobEntity>();
+    public DbSet<AuditLogEntity> AuditLogs => Set<AuditLogEntity>();
 
     /// <summary>一意制約、複合キー、削除規則、検索用インデックスを設定します。</summary>
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -48,6 +49,8 @@ public sealed class ScheduleDbContext(DbContextOptions<ScheduleDbContext> option
 
         modelBuilder.Entity<TeamMemberEntity>().HasKey(entity => new { entity.TeamId, entity.MemberId });
         modelBuilder.Entity<ProjectMemberEntity>().HasKey(entity => new { entity.ProjectId, entity.MemberId });
+        modelBuilder.Entity<TeamMemberEntity>().Property(entity => entity.TeamRole).HasDefaultValue("member");
+        modelBuilder.Entity<ProjectMemberEntity>().Property(entity => entity.ProjectRole).HasDefaultValue("member");
         modelBuilder.Entity<CalendarHolidayEntity>().HasKey(entity => new { entity.CalendarId, entity.Date });
         modelBuilder.Entity<TaskAssignmentEntity>().HasKey(entity => new { entity.TaskId, entity.MemberId });
         modelBuilder.Entity<TaskDependencyEntity>().HasKey(entity => new { entity.TaskId, entity.DependsOnTaskId });
@@ -131,5 +134,7 @@ public sealed class ScheduleDbContext(DbContextOptions<ScheduleDbContext> option
         modelBuilder.Entity<TaskEntity>().HasIndex(entity => new { entity.ProjectId, entity.Type, entity.Status });
         modelBuilder.Entity<TaskAssignmentEntity>().HasIndex(entity => entity.MemberId);
         modelBuilder.Entity<ScheduleChangeLogEntity>().HasIndex(entity => new { entity.ProjectId, entity.ChangedAt });
+        modelBuilder.Entity<AuditLogEntity>().HasIndex(entity => new { entity.ScopeType, entity.ScopeId, entity.CreatedAt });
+        modelBuilder.Entity<AuditLogEntity>().HasIndex(entity => new { entity.UserId, entity.CreatedAt });
     }
 }

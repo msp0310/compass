@@ -9,8 +9,10 @@ public sealed class ScheduleDbContextFactory : IDesignTimeDbContextFactory<Sched
     /// <summary>Migration用のSQLite接続を設定したDbContextを作成します。</summary>
     public ScheduleDbContext CreateDbContext(string[] args)
     {
+        var connectionString = Environment.GetEnvironmentVariable("SCHEDULE_DB_CONNECTION")
+            ?? "Data Source=schedule-manager.dev.db";
         var options = new DbContextOptionsBuilder<ScheduleDbContext>()
-            .UseSqlite("Data Source=design-time.db")
+            .UseSqlite(connectionString)
             .Options;
         return new ScheduleDbContext(options);
     }

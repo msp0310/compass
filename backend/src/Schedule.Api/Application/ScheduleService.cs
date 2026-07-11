@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Schedule.Api.Contracts;
 using Schedule.Api.Domain;
@@ -7,21 +8,45 @@ using Schedule.Api.Infrastructure;
 namespace Schedule.Api.Application;
 
 /// <summary>プロジェクト、タスク、カレンダーの保存境界を提供します。</summary>
-public sealed class ScheduleService(ScheduleDbContext db)
+public sealed class ScheduleService(
+    ScheduleDbContext db,
+    ProjectAuthorizationService authorization,
+    AuditLogService auditLogs)
 {
     /// <summary>案件一覧用にチームと軽量案件集計だけを取得します。</summary>
     public async Task<WorkspaceSummaryDto> GetWorkspaceSummaryAsync(
+        AuthUserDto user,
         CancellationToken cancellationToken)
     {
-        var teams = await db.Teams
+        var teamsQuery = db.Teams
             .Include(team => team.Members)
-            .AsNoTracking()
+            .AsNoTracking();
+        if (!string.Equals(user.Role, SystemRoles.Admin, StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(user.MemberId))
+            {
+                return new WorkspaceSummaryDto([], []);
+            }
+            var visibleProjectIds = await authorization.GetVisibleProjectIdsAsync(user, cancellationToken)
+                ?? new HashSet<string>(StringComparer.Ordinal);
+            var visibleTeamIds = await db.Projects
+                .AsNoTracking()
+                .Where(project => project.TeamId != null && visibleProjectIds.Contains(project.Id))
+                .Select(project => project.TeamId!)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+            teamsQuery = teamsQuery.Where(team =>
+                team.Members.Any(member => member.MemberId == user.MemberId) ||
+                visibleTeamIds.Contains(team.Id));
+        }
+
+        var teams = await teamsQuery
             .OrderBy(team => team.Code)
             .ToListAsync(cancellationToken);
 
         return new WorkspaceSummaryDto(
             teams.Select(ScheduleMapper.ToDto).ToArray(),
-            await GetProjectSummariesAsync(cancellationToken));
+            await GetProjectSummariesAsync(user, cancellationToken));
     }
 
     /// <summary>
@@ -29,11 +54,19 @@ public sealed class ScheduleService(ScheduleDbContext db)
     /// Gantt詳細を必要としない画面が、全タスク本文を転送せずに表示できます。
     /// </summary>
     public async Task<IReadOnlyList<ProjectSummaryDto>> GetProjectSummariesAsync(
+        AuthUserDto user,
         CancellationToken cancellationToken)
     {
-        var projects = await db.Projects
+        var visibleProjectIds = await authorization.GetVisibleProjectIdsAsync(user, cancellationToken);
+        var projectsQuery = db.Projects
             .Include(project => project.Members)
-            .AsNoTracking()
+            .AsNoTracking();
+        if (visibleProjectIds is not null)
+        {
+            projectsQuery = projectsQuery.Where(project => visibleProjectIds.Contains(project.Id));
+        }
+
+        var projects = await projectsQuery
             .OrderBy(project => project.TeamId)
             .ThenBy(project => project.Workspace)
             .Select(project => new
@@ -50,22 +83,37 @@ public sealed class ScheduleService(ScheduleDbContext db)
             })
             .ToListAsync(cancellationToken);
 
-        return projects
-            .Select(row => new ProjectSummaryDto(
+        var accessMap = await authorization.GetProjectAccessMapAsync(
+            user,
+            projects.ToDictionary(row => row.Project.Id, row => row.Project.TeamId),
+            cancellationToken);
+        var result = new List<ProjectSummaryDto>(projects.Count);
+        foreach (var row in projects)
+        {
+            result.Add(new ProjectSummaryDto(
                 ScheduleMapper.ToDto(row.Project),
                 row.TaskCount,
                 row.CompletedTaskCount,
                 row.DelayedTaskCount,
                 Convert.ToInt32(Math.Round(row.Progress)),
-                row.MemberCount))
-            .ToArray();
+                row.MemberCount,
+                accessMap[row.Project.Id]));
+        }
+        return result;
     }
 
     /// <summary>指定プロジェクトの最新スケジュールを取得します。</summary>
     public async Task<ScheduleSnapshotDto?> GetProjectScheduleAsync(
         string projectId,
+        AuthUserDto user,
         CancellationToken cancellationToken)
     {
+        var access = await authorization.GetProjectAccessAsync(user, projectId, cancellationToken);
+        if (!access.CanView)
+        {
+            throw new ProjectAccessDeniedException();
+        }
+
         var project = await LoadProjectsQuery()
             .AsNoTracking()
             .FirstOrDefaultAsync(project => project.Id == projectId, cancellationToken);
@@ -92,16 +140,18 @@ public sealed class ScheduleService(ScheduleDbContext db)
             project.Calendar,
             members,
             project.Tasks.OrderBy(task => task.SortOrder).ToArray(),
-            accountsByMemberId);
+            accountsByMemberId,
+            access);
     }
 
     /// <summary>期待バージョンを検証し、プロジェクト単位でスケジュールを保存します。</summary>
     public async Task<SaveScheduleResponse?> SaveProjectScheduleAsync(
         string projectId,
         SaveScheduleRequest request,
-        string changedBy,
+        AuthUserDto user,
         CancellationToken cancellationToken)
     {
+        var access = await authorization.GetProjectAccessAsync(user, projectId, cancellationToken);
         var existingProject = await LoadProjectsQuery()
             .FirstOrDefaultAsync(project => project.Id == projectId, cancellationToken);
         if (existingProject is null || existingProject.Calendar is null)
@@ -112,6 +162,16 @@ public sealed class ScheduleService(ScheduleDbContext db)
         if (request.ExpectedVersion is not null && request.ExpectedVersion != existingProject.Version)
         {
             throw new ScheduleConflictException(existingProject.Version);
+        }
+
+        if (!access.CanEditPlan)
+        {
+            return await SaveRestrictedActivityAsync(
+                existingProject,
+                request,
+                access,
+                user,
+                cancellationToken);
         }
 
         var oldTasks = existingProject.Tasks.ToDictionary(
@@ -126,7 +186,12 @@ public sealed class ScheduleService(ScheduleDbContext db)
         var now = DateTimeOffset.UtcNow.ToString("O");
 
         await UpsertMembersAsync(request.Members, cancellationToken);
-        ReplaceProjectMembers(existingProject, request.Project.MemberIds ?? []);
+        ReplaceProjectMembers(
+            existingProject,
+            request.Project.Memberships ??
+                (request.Project.MemberIds ?? [])
+                    .Select(memberId => new ProjectMemberDto(memberId, ProjectRoles.Member))
+                    .ToArray());
         ReplaceProjectAssignments(existingProject, request.Project.Assignments ?? []);
         ReplaceStaffingDemands(existingProject, request.Project.StaffingDemands ?? []);
         ReplaceCalendar(existingProject, request.Calendar);
@@ -138,7 +203,7 @@ public sealed class ScheduleService(ScheduleDbContext db)
             oldTasks,
             request.Tasks,
             now,
-            changedBy,
+            user.Name,
             NormalizeChangeReason(request.ChangeReason));
 
         existingProject.TeamId = request.Project.TeamId;
@@ -170,9 +235,137 @@ public sealed class ScheduleService(ScheduleDbContext db)
             throw new ScheduleConflictException(currentVersion ?? existingProject.Version);
         }
 
-        var savedSnapshot = await GetProjectScheduleAsync(projectId, cancellationToken)
+        await auditLogs.RecordAsync(
+            user,
+            "project.schedule.save",
+            "project",
+            projectId,
+            "schedule",
+            projectId,
+            new { version = nextVersion, taskCount = request.Tasks.Count },
+            cancellationToken);
+
+        var savedSnapshot = await GetProjectScheduleAsync(projectId, user, cancellationToken)
             ?? throw new InvalidOperationException("Saved project disappeared.");
         return new SaveScheduleResponse("remote", $"project-{projectId}-v{nextVersion}", now, savedSnapshot);
+    }
+
+    /// <summary>計画を変更できない利用者について、運用データだけを制限付きで保存します。</summary>
+    private async Task<SaveScheduleResponse> SaveRestrictedActivityAsync(
+        ProjectEntity project,
+        SaveScheduleRequest request,
+        ProjectAccessDto access,
+        AuthUserDto user,
+        CancellationToken cancellationToken)
+    {
+        if ((!access.CanComment && !access.CanEnterActual) ||
+            CreatePlanFingerprint(project) != CreatePlanFingerprint(request))
+        {
+            throw new ProjectAccessDeniedException();
+        }
+
+        if (access.CanComment)
+        {
+            ReplaceIssues(project, request.Issues ?? []);
+            ApplyTaskComments(project.Tasks, request.Tasks, user);
+        }
+        else if (!TaskCommentsMatch(project.Tasks, request.Tasks) ||
+                 !JsonEquals(
+                     project.Issues.Select(ScheduleMapper.ToDto).OrderBy(issue => issue.Id),
+                     (request.Issues ?? []).OrderBy(issue => issue.Id)))
+        {
+            throw new ProjectAccessDeniedException();
+        }
+
+        if (access.CanEnterActual)
+        {
+            ReplaceOwnedWorkLogs(project, request.WorkLogs ?? [], user);
+        }
+        else if (!JsonEquals(
+                     project.WorkLogs.Select(ScheduleMapper.ToDto).OrderBy(log => log.Id),
+                     (request.WorkLogs ?? []).OrderBy(log => log.Id)))
+        {
+            throw new ProjectAccessDeniedException();
+        }
+
+        project.Version += 1;
+        var now = DateTimeOffset.UtcNow.ToString("O");
+        await db.SaveChangesAsync(cancellationToken);
+        await auditLogs.RecordAsync(
+            user,
+            "project.activity.save",
+            "project",
+            project.Id,
+            "activity",
+            project.Id,
+            new
+            {
+                version = project.Version,
+                issueCount = request.Issues?.Count ?? 0,
+                workLogCount = request.WorkLogs?.Count ?? 0
+            },
+            cancellationToken);
+
+        var snapshot = await GetProjectScheduleAsync(project.Id, user, cancellationToken)
+            ?? throw new InvalidOperationException("Saved project disappeared.");
+        return new SaveScheduleResponse(
+            "remote",
+            $"project-{project.Id}-v{project.Version}",
+            now,
+            snapshot);
+    }
+
+    /// <summary>担当タスクの状態・進捗・実績日だけを更新し、親行の進捗を再集計します。</summary>
+    public async Task<ScheduleSnapshotDto?> UpdateTaskActualAsync(
+        string projectId,
+        string taskId,
+        UpdateTaskActualRequest request,
+        AuthUserDto user,
+        CancellationToken cancellationToken)
+    {
+        var access = await authorization.GetProjectAccessAsync(user, projectId, cancellationToken);
+        if (!access.CanEnterActual) throw new ProjectAccessDeniedException();
+
+        var project = await LoadProjectsQuery()
+            .FirstOrDefaultAsync(entity => entity.Id == projectId, cancellationToken);
+        if (project?.Calendar is null) return null;
+        if (request.ExpectedProjectVersion is not null && request.ExpectedProjectVersion != project.Version)
+        {
+            throw new ScheduleConflictException(project.Version);
+        }
+
+        var task = project.Tasks.FirstOrDefault(entity => entity.Id == taskId);
+        if (task is null) return null;
+        var unrestricted = access.Role is SystemRoles.Admin or ProjectRoles.Owner or ProjectRoles.Planner;
+        if (!unrestricted && (string.IsNullOrWhiteSpace(user.MemberId) ||
+            task.Assignments.All(assignment => assignment.MemberId != user.MemberId)))
+        {
+            throw new ProjectAccessDeniedException();
+        }
+
+        task.Status = NormalizeActualStatus(request.Status);
+        task.Progress = Math.Clamp(request.Progress, 0, 100);
+        task.ActualStart = NormalizeOptionalDate(request.ActualStart);
+        task.ActualEnd = NormalizeOptionalDate(request.ActualEnd);
+        if (task.ActualStart is not null && task.ActualEnd is not null &&
+            string.CompareOrdinal(task.ActualStart, task.ActualEnd) > 0)
+        {
+            throw new ArgumentException("実績終了日は実績開始日以降を指定してください。");
+        }
+
+        RecalculateParentProgress(project.Tasks, task.ParentId);
+        project.Version += 1;
+        await db.SaveChangesAsync(cancellationToken);
+        await auditLogs.RecordAsync(
+            user,
+            "task.actual.update",
+            "project",
+            projectId,
+            "task",
+            taskId,
+            new { task.Status, task.Progress, task.ActualStart, task.ActualEnd },
+            cancellationToken);
+        return await GetProjectScheduleAsync(projectId, user, cancellationToken);
     }
 
     /// <summary>プロジェクトの直近のタスク変更履歴を新しい順で取得します。</summary>
@@ -205,6 +398,45 @@ public sealed class ScheduleService(ScheduleDbContext db)
                 .ThenInclude(task => task.Assignments)
             .Include(project => project.Tasks)
                 .ThenInclude(task => task.Dependencies);
+    }
+
+    private static string NormalizeActualStatus(string status)
+    {
+        return status.Trim() switch
+        {
+            "notStarted" or "inProgress" or "done" or "delayed" => status.Trim(),
+            "todo" => "notStarted",
+            "in_progress" => "inProgress",
+            _ => throw new ArgumentException("状態の値が不正です。")
+        };
+    }
+
+    private static string? NormalizeOptionalDate(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        return DateOnly.TryParse(value, out var parsed)
+            ? parsed.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+            : throw new ArgumentException("実績日はyyyy-MM-dd形式で指定してください。");
+    }
+
+    private static void RecalculateParentProgress(IReadOnlyList<TaskEntity> tasks, string? parentId)
+    {
+        while (!string.IsNullOrWhiteSpace(parentId))
+        {
+            var parent = tasks.FirstOrDefault(task => task.Id == parentId);
+            if (parent is null) return;
+            var children = tasks.Where(task => task.ParentId == parent.Id).ToArray();
+            if (children.Length > 0)
+            {
+                parent.Progress = Convert.ToInt32(Math.Round(children.Average(child => child.Progress)));
+                parent.Status = children.All(child => child.Status == "done")
+                    ? "done"
+                    : children.Any(child => child.Status is "inProgress" or "done" or "delayed")
+                        ? "inProgress"
+                        : "notStarted";
+            }
+            parentId = parent.ParentId;
+        }
     }
 
     /// <summary>永続化エンティティを案件スケジュールのDTOへ変換します。</summary>
@@ -271,15 +503,22 @@ public sealed class ScheduleService(ScheduleDbContext db)
     }
 
     /// <summary>プロジェクトのメンバー関連を受信内容で置き換えます。</summary>
-    private static void ReplaceProjectMembers(ProjectEntity project, IReadOnlyList<string> memberIds)
+    private static void ReplaceProjectMembers(
+        ProjectEntity project,
+        IReadOnlyList<ProjectMemberDto> memberships)
     {
         project.Members.Clear();
-        foreach (var memberId in memberIds.Distinct())
+        foreach (var membership in memberships
+                     .GroupBy(item => item.MemberId)
+                     .Select(group => group.Last()))
         {
             project.Members.Add(new ProjectMemberEntity
             {
                 ProjectId = project.Id,
-                MemberId = memberId
+                MemberId = membership.MemberId,
+                ProjectRole = ProjectRoles.IsValid(membership.Role)
+                    ? membership.Role
+                    : ProjectRoles.Member
             });
         }
     }
@@ -343,7 +582,7 @@ public sealed class ScheduleService(ScheduleDbContext db)
     /// <summary>プロジェクトの稼働カレンダーと休日を受信内容で更新します。</summary>
     private static void ReplaceCalendar(ProjectEntity project, CalendarDefinitionDto dto)
     {
-        project.Calendar!.Id = dto.Id;
+        var calendarId = project.Calendar!.Id;
         project.Calendar.Name = dto.Name;
         project.Calendar.WorkWeekJson = ScheduleMapper.WriteJson(dto.WorkWeek) ?? "[1,2,3,4,5]";
         project.Calendar.Holidays.Clear();
@@ -351,7 +590,7 @@ public sealed class ScheduleService(ScheduleDbContext db)
         {
             project.Calendar.Holidays.Add(new CalendarHolidayEntity
             {
-                CalendarId = dto.Id,
+                CalendarId = calendarId,
                 Date = holiday.Date,
                 Name = holiday.Name
             });
@@ -399,6 +638,8 @@ public sealed class ScheduleService(ScheduleDbContext db)
         entity.SortOrder = sortOrder;
         entity.Description = dto.Description;
         entity.EffortHours = dto.EffortHours;
+        entity.ActualStart = dto.ActualStart;
+        entity.ActualEnd = dto.ActualEnd;
         entity.BaselineStart = dto.BaselineStart;
         entity.BaselineEnd = dto.BaselineEnd;
         entity.BaselineCapturedAt = dto.BaselineCapturedAt;
@@ -439,7 +680,6 @@ public sealed class ScheduleService(ScheduleDbContext db)
         }
     }
 
-    /// <summary>課題をID単位で差分更新し、変更のない行を再作成しません。</summary>
     /// <summary>課題をID単位で追加・更新・削除します。</summary>
     private void ReplaceIssues(ProjectEntity project, IReadOnlyList<ProjectIssueDto> issues)
     {
@@ -464,7 +704,6 @@ public sealed class ScheduleService(ScheduleDbContext db)
         }
     }
 
-    /// <summary>作業時間をID単位で差分更新し、変更のない行を再作成しません。</summary>
     /// <summary>作業時間をID単位で追加・更新・削除します。</summary>
     private void ReplaceWorkLogs(ProjectEntity project, IReadOnlyList<ProjectWorkLogDto> workLogs)
     {
@@ -538,6 +777,191 @@ public sealed class ScheduleService(ScheduleDbContext db)
         entity.DailyReportId = dto.DailyReportId;
         entity.DailyReportEntryId = dto.DailyReportEntryId;
     }
+
+    /// <summary>本人が入力した作業実績だけを追加・更新・削除します。</summary>
+    private void ReplaceOwnedWorkLogs(
+        ProjectEntity project,
+        IReadOnlyList<ProjectWorkLogDto> workLogs,
+        AuthUserDto user)
+    {
+        if (string.IsNullOrWhiteSpace(user.MemberId)) throw new ProjectAccessDeniedException();
+
+        var incomingById = workLogs.ToDictionary(log => log.Id);
+        foreach (var existing in project.WorkLogs.Where(log =>
+                     log.DailyReportId is not null || log.MemberId != user.MemberId))
+        {
+            if (!incomingById.TryGetValue(existing.Id, out var incoming) ||
+                !JsonEquals(ScheduleMapper.ToDto(existing), incoming))
+            {
+                throw new ProjectAccessDeniedException();
+            }
+        }
+
+        var ownedIncoming = workLogs
+            .Where(log => log.MemberId == user.MemberId && log.DailyReportId is null)
+            .ToArray();
+        if (workLogs.Any(log =>
+                log.MemberId != user.MemberId &&
+                project.WorkLogs.All(existing => existing.Id != log.Id)))
+        {
+            throw new ProjectAccessDeniedException();
+        }
+
+        var ownedIds = ownedIncoming.Select(log => log.Id).ToHashSet();
+        var removed = project.WorkLogs
+            .Where(log => log.MemberId == user.MemberId &&
+                          log.DailyReportId is null &&
+                          !ownedIds.Contains(log.Id))
+            .ToArray();
+        foreach (var entity in removed) project.WorkLogs.Remove(entity);
+        db.ProjectWorkLogs.RemoveRange(removed);
+
+        foreach (var dto in ownedIncoming)
+        {
+            var existing = project.WorkLogs.FirstOrDefault(log => log.Id == dto.Id);
+            var normalized = dto with
+            {
+                MemberId = user.MemberId,
+                CreatedBy = existing?.CreatedBy ?? user.Name,
+                CreatedAt = existing?.CreatedAt ?? dto.CreatedAt
+            };
+            if (existing is null)
+            {
+                project.WorkLogs.Add(ScheduleMapper.ToEntity(normalized, project.Id));
+            }
+            else
+            {
+                ApplyWorkLog(existing, normalized);
+            }
+        }
+    }
+
+    /// <summary>既存コメントの改ざんを防ぎ、新しいコメントの投稿者をログイン利用者で確定します。</summary>
+    private static void ApplyTaskComments(
+        IReadOnlyList<TaskEntity> tasks,
+        IReadOnlyList<ScheduleTaskDto> requestedTasks,
+        AuthUserDto user)
+    {
+        var requestedById = requestedTasks.ToDictionary(task => task.Id);
+        foreach (var task in tasks)
+        {
+            if (!requestedById.TryGetValue(task.Id, out var requested))
+            {
+                throw new ProjectAccessDeniedException();
+            }
+            var existing = ScheduleMapper.ToDto(task).Comments ?? [];
+            var incoming = requested.Comments ?? [];
+            var existingById = existing.ToDictionary(comment => comment.Id);
+            if (existing.Any(comment =>
+                    incoming.All(candidate => candidate.Id != comment.Id)) ||
+                incoming.Any(comment =>
+                    existingById.TryGetValue(comment.Id, out var original) && original != comment))
+            {
+                throw new ProjectAccessDeniedException();
+            }
+
+            var normalized = incoming.Select(comment =>
+                existingById.TryGetValue(comment.Id, out var original)
+                    ? original
+                    : comment with
+                    {
+                        Author = user.Name,
+                        CreatedAt = DateTimeOffset.UtcNow.ToString("O")
+                    }).ToArray();
+            task.CommentsJson = ScheduleMapper.WriteJson(normalized) ?? "[]";
+        }
+    }
+
+    private static bool TaskCommentsMatch(
+        IReadOnlyList<TaskEntity> tasks,
+        IReadOnlyList<ScheduleTaskDto> requestedTasks)
+    {
+        var requestedById = requestedTasks.ToDictionary(task => task.Id);
+        return tasks.All(task =>
+            requestedById.TryGetValue(task.Id, out var requested) &&
+            JsonEquals(ScheduleMapper.ToDto(task).Comments ?? [], requested.Comments ?? []));
+    }
+
+    /// <summary>運用データを除いた計画項目を正規化し、権限外変更の有無を比較します。</summary>
+    private static string CreatePlanFingerprint(ProjectEntity project)
+    {
+        if (project.Calendar is null) throw new InvalidOperationException("Calendar is required.");
+        return CreatePlanFingerprint(
+            ScheduleMapper.ToDto(project),
+            ScheduleMapper.ToDto(project.Calendar),
+            project.Tasks.Select(ScheduleMapper.ToDto).ToArray());
+    }
+
+    private static string CreatePlanFingerprint(SaveScheduleRequest request) =>
+        CreatePlanFingerprint(request.Project, request.Calendar, request.Tasks);
+
+    private static string CreatePlanFingerprint(
+        ProjectDto project,
+        CalendarDefinitionDto calendar,
+        IReadOnlyList<ScheduleTaskDto> tasks)
+    {
+        var normalized = new
+        {
+            Project = new
+            {
+                project.Id,
+                project.TeamId,
+                project.Name,
+                project.Workspace,
+                project.LifecycleStatus,
+                MemberIds = (project.MemberIds ?? []).Order().ToArray(),
+                project.RangeStart,
+                project.RangeEnd,
+                project.NextMilestone,
+                project.Status,
+                project.ArchivedAt,
+                Assignments = (project.Assignments ?? []).OrderBy(item => item.Id).ToArray(),
+                StaffingDemands = (project.StaffingDemands ?? []).OrderBy(item => item.Id).ToArray(),
+                project.ProjectNo,
+                Memberships = (project.Memberships ?? [])
+                    .OrderBy(item => item.MemberId)
+                    .ToArray()
+            },
+            Calendar = new
+            {
+                calendar.Id,
+                calendar.Name,
+                WorkWeek = calendar.WorkWeek.Order().ToArray(),
+                Holidays = calendar.Holidays.OrderBy(item => item.Date).ToArray()
+            },
+            Tasks = tasks.OrderBy(task => task.Id).Select(task => new
+            {
+                task.Id,
+                task.ParentId,
+                task.Title,
+                task.Type,
+                task.Status,
+                task.Start,
+                task.End,
+                task.Progress,
+                AssigneeIds = task.AssigneeIds.Order().ToArray(),
+                AssigneeAllocations = (task.AssigneeAllocations ?? [])
+                    .OrderBy(item => item.MemberId)
+                    .ToArray(),
+                task.Color,
+                task.Expanded,
+                Dependencies = (task.Dependencies ?? []).Order().ToArray(),
+                task.Description,
+                task.EffortHours,
+                task.BaselineStart,
+                task.BaselineEnd,
+                task.BaselineCapturedAt,
+                Checklist = task.Checklist ?? [],
+                Links = task.Links ?? [],
+                task.ActualStart,
+                task.ActualEnd
+            }).ToArray()
+        };
+        return JsonSerializer.Serialize(normalized);
+    }
+
+    private static bool JsonEquals<T>(T left, T right) =>
+        JsonSerializer.Serialize(left) == JsonSerializer.Serialize(right);
 
     /// <summary>保存前後のタスクを比較し、変更履歴を記録します。</summary>
     private void RecordTaskChanges(
@@ -662,4 +1086,9 @@ public sealed class ScheduleService(ScheduleDbContext db)
 public sealed class ScheduleConflictException(int currentVersion) : Exception("Schedule version conflict.")
 {
     public int CurrentVersion { get; } = currentVersion;
+}
+
+/// <summary>案件内権限が不足している操作を表します。</summary>
+public sealed class ProjectAccessDeniedException : Exception
+{
 }

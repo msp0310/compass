@@ -88,6 +88,10 @@ public sealed class AttachmentService
         {
             return AttachmentMutationResult.BadRequest("許可されていないファイル形式です。");
         }
+        if (!await HasValidSignatureAsync(file, extension, cancellationToken))
+        {
+            return AttachmentMutationResult.BadRequest("ファイル内容と拡張子が一致しません。");
+        }
 
         if (!await db.Projects.AnyAsync(project => project.Id == projectId, cancellationToken))
         {
@@ -124,6 +128,7 @@ public sealed class AttachmentService
                 SizeBytes = file.Length,
                 Sha256 = sha256,
                 UploadedBy = user.Name,
+                UploadedByUserId = user.Id,
                 UploadedAt = now
             };
             db.Attachments.Add(entity);
@@ -166,17 +171,46 @@ public sealed class AttachmentService
     public async Task<bool> DeleteAsync(
         string projectId,
         string attachmentId,
+        AuthUserDto user,
+        bool canDeleteAny,
         CancellationToken cancellationToken)
     {
         var entity = await db.Attachments.SingleOrDefaultAsync(
             attachment => attachment.ProjectId == projectId && attachment.Id == attachmentId,
             cancellationToken);
         if (entity is null) return false;
+        if (!canDeleteAny && entity.UploadedByUserId != user.Id) throw new UnauthorizedAccessException();
 
         db.Attachments.Remove(entity);
         await db.SaveChangesAsync(cancellationToken);
         TryDelete(GetStoragePath(entity));
         return true;
+    }
+
+    private static async Task<bool> HasValidSignatureAsync(
+        IFormFile file,
+        string extension,
+        CancellationToken cancellationToken)
+    {
+        var buffer = new byte[Math.Min(512, checked((int)Math.Min(file.Length, 512)))];
+        await using var stream = file.OpenReadStream();
+        var read = await stream.ReadAsync(buffer.AsMemory(), cancellationToken);
+        var bytes = buffer.AsSpan(0, read).ToArray();
+        bool Starts(params byte[] signature) => bytes.AsSpan().StartsWith(signature);
+        return extension.ToLowerInvariant() switch
+        {
+            ".pdf" => Starts(0x25, 0x50, 0x44, 0x46),
+            ".png" => Starts(0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A),
+            ".jpg" or ".jpeg" => Starts(0xFF, 0xD8, 0xFF),
+            ".gif" => Starts(0x47, 0x49, 0x46, 0x38),
+            ".zip" or ".docx" or ".xlsx" => Starts(0x50, 0x4B),
+            ".7z" => Starts(0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C),
+            ".doc" or ".xls" => Starts(0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1),
+            ".webp" => bytes.Length >= 12 && Starts(0x52, 0x49, 0x46, 0x46) &&
+                bytes.AsSpan(8, 4).SequenceEqual("WEBP"u8),
+            ".tar" => bytes.Length >= 262 && bytes.AsSpan(257, 5).SequenceEqual("ustar"u8),
+            _ => !bytes.AsSpan().Contains((byte)0)
+        };
     }
 
     private async Task<bool> OwnerExistsAsync(

@@ -21,6 +21,29 @@
   text-rendering: optimizeLegibility;
 }
 
+.audit-log-table-wrap {
+  overflow: auto;
+}
+
+.audit-log-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.audit-log-table th,
+.audit-log-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid #e4eaf2;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.audit-log-table th {
+  color: #607089;
+  background: #f7f9fc;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -4816,6 +4839,15 @@ button.health-row:hover {
   border: 1px solid #dfe6ef;
   border-radius: 8px;
   background: #fff;
+}
+
+.gantt-permission-notice {
+  border-bottom: 1px solid #d8e2f0;
+  background: #f4f7fb;
+  color: #53647d;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px 12px;
 }
 
 .task-context-menu {

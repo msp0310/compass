@@ -50,6 +50,7 @@ public sealed class TeamMemberEntity
 {
     public string TeamId { get; set; } = "";
     public string MemberId { get; set; } = "";
+    public string TeamRole { get; set; } = "member";
     public TeamEntity? Team { get; set; }
     public MemberEntity? Member { get; set; }
 }
@@ -74,7 +75,7 @@ public sealed class ProjectEntity
 {
     [Key]
     public string Id { get; set; } = "";
-    public string TeamId { get; set; } = "";
+    public string? TeamId { get; set; }
     public string Name { get; set; } = "";
     public string Workspace { get; set; } = "";
     public string? ProjectNo { get; set; }
@@ -142,6 +143,7 @@ public sealed class AttachmentEntity
     public long SizeBytes { get; set; }
     public string Sha256 { get; set; } = "";
     public string UploadedBy { get; set; } = "";
+    public string UploadedByUserId { get; set; } = "";
     public string UploadedAt { get; set; } = "";
     public ProjectEntity? Project { get; set; }
 }
@@ -178,8 +180,26 @@ public sealed class ProjectMemberEntity
 {
     public string ProjectId { get; set; } = "";
     public string MemberId { get; set; } = "";
+    public string ProjectRole { get; set; } = "member";
     public ProjectEntity? Project { get; set; }
     public MemberEntity? Member { get; set; }
+}
+
+/// <summary>認証・権限・データ変更を追跡する監査ログです。</summary>
+public sealed class AuditLogEntity
+{
+    [Key]
+    public string Id { get; set; } = "";
+    public string UserId { get; set; } = "";
+    public string UserName { get; set; } = "";
+    public string Action { get; set; } = "";
+    public string ScopeType { get; set; } = "";
+    public string? ScopeId { get; set; }
+    public string? TargetType { get; set; }
+    public string? TargetId { get; set; }
+    public string? DetailJson { get; set; }
+    public string? IpAddress { get; set; }
+    public string CreatedAt { get; set; } = "";
 }
 
 /// <summary>プロジェクトの作業時間記録エンティティです。</summary>
@@ -286,6 +306,8 @@ public sealed class TaskEntity
     public int SortOrder { get; set; }
     public string? Description { get; set; }
     public decimal? EffortHours { get; set; }
+    public string? ActualStart { get; set; }
+    public string? ActualEnd { get; set; }
     public string? BaselineStart { get; set; }
     public string? BaselineEnd { get; set; }
     public string? BaselineCapturedAt { get; set; }

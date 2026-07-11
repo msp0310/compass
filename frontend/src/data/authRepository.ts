@@ -9,11 +9,11 @@ export type AuthUser = {
   memberId?: string | null;
   name: string;
   role: string;
+  passwordResetRequired: boolean;
 };
 
 export type AuthSession = {
   expiresAt: string;
-  token: string;
   user: AuthUser;
 };
 
@@ -34,85 +34,24 @@ export type ResetMemberPasswordInput = {
   passwordResetRequired: boolean;
 };
 
-const authSessionKey = "si-schedule-manager-auth-session-v1";
-
-function readStoredSession(): AuthSession | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = window.localStorage.getItem(authSessionKey);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<AuthSession>;
-    if (!isAuthSession(parsed)) return null;
-    if (new Date(parsed.expiresAt).getTime() <= Date.now()) {
-      clearStoredSession();
-      return null;
-    }
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-function saveStoredSession(session: AuthSession) {
-  window.localStorage.setItem(authSessionKey, JSON.stringify(session));
-}
-
-function clearStoredSession() {
-  if (typeof window === "undefined") return;
-  window.localStorage.removeItem(authSessionKey);
-}
-
 function getAuthenticatedHeaders() {
-  const session = readStoredSession();
-  if (!session) {
-    throw new ApiRequestError("ログインが必要です。", 401);
-  }
-  return {
-    Authorization: `Bearer ${session.token}`,
-  };
-}
-
-function isAuthSession(value: Partial<AuthSession>): value is AuthSession {
-  return (
-    typeof value.token === "string" && typeof value.expiresAt === "string" && isAuthUser(value.user)
-  );
-}
-
-function isAuthUser(value: unknown): value is AuthUser {
-  if (value == null || typeof value !== "object") return false;
-  const maybe = value as Partial<AuthUser>;
-  return (
-    typeof maybe.id === "string" &&
-    typeof maybe.email === "string" &&
-    typeof maybe.name === "string" &&
-    typeof maybe.role === "string"
-  );
+  return {};
 }
 
 export const authRepository = {
   clearSession() {
-    clearStoredSession();
+    // セッションはHttpOnly Cookieで管理するため、ブラウザー側に削除対象はありません。
   },
 
   getAccessToken() {
-    return readStoredSession()?.token ?? null;
+    return null;
   },
 
   async getCurrentUser() {
-    const session = readStoredSession();
-    if (!session) return null;
-
     try {
-      const user = await requestJson<AuthUser>("/auth/me", {
-        headers: {
-          Authorization: `Bearer ${session.token}`,
-        },
-      });
-      saveStoredSession({ ...session, user });
-      return user;
+      return await requestJson<AuthUser>("/auth/me");
     } catch (error) {
       if (error instanceof ApiRequestError && error.status === 401) {
-        clearStoredSession();
         return null;
       }
       throw error;
@@ -124,19 +63,18 @@ export const authRepository = {
       body: JSON.stringify({ email, password }),
       method: "POST",
     });
-    saveStoredSession(session);
     return session;
   },
 
   async logout() {
-    const session = readStoredSession();
-    clearStoredSession();
-    if (!session) return;
-
     await requestJson<void>("/auth/logout", {
-      headers: {
-        Authorization: `Bearer ${session.token}`,
-      },
+      method: "POST",
+    });
+  },
+
+  async changePassword(currentPassword: string, newPassword: string) {
+    return requestJson<void>("/auth/change-password", {
+      body: JSON.stringify({ currentPassword, newPassword }),
       method: "POST",
     });
   },

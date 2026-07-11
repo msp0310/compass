@@ -17,7 +17,11 @@ public static class ScheduleMapper
             entity.Name,
             entity.Code,
             entity.Description,
-            entity.Members.Select(member => member.MemberId).Order().ToArray());
+            entity.Members.Select(member => member.MemberId).Order().ToArray(),
+            entity.Members
+                .OrderBy(member => member.MemberId)
+                .Select(member => new TeamMemberDto(member.MemberId, member.TeamRole))
+                .ToArray());
     }
 
     /// <summary>メンバーと任意のログインアカウントをAPI DTOへ変換します。</summary>
@@ -93,7 +97,11 @@ public static class ScheduleMapper
                     demand.AllocationPercent,
                     demand.Status))
                 .ToArray(),
-            entity.ProjectNo);
+            entity.ProjectNo,
+            entity.Members
+                .OrderBy(member => member.MemberId)
+                .Select(member => new ProjectMemberDto(member.MemberId, member.ProjectRole))
+                .ToArray());
     }
 
     /// <summary>タスクエンティティと関連付けをAPI DTOへ変換します。</summary>
@@ -132,7 +140,9 @@ public static class ScheduleMapper
             entity.BaselineCapturedAt,
             ReadJson<IReadOnlyList<TaskChecklistItemDto>>(entity.ChecklistJson),
             ReadJson<IReadOnlyList<TaskCommentDto>>(entity.CommentsJson),
-            ReadJson<IReadOnlyList<TaskReferenceLinkDto>>(entity.LinksJson));
+            ReadJson<IReadOnlyList<TaskReferenceLinkDto>>(entity.LinksJson),
+            entity.ActualStart,
+            entity.ActualEnd);
     }
 
     /// <summary>課題エンティティをAPI DTOへ変換します。</summary>
@@ -197,7 +207,8 @@ public static class ScheduleMapper
         CalendarEntity calendar,
         IReadOnlyList<MemberEntity> members,
         IReadOnlyList<TaskEntity> tasks,
-        IReadOnlyDictionary<string, UserEntity>? accountsByMemberId = null)
+        IReadOnlyDictionary<string, UserEntity>? accountsByMemberId = null,
+        ProjectAccessDto? access = null)
     {
         return new ScheduleSnapshotDto(
             ToDto(calendar),
@@ -217,7 +228,8 @@ public static class ScheduleMapper
                 .OrderByDescending(workLog => workLog.Date)
                 .ThenByDescending(workLog => workLog.UpdatedAt)
                 .Select(ToDto)
-                .ToArray());
+                .ToArray(),
+            access);
     }
 
     /// <summary>メンバーDTOを永続化エンティティへ変換します。</summary>
@@ -297,6 +309,8 @@ public static class ScheduleMapper
             SortOrder = sortOrder,
             Description = dto.Description,
             EffortHours = dto.EffortHours,
+            ActualStart = dto.ActualStart,
+            ActualEnd = dto.ActualEnd,
             BaselineStart = dto.BaselineStart,
             BaselineEnd = dto.BaselineEnd,
             BaselineCapturedAt = dto.BaselineCapturedAt,

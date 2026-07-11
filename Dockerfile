@@ -27,13 +27,15 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 
 WORKDIR /app
 ENV ASPNETCORE_HTTP_PORTS=8080 \
-    ConnectionStrings__ScheduleDb="Data Source=/data/mirai.db"
+    ConnectionStrings__ScheduleDb="Data Source=/data/mirai.db" \
+    Attachments__RootPath="/data/attachments"
 
 COPY --from=api-build /app/publish ./
 COPY --from=frontend-build /src/frontend/dist ./wwwroot
 
-RUN mkdir -p /data
+RUN mkdir -p /data/attachments && chown -R app:app /data /app
 VOLUME ["/data"]
 EXPOSE 8080
 
+USER app
 ENTRYPOINT ["dotnet", "Schedule.Api.dll"]

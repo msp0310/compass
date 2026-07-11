@@ -63,11 +63,64 @@ namespace Schedule.Api.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("UploadedByUserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ProjectId", "OwnerType", "OwnerId");
 
                     b.ToTable("Attachments");
+                });
+
+            modelBuilder.Entity("Schedule.Api.Domain.AuditLogEntity", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CreatedAt")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DetailJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("IpAddress")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ScopeId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ScopeType")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TargetId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TargetType")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "CreatedAt");
+
+                    b.HasIndex("ScopeType", "ScopeId", "CreatedAt");
+
+                    b.ToTable("AuditLogs");
                 });
 
             modelBuilder.Entity("Schedule.Api.Domain.AuthSessionEntity", b =>
@@ -415,7 +468,6 @@ namespace Schedule.Api.Infrastructure.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("TeamId")
-                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<int>("Version")
@@ -520,6 +572,12 @@ namespace Schedule.Api.Infrastructure.Migrations
 
                     b.Property<string>("MemberId")
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("ProjectRole")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("member");
 
                     b.HasKey("ProjectId", "MemberId");
 
@@ -713,6 +771,12 @@ namespace Schedule.Api.Infrastructure.Migrations
                     b.Property<string>("Id")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ActualEnd")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ActualStart")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("BaselineCapturedAt")
                         .HasColumnType("TEXT");
 
@@ -821,6 +885,12 @@ namespace Schedule.Api.Infrastructure.Migrations
 
                     b.Property<string>("MemberId")
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("TeamRole")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("member");
 
                     b.HasKey("TeamId", "MemberId");
 
@@ -944,9 +1014,7 @@ namespace Schedule.Api.Infrastructure.Migrations
                 {
                     b.HasOne("Schedule.Api.Domain.TeamEntity", "Team")
                         .WithMany()
-                        .HasForeignKey("TeamId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("TeamId");
 
                     b.Navigation("Team");
                 });
