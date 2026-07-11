@@ -138,6 +138,15 @@ export const openButton = style({
   cursor: "pointer",
   selectors: { "&:hover": { borderColor: "#9cb7ef", background: "#f1f6ff" } },
 });
+export const rowActions = style({ display: "flex", alignItems: "center", gap: 4 });
+export const commentRow = style({ background: "#f5f8fd" });
+export const quickComment = style({
+  display: "grid",
+  gridTemplateColumns: "180px minmax(0, 1fr) auto",
+  alignItems: "center",
+  gap: 10,
+  padding: "4px 2px",
+});
 
 globalStyle(`${toolbar} > div`, { display: "grid", gap: 3 });
 globalStyle(`${toolbar} > ${toolbarActions}`, { display: "flex" });
@@ -202,7 +211,7 @@ globalStyle(`${table} th:nth-child(2)`, { width: 78 });
 globalStyle(`${table} th:nth-child(4)`, { width: 190 });
 globalStyle(`${table} th:nth-child(5)`, { width: 60 });
 globalStyle(`${table} th:nth-child(6)`, { width: 80 });
-globalStyle(`${table} th:nth-child(7)`, { width: 42 });
+globalStyle(`${table} th:nth-child(7)`, { width: 72 });
 globalStyle(`${memberCell} > span`, {
   display: "grid",
   width: 28,
@@ -235,3 +244,29 @@ globalStyle(`${projectList} > span`, {
   whiteSpace: "nowrap",
 });
 globalStyle(`${openButton} svg`, { width: 14, height: 14 });
+globalStyle(`${quickComment} > div`, { display: "grid", gap: 2 });
+globalStyle(`${quickComment} > div > strong`, { color: "#2d405e", fontSize: 10 });
+globalStyle(`${quickComment} > div > span`, { color: "#7d899b", fontSize: 8 });
+globalStyle(`${quickComment} textarea`, {
+  minHeight: 58,
+  resize: "vertical",
+  border: "1px solid #cdd8e7",
+  borderRadius: 6,
+  padding: "8px 9px",
+  color: "#2f405a",
+  fontFamily: "inherit",
+  fontSize: 10,
+  lineHeight: 1.5,
+});
+globalStyle(`${quickComment} > button`, {
+  height: 32,
+  border: 0,
+  borderRadius: 6,
+  color: "#fff",
+  background: "#2864ea",
+  padding: "0 11px",
+  fontSize: 9,
+  fontWeight: 900,
+  cursor: "pointer",
+});
+globalStyle(`${quickComment} > button:disabled`, { cursor: "default", opacity: 0.45 });

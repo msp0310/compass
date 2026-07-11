@@ -208,6 +208,11 @@ export function DailyReportPage({ currentUser, schedules, team, todayKey }: Dail
         <TeamDailyReportsView
           canManage={canManageTeam}
           members={teamMembers}
+          onComment={async (reportId, body) => {
+            const saved = await addDailyReportComment(reportId, body);
+            setReports((items) => [saved, ...items.filter((item) => item.id !== saved.id)]);
+            setMessage("コメントを追加しました。");
+          }}
           onOpenReport={openTeamReport}
           onRemind={async (date, memberIds) => {
             await sendDailyReportReminders(team.id, date, memberIds);

@@ -1,13 +1,14 @@
 import {
   ArrowRightIcon,
   BellAlertIcon,
+  ChatBubbleLeftRightIcon,
   CheckCircleIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   ClockIcon,
   ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import type { ScheduleSnapshot } from "../../../data/scheduleRepository";
 import type { DailyReport, Member } from "../../../types/schedule";
@@ -16,6 +17,7 @@ import * as styles from "./TeamDailyReportsView.css";
 type TeamDailyReportsViewProps = {
   canManage: boolean;
   members: Member[];
+  onComment: (reportId: string, body: string) => Promise<void>;
   onOpenReport: (report: DailyReport) => void;
   onRemind: (date: string, memberIds: string[]) => Promise<void>;
   reports: DailyReport[];
@@ -28,6 +30,7 @@ type TeamDailyReportsViewProps = {
 export function TeamDailyReportsView({
   canManage,
   members,
+  onComment,
   onOpenReport,
   onRemind,
   reports,
@@ -38,6 +41,9 @@ export function TeamDailyReportsView({
   const [selectedDate, setSelectedDate] = useState(todayKey);
   const [selectedMemberIds, setSelectedMemberIds] = useState<Set<string>>(new Set());
   const [sending, setSending] = useState(false);
+  const [commentReportId, setCommentReportId] = useState<string | null>(null);
+  const [quickComment, setQuickComment] = useState("");
+  const [commenting, setCommenting] = useState(false);
   const dateOptions = useMemo(
     () => [...new Set([todayKey, ...reports.map((report) => report.date)])].sort().reverse(),
     [reports, todayKey],
@@ -66,6 +72,18 @@ export function TeamDailyReportsView({
       setSelectedMemberIds(new Set());
     } finally {
       setSending(false);
+    }
+  }
+
+  async function submitComment() {
+    if (!commentReportId || !quickComment.trim()) return;
+    setCommenting(true);
+    try {
+      await onComment(commentReportId, quickComment.trim());
+      setQuickComment("");
+      setCommentReportId(null);
+    } finally {
+      setCommenting(false);
     }
   }
 
@@ -176,78 +194,118 @@ export function TeamDailyReportsView({
                   ]
                 : [];
               return (
-                <tr key={member.id} className={!report ? styles.missingRow : undefined}>
-                  <td>
-                    <div className={styles.memberCell}>
-                      {canManage && !report ? (
-                        <input
-                          aria-label={`${member.name}をリマインド対象に選択`}
-                          checked={selectedMemberIds.has(member.id)}
-                          onChange={(event) => {
-                            const next = new Set(selectedMemberIds);
-                            if (event.target.checked) next.add(member.id);
-                            else next.delete(member.id);
-                            setSelectedMemberIds(next);
-                          }}
-                          type="checkbox"
-                        />
-                      ) : null}
-                      <span>{member.initials}</span>
-                      <div>
-                        <strong>{member.name}</strong>
-                        <small>{member.role}</small>
+                <Fragment key={member.id}>
+                  <tr className={!report ? styles.missingRow : undefined}>
+                    <td>
+                      <div className={styles.memberCell}>
+                        {canManage && !report ? (
+                          <input
+                            aria-label={`${member.name}をリマインド対象に選択`}
+                            checked={selectedMemberIds.has(member.id)}
+                            onChange={(event) => {
+                              const next = new Set(selectedMemberIds);
+                              if (event.target.checked) next.add(member.id);
+                              else next.delete(member.id);
+                              setSelectedMemberIds(next);
+                            }}
+                            type="checkbox"
+                          />
+                        ) : null}
+                        <span>{member.initials}</span>
+                        <div>
+                          <strong>{member.name}</strong>
+                          <small>{member.role}</small>
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td>
-                    <span
-                      className={
-                        report?.status === "submitted"
-                          ? styles.submitted
-                          : report
-                            ? styles.draft
-                            : styles.notSubmitted
-                      }
-                    >
-                      {report?.status === "submitted" ? "提出済み" : report ? "下書き" : "未提出"}
-                    </span>
-                  </td>
-                  <td className={styles.summaryCell}>
-                    {report?.summary || "報告はまだありません"}
-                    {report?.unreadCommentCount ? (
-                      <small className={styles.unread}>
-                        {report.unreadCommentCount}件の未読コメント
-                      </small>
-                    ) : null}
-                  </td>
-                  <td>
-                    <div className={styles.projectList}>
-                      {projectNames.length > 0
-                        ? projectNames.map((name) => <span key={name}>{name}</span>)
-                        : "-"}
-                    </div>
-                  </td>
-                  <td className={styles.hoursCell}>{report ? `${sumHours(report)}h` : "-"}</td>
-                  <td>
-                    {report?.blockers?.trim() ? (
-                      <span className={styles.blocker}>あり</span>
-                    ) : (
-                      <span className={styles.none}>なし</span>
-                    )}
-                  </td>
-                  <td>
-                    {report ? (
-                      <button
-                        aria-label={`${member.name}の日報を開く`}
-                        className={styles.openButton}
-                        onClick={() => onOpenReport(report)}
-                        type="button"
+                    </td>
+                    <td>
+                      <span
+                        className={
+                          report?.status === "submitted"
+                            ? styles.submitted
+                            : report
+                              ? styles.draft
+                              : styles.notSubmitted
+                        }
                       >
-                        <ArrowRightIcon />
-                      </button>
-                    ) : null}
-                  </td>
-                </tr>
+                        {report?.status === "submitted" ? "提出済み" : report ? "下書き" : "未提出"}
+                      </span>
+                    </td>
+                    <td className={styles.summaryCell}>
+                      {report?.summary || "報告はまだありません"}
+                      {report?.unreadCommentCount ? (
+                        <small className={styles.unread}>
+                          {report.unreadCommentCount}件の未読コメント
+                        </small>
+                      ) : null}
+                    </td>
+                    <td>
+                      <div className={styles.projectList}>
+                        {projectNames.length > 0
+                          ? projectNames.map((name) => <span key={name}>{name}</span>)
+                          : "-"}
+                      </div>
+                    </td>
+                    <td className={styles.hoursCell}>{report ? `${sumHours(report)}h` : "-"}</td>
+                    <td>
+                      {report?.blockers?.trim() ? (
+                        <span className={styles.blocker}>あり</span>
+                      ) : (
+                        <span className={styles.none}>なし</span>
+                      )}
+                    </td>
+                    <td>
+                      {report ? (
+                        <div className={styles.rowActions}>
+                          <button
+                            aria-label={`${member.name}の日報へコメント`}
+                            className={styles.openButton}
+                            onClick={() => {
+                              setCommentReportId(commentReportId === report.id ? null : report.id);
+                              setQuickComment("");
+                            }}
+                            type="button"
+                          >
+                            <ChatBubbleLeftRightIcon />
+                          </button>
+                          <button
+                            aria-label={`${member.name}の日報を開く`}
+                            className={styles.openButton}
+                            onClick={() => onOpenReport(report)}
+                            type="button"
+                          >
+                            <ArrowRightIcon />
+                          </button>
+                        </div>
+                      ) : null}
+                    </td>
+                  </tr>
+                  {report && commentReportId === report.id ? (
+                    <tr className={styles.commentRow}>
+                      <td colSpan={7}>
+                        <div className={styles.quickComment}>
+                          <div>
+                            <strong>{member.name}の日報へコメント</strong>
+                            <span>Markdownで入力できます</span>
+                          </div>
+                          <textarea
+                            aria-label={`${member.name}へのコメント`}
+                            onChange={(event) => setQuickComment(event.target.value)}
+                            placeholder="確認事項やフィードバックを入力"
+                            value={quickComment}
+                          />
+                          <button
+                            disabled={!quickComment.trim() || commenting}
+                            onClick={submitComment}
+                            type="button"
+                          >
+                            コメントを送信
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : null}
+                </Fragment>
               );
             })}
           </tbody>

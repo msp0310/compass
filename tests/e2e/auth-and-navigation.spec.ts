@@ -149,6 +149,10 @@ test.describe("Miraiの認証とプロジェクト導線", () => {
       "基本設計レビューを実施しました。",
     );
     await expect(teamReports.getByRole("row", { name: /伊藤 大輔/ })).toContainText("未提出");
+    await teamReports.getByRole("button", { name: "山田 健太の日報へコメント" }).click();
+    await teamReports.getByLabel("山田 健太へのコメント").fill("一覧から確認しました。");
+    await teamReports.getByRole("button", { name: "コメントを送信" }).click();
+    await expect(page.getByText("コメントを追加しました。")).toBeVisible();
 
     const savedReports = (await (
       await request.get("/api/daily-reports", { headers })
