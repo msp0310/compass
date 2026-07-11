@@ -47,7 +47,7 @@ test.describe("Miraiの認証とプロジェクト導線", () => {
     await expect(workload.getByRole("combobox", { name: "表示チーム" })).toHaveValue("all");
     await expect(workload.getByText("2025/5 - 2026/4")).toBeVisible();
     await expect(workload.getByLabel("月・週の時間軸").getByText("2025/5")).toBeVisible();
-    await expect(workload.getByLabel("月・週の時間軸").getByText("W20")).toBeVisible();
+    await expect(workload.getByLabel("月・週の時間軸").getByText("W1")).toHaveCount(12);
     await expect(page.getByRole("button", { name: "ガント", exact: true })).toHaveCount(0);
 
     await workload.getByRole("button", { name: "チーム別", exact: true }).click();

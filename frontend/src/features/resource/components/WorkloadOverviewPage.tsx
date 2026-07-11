@@ -415,6 +415,7 @@ function AssignmentPlanBoard({
   const visibleStart = weeks[0]?.start;
   const visibleEnd = addDateDays(weeks.at(-1)?.start, 6);
   const monthGroups = buildMonthGroups(weeks);
+  const weekLabels = buildMonthWeekLabels(weeks);
   const timelineMinWidth = Math.max(920, weeks.length * 40 + 220);
   return (
     <div className={styles.planBoard} aria-label="アサイン計画ボード">
@@ -440,9 +441,9 @@ function AssignmentPlanBoard({
               className={styles.planWeekRow}
               style={{ gridTemplateColumns: `repeat(${weeks.length}, minmax(0, 1fr))` }}
             >
-              {weeks.map((week) => (
+              {weeks.map((week, index) => (
                 <div className={styles.planWeek} key={week.key}>
-                  {formatWeekNumber(week.start)}
+                  {weekLabels[index]}
                 </div>
               ))}
             </div>
@@ -809,6 +810,7 @@ function TimelineHeader({
   weeks: ReturnType<typeof buildWeekColumns>;
 }) {
   const monthGroups = buildMonthGroups(weeks);
+  const weekLabels = buildMonthWeekLabels(weeks);
   return (
     <>
       <div
@@ -825,9 +827,9 @@ function TimelineHeader({
           {month.label}
         </div>
       ))}
-      {weeks.map((week) => (
+      {weeks.map((week, index) => (
         <div className={`${styles.cell} ${styles.head} ${styles.weekHead}`} key={week.key}>
-          {formatWeekNumber(week.start)}
+          {weekLabels[index]}
         </div>
       ))}
     </>
@@ -1059,14 +1061,19 @@ function buildMonthGroups(weeks: ReturnType<typeof buildWeekColumns>) {
   }, []);
 }
 
-function formatWeekNumber(dateKey: string | undefined) {
-  if (!dateKey) return "W--";
-  const date = new Date(`${dateKey}T00:00:00Z`);
-  const day = date.getUTCDay() || 7;
-  date.setUTCDate(date.getUTCDate() + 4 - day);
-  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
-  const week = Math.ceil(((date.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7);
-  return `W${week}`;
+function buildMonthWeekLabels(weeks: ReturnType<typeof buildWeekColumns>) {
+  let currentMonth = "";
+  let weekOfMonth = 0;
+  return weeks.map((week) => {
+    const month = week.start?.slice(0, 7) ?? "unknown";
+    if (month !== currentMonth) {
+      currentMonth = month;
+      weekOfMonth = 1;
+    } else {
+      weekOfMonth += 1;
+    }
+    return `W${weekOfMonth}`;
+  });
 }
 
 function formatYearMonth(dateKey: string) {
