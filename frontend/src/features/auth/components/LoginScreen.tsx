@@ -1,5 +1,8 @@
 import { ArrowRightIcon, LockClosedIcon } from "@heroicons/react/24/outline";
-import { type FormEvent, useState } from "react";
+import { useForm } from "@tanstack/react-form";
+
+import { FormFieldError } from "../../../components/forms/FormFieldError";
+import { loginFormSchema } from "../model/authFormSchemas";
 
 type LoginScreenProps = {
   error: string | null;
@@ -9,16 +12,19 @@ type LoginScreenProps = {
 
 /** メールアドレスとパスワードを受け取り、API認証を開始する画面です。 */
 export function LoginScreen({ error, loading, onLogin }: LoginScreenProps) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (loading) {
-      return;
-    }
-    await onLogin(email, password);
-  }
+  const form = useForm({
+    defaultValues: { email: "", password: "" },
+    onSubmit: async ({ value }) => {
+      if (!loading) {
+        const input = loginFormSchema.parse(value);
+        await onLogin(input.email, input.password);
+      }
+    },
+    validators: {
+      onChange: loginFormSchema,
+      onSubmit: loginFormSchema,
+    },
+  });
 
   return (
     <main className="login-screen">
@@ -29,38 +35,73 @@ export function LoginScreen({ error, loading, onLogin }: LoginScreenProps) {
             <h1>ログイン</h1>
           </div>
         </div>
-        <form className="login-form" onSubmit={handleSubmit}>
-          <label>
-            メールアドレス
-            <input
-              autoComplete="email"
-              inputMode="email"
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="name@example.com"
-              type="email"
-              value={email}
-            />
-          </label>
-          <label>
-            パスワード
-            <input
-              autoComplete="current-password"
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="パスワード"
-              type="password"
-              value={password}
-            />
-          </label>
+        <form
+          className="login-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            void form.handleSubmit();
+          }}
+        >
+          <form.Field name="email">
+            {(field) => (
+              <label>
+                メールアドレス
+                <input
+                  aria-invalid={field.state.meta.isTouched && !field.state.meta.isValid}
+                  autoComplete="email"
+                  inputMode="email"
+                  onBlur={field.handleBlur}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  placeholder="name@example.com"
+                  type="email"
+                  value={field.state.value}
+                />
+                <FormFieldError
+                  errors={field.state.meta.errors}
+                  show={field.state.meta.isTouched}
+                />
+              </label>
+            )}
+          </form.Field>
+          <form.Field name="password">
+            {(field) => (
+              <label>
+                パスワード
+                <input
+                  aria-invalid={field.state.meta.isTouched && !field.state.meta.isValid}
+                  autoComplete="current-password"
+                  onBlur={field.handleBlur}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  placeholder="パスワード"
+                  type="password"
+                  value={field.state.value}
+                />
+                <FormFieldError
+                  errors={field.state.meta.errors}
+                  show={field.state.meta.isTouched}
+                />
+              </label>
+            )}
+          </form.Field>
           {error ? (
             <div className="login-error" role="alert">
               <LockClosedIcon />
               {error}
             </div>
           ) : null}
-          <button className="primary-button login-submit" disabled={loading} type="submit">
-            {loading ? "確認中" : "ログイン"}
-            <ArrowRightIcon />
-          </button>
+          <form.Subscribe selector={(state) => [state.canSubmit, state.values] as const}>
+            {([canSubmit, values]) => (
+              <button
+                className="primary-button login-submit"
+                disabled={loading || !canSubmit || !values.email.trim() || !values.password}
+                type="submit"
+              >
+                {loading ? "確認中" : "ログイン"}
+                <ArrowRightIcon />
+              </button>
+            )}
+          </form.Subscribe>
         </form>
       </section>
     </main>

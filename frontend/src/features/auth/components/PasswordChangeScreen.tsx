@@ -1,4 +1,7 @@
-import { type FormEvent, useState } from "react";
+import { useForm } from "@tanstack/react-form";
+
+import { FormFieldError } from "../../../components/forms/FormFieldError";
+import { passwordChangeFormSchema } from "../model/authFormSchemas";
 
 type PasswordChangeScreenProps = {
   error: string | null;
@@ -12,67 +15,102 @@ export function PasswordChangeScreen({
   loading,
   onChangePassword,
 }: PasswordChangeScreenProps) {
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmation, setConfirmation] = useState("");
-
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    if (newPassword !== confirmation) {
-      return;
-    }
-    await onChangePassword(currentPassword, newPassword);
-  }
+  const form = useForm({
+    defaultValues: { confirmation: "", currentPassword: "", newPassword: "" },
+    onSubmit: async ({ value }) => {
+      const input = passwordChangeFormSchema.parse(value);
+      await onChangePassword(input.currentPassword, input.newPassword);
+    },
+    validators: {
+      onChange: passwordChangeFormSchema,
+      onSubmit: passwordChangeFormSchema,
+    },
+  });
 
   return (
     <main className="login-screen">
-      <form className="login-panel" onSubmit={submit}>
+      <form
+        className="login-panel"
+        onSubmit={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          void form.handleSubmit();
+        }}
+      >
         <img alt="Mirai" className="login-wordmark" src="/brand/mirai-wordmark.png" />
         <h1>パスワードを変更</h1>
         <p>初回ログインのため、新しいパスワードを設定してください。</p>
-        <label>
-          現在のパスワード
-          <input
-            autoComplete="current-password"
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            required
-            type="password"
-            value={currentPassword}
-          />
-        </label>
-        <label>
-          新しいパスワード
-          <input
-            autoComplete="new-password"
-            minLength={12}
-            onChange={(e) => setNewPassword(e.target.value)}
-            required
-            type="password"
-            value={newPassword}
-          />
-        </label>
-        <label>
-          新しいパスワード（確認）
-          <input
-            autoComplete="new-password"
-            minLength={12}
-            onChange={(e) => setConfirmation(e.target.value)}
-            required
-            type="password"
-            value={confirmation}
-          />
-        </label>
-        {newPassword && confirmation && newPassword !== confirmation ? (
-          <p className="login-error">確認用パスワードが一致しません。</p>
-        ) : null}
+        <form.Field name="currentPassword">
+          {(field) => (
+            <label>
+              現在のパスワード
+              <input
+                aria-invalid={field.state.meta.isTouched && !field.state.meta.isValid}
+                autoComplete="current-password"
+                onBlur={field.handleBlur}
+                onChange={(event) => field.handleChange(event.target.value)}
+                required
+                type="password"
+                value={field.state.value}
+              />
+              <FormFieldError errors={field.state.meta.errors} show={field.state.meta.isTouched} />
+            </label>
+          )}
+        </form.Field>
+        <form.Field name="newPassword">
+          {(field) => (
+            <label>
+              新しいパスワード
+              <input
+                aria-invalid={field.state.meta.isTouched && !field.state.meta.isValid}
+                autoComplete="new-password"
+                minLength={12}
+                onBlur={field.handleBlur}
+                onChange={(event) => field.handleChange(event.target.value)}
+                required
+                type="password"
+                value={field.state.value}
+              />
+              <FormFieldError errors={field.state.meta.errors} show={field.state.meta.isTouched} />
+            </label>
+          )}
+        </form.Field>
+        <form.Field name="confirmation">
+          {(field) => (
+            <label>
+              新しいパスワード（確認）
+              <input
+                aria-invalid={field.state.meta.isTouched && !field.state.meta.isValid}
+                autoComplete="new-password"
+                minLength={12}
+                onBlur={field.handleBlur}
+                onChange={(event) => field.handleChange(event.target.value)}
+                required
+                type="password"
+                value={field.state.value}
+              />
+              <FormFieldError errors={field.state.meta.errors} show={field.state.meta.isTouched} />
+            </label>
+          )}
+        </form.Field>
         {error ? <p className="login-error">{error}</p> : null}
-        <button
-          className="primary-button"
-          disabled={loading || newPassword !== confirmation}
-          type="submit"
-        >
-          {loading ? "変更中..." : "パスワードを変更"}
-        </button>
+        <form.Subscribe selector={(state) => [state.canSubmit, state.values] as const}>
+          {([canSubmit, values]) => (
+            <button
+              className="primary-button"
+              disabled={
+                loading ||
+                !canSubmit ||
+                !values.currentPassword ||
+                values.newPassword.length < 12 ||
+                values.confirmation.length < 12
+              }
+              type="submit"
+            >
+              {loading ? "変更中..." : "パスワードを変更"}
+            </button>
+          )}
+        </form.Subscribe>
       </form>
     </main>
   );

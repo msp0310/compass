@@ -1,9 +1,12 @@
 import { XMarkIcon } from "@heroicons/react/24/outline";
-import { useEffect, useMemo, useState } from "react";
+import { useForm } from "@tanstack/react-form";
+import { useEffect, useMemo } from "react";
 
+import { FormFieldError } from "../../../components/forms/FormFieldError";
 import { MemberChecklist } from "../../../components/ui/MemberChecklist";
 import { getActiveMembers } from "../../../lib/members";
 import type { CreateTaskInput, Member, ScheduleTask } from "../../../types/schedule";
+import { type TaskCreateFormValue, taskCreateFormSchema } from "../model/taskFormSchemas";
 
 type CreateTaskSheetProps = {
   members: Member[];
@@ -12,63 +15,60 @@ type CreateTaskSheetProps = {
   tasks: ScheduleTask[];
 };
 
+function toggleAssignee(current: string[], memberId: string) {
+  if (current.includes(memberId)) {
+    return current.length > 1 ? current.filter((selectedId) => selectedId !== memberId) : current;
+  }
+  return [...current, memberId];
+}
+
 /** ガントに追加するタスクの基本情報を入力するシートです。 */
 export function CreateTaskSheet({ members, onClose, onCreateTask, tasks }: CreateTaskSheetProps) {
-  const parentOptions = tasks.filter((task) => task.type === "phase" || task.type === "summary");
-  const [title, setTitle] = useState("新しい作業項目");
-  const [parentId, setParentId] = useState(parentOptions[0]?.id ?? "none");
-  const [start, setStart] = useState("2025-06-03");
-  const [end, setEnd] = useState("2025-06-07");
+  const parentOptions = useMemo(
+    () => tasks.filter((task) => task.type === "phase" || task.type === "summary"),
+    [tasks],
+  );
   const assigneeOptions = useMemo(() => {
     const activeMembers = getActiveMembers(members);
     return activeMembers.length > 0 ? activeMembers : members;
   }, [members]);
-  const [assigneeIds, setAssigneeIds] = useState<string[]>(
-    assigneeOptions[0] ? [assigneeOptions[0].id] : [],
-  );
-  const [effortHours, setEffortHours] = useState(40);
+  const form = useForm({
+    defaultValues: {
+      assigneeIds: assigneeOptions[0] ? [assigneeOptions[0].id] : [],
+      effortHours: 40,
+      end: "2025-06-07",
+      parentId: parentOptions[0]?.id ?? "none",
+      start: "2025-06-03",
+      title: "新しい作業項目",
+    } as TaskCreateFormValue,
+    onSubmit: ({ value }) => {
+      const input = taskCreateFormSchema.parse(value);
+      onCreateTask({ ...input, parentId: input.parentId === "none" ? null : input.parentId });
+    },
+    validators: {
+      onChange: taskCreateFormSchema,
+      onSubmit: taskCreateFormSchema,
+    },
+  });
 
   useEffect(() => {
-    if (!parentOptions.some((task) => task.id === parentId)) {
-      setParentId(parentOptions[0]?.id ?? "none");
+    const currentParentId = form.getFieldValue("parentId");
+    if (!parentOptions.some((task) => task.id === currentParentId)) {
+      form.setFieldValue("parentId", parentOptions[0]?.id ?? "none");
     }
-  }, [parentOptions, parentId]);
+  }, [form, parentOptions]);
 
   useEffect(() => {
-    setAssigneeIds((current) => {
-      const availableIds = new Set(assigneeOptions.map((member) => member.id));
-      const next = current.filter((memberId) => availableIds.has(memberId));
-      if (next.length > 0) {
-        return next;
-      }
-      return assigneeOptions[0] ? [assigneeOptions[0].id] : [];
-    });
-  }, [assigneeOptions]);
-
-  function toggleAssignee(memberId: string) {
-    setAssigneeIds((current) => {
-      if (current.includes(memberId)) {
-        return current.length > 1
-          ? current.filter((selectedId) => selectedId !== memberId)
-          : current;
-      }
-      return [...current, memberId];
-    });
-  }
-
-  function submit() {
-    if (assigneeIds.length === 0) {
-      return;
+    const availableIds = new Set(assigneeOptions.map((member) => member.id));
+    const currentIds = form.getFieldValue("assigneeIds");
+    const nextIds = currentIds.filter((memberId) => availableIds.has(memberId));
+    if (nextIds.length !== currentIds.length || (nextIds.length === 0 && assigneeOptions[0])) {
+      form.setFieldValue(
+        "assigneeIds",
+        nextIds.length > 0 ? nextIds : assigneeOptions[0] ? [assigneeOptions[0].id] : [],
+      );
     }
-    onCreateTask({
-      title,
-      parentId: parentId === "none" ? null : parentId,
-      start,
-      end,
-      assigneeIds,
-      effortHours,
-    });
-  }
+  }, [assigneeOptions, form]);
 
   return (
     <aside className="create-sheet">
@@ -78,67 +78,123 @@ export function CreateTaskSheet({ members, onClose, onCreateTask, tasks }: Creat
           <XMarkIcon />
         </button>
       </div>
-      <label>
-        タスク名
-        <input value={title} onChange={(event) => setTitle(event.target.value)} />
-      </label>
-      <label>
-        フェーズ
-        <select value={parentId} onChange={(event) => setParentId(event.target.value)}>
-          {parentOptions.map((task) => (
-            <option key={task.id} value={task.id}>
-              {task.title}
-            </option>
-          ))}
-        </select>
-      </label>
+      <form.Field name="title">
+        {(field) => (
+          <label>
+            タスク名
+            <input
+              aria-invalid={field.state.meta.isTouched && !field.state.meta.isValid}
+              onBlur={field.handleBlur}
+              onChange={(event) => field.handleChange(event.target.value)}
+              value={field.state.value}
+            />
+            <FormFieldError errors={field.state.meta.errors} show={field.state.meta.isTouched} />
+          </label>
+        )}
+      </form.Field>
+      <form.Field name="parentId">
+        {(field) => (
+          <label>
+            フェーズ
+            <select
+              onBlur={field.handleBlur}
+              onChange={(event) => field.handleChange(event.target.value)}
+              value={field.state.value}
+            >
+              {parentOptions.map((task) => (
+                <option key={task.id} value={task.id}>
+                  {task.title}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </form.Field>
       <div className="two-col">
-        <label>
-          開始日
-          <input
-            value={start}
-            onChange={(event) => {
-              setStart(event.target.value);
-              if (end < event.target.value) {
-                setEnd(event.target.value);
-              }
-            }}
-            type="date"
-          />
-        </label>
-        <label>
-          終了日
-          <input
-            min={start}
-            value={end}
-            onChange={(event) => setEnd(event.target.value)}
-            type="date"
-          />
-        </label>
+        <form.Field name="start">
+          {(field) => (
+            <label>
+              開始日
+              <input
+                aria-invalid={field.state.meta.isTouched && !field.state.meta.isValid}
+                onBlur={field.handleBlur}
+                onChange={(event) => {
+                  const nextStart = event.target.value;
+                  field.handleChange(nextStart);
+                  if (form.getFieldValue("end") < nextStart) {
+                    form.setFieldValue("end", nextStart);
+                  }
+                }}
+                type="date"
+                value={field.state.value}
+              />
+              <FormFieldError errors={field.state.meta.errors} show={field.state.meta.isTouched} />
+            </label>
+          )}
+        </form.Field>
+        <form.Field name="end">
+          {(field) => (
+            <label>
+              終了日
+              <input
+                aria-invalid={field.state.meta.isTouched && !field.state.meta.isValid}
+                min={form.getFieldValue("start")}
+                onBlur={field.handleBlur}
+                onChange={(event) => field.handleChange(event.target.value)}
+                type="date"
+                value={field.state.value}
+              />
+              <FormFieldError errors={field.state.meta.errors} show={field.state.meta.isTouched} />
+            </label>
+          )}
+        </form.Field>
       </div>
-      <MemberChecklist
-        members={assigneeOptions}
-        onToggle={toggleAssignee}
-        selectedIds={assigneeIds}
-        title="担当者"
-      />
-      <label>
-        予定工数
-        <input
-          min="0"
-          value={effortHours}
-          onChange={(event) => setEffortHours(Number(event.target.value))}
-          type="number"
-        />
-      </label>
-      <button
-        className="primary-button full"
-        disabled={assigneeIds.length === 0}
-        onClick={submit}
-        type="button"
-      >
-        タスクを追加
-      </button>
+      <form.Field name="assigneeIds">
+        {(field) => (
+          <div>
+            <MemberChecklist
+              members={assigneeOptions}
+              onToggle={(memberId) =>
+                field.handleChange(toggleAssignee(field.state.value, memberId))
+              }
+              selectedIds={field.state.value}
+              title="担当者"
+            />
+            <FormFieldError
+              errors={field.state.meta.errors}
+              show={field.state.value.length === 0}
+            />
+          </div>
+        )}
+      </form.Field>
+      <form.Field name="effortHours">
+        {(field) => (
+          <label>
+            予定工数
+            <input
+              aria-invalid={field.state.meta.isTouched && !field.state.meta.isValid}
+              min="0"
+              onBlur={field.handleBlur}
+              onChange={(event) => field.handleChange(Number(event.target.value))}
+              type="number"
+              value={field.state.value}
+            />
+            <FormFieldError errors={field.state.meta.errors} show={field.state.meta.isTouched} />
+          </label>
+        )}
+      </form.Field>
+      <form.Subscribe selector={(state) => [state.canSubmit, state.values] as const}>
+        {([canSubmit, values]) => (
+          <button
+            className="primary-button full"
+            disabled={!canSubmit || !values.title.trim() || values.assigneeIds.length === 0}
+            onClick={() => void form.handleSubmit()}
+            type="button"
+          >
+            タスクを追加
+          </button>
+        )}
+      </form.Subscribe>
     </aside>
   );
 }

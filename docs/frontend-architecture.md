@@ -44,6 +44,15 @@ Oxlintの`no-restricted-imports`を層ごとに設定し、`npm run check`で依
 - ログアウト、パスワード変更、セッション失効時は利用者固有のQueryキャッシュを破棄する
 - Router contextへQueryClientを渡し、route loaderから`ensureQueryData`を利用できる構成を保つ
 
+### Form・入力検証境界
+
+- 送信を伴う構造化フォームはTanStack Formで値、dirty、touched、送信状態を管理する
+- Zodスキーマは各featureの`model/*FormSchemas.ts`へ置き、UIコンポーネントから検証規則を分離する
+- TanStack FormのStandard Schema検証に加え、送信直前にも`schema.parse`を通してtrim・型保証を確定する
+- API側の検証を正本とし、Zodは入力ミスを早く伝えるクライアント境界として扱う
+- ガントのドラッグ、インライン編集、Undo/Redoはフォーム化せず、既存の操作Hookとdraftモデルを維持する
+- エラー表示は共通`FormFieldError`を使い、該当入力へ`aria-invalid`を付ける
+
 ## Ganttの責務境界
 
 - `GanttWorkbench`: ツールバー、タイムライン、タスク表、補助パネルの調停だけを行う
