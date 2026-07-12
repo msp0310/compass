@@ -81,6 +81,21 @@ Oxlintの`no-restricted-imports`を層ごとに設定し、`npm run check`で依
 
 添付I/Oは共通`AttachmentPanel`へ委譲し、課題featureはowner情報と更新通知だけを渡します。
 
+## 管理設定の責務境界
+
+- `MasterSettingsPage`: 設定カテゴリと編集中チームの選択だけを管理する
+- `TeamSettingsSection`: チーム基本情報、所属メンバー、チーム権限を編集する
+- `MemberSettingsSection`: メンバー作成とアカウント一覧を構成する
+- `useMemberAccountAdministration`: アカウント取得、保存、パスワード再設定のAPI境界を管理する
+- `MemberAccountTable`: 検索、集計、一覧行の構成だけを行う
+- `useMemberAccountRow`: 一人分のアカウントdraftと非稼働日編集を管理する
+- `CalendarSettingsSection`: 稼働曜日、会社休日、国民の祝日取込を管理する
+- `AuditLogSection` / `useAuditLogs`: 監査タブ表示時の遅延取得と表示を管理する
+- `masterSettings` / `memberAccounts`: 権限更新、検索、集計、表示形式を純粋関数で提供する
+
+各設定セクションは表示中かどうかを受け取り、入力中のdraftをカテゴリ切替後も保持します。
+APIアクセスは専用Hookに閉じ込め、表示コンポーネントからrepositoryを直接呼び出しません。
+
 ## 現在の技術的債務
 
 | 優先度 | 債務                                            | 影響                             | 対応方針                                                    |
