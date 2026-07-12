@@ -262,7 +262,7 @@ export function GanttToolbar({
             type="button"
           >
             <ChevronLeftIcon />
-            前月
+            <span className="timeline-nav-label">前月</span>
           </button>
           <button
             aria-label="今日へ移動"
@@ -279,7 +279,7 @@ export function GanttToolbar({
             title="来月へ移動"
             type="button"
           >
-            来月
+            <span className="timeline-nav-label">来月</span>
             <ChevronRightIcon />
           </button>
         </div>
@@ -303,13 +303,13 @@ export function GanttToolbar({
         </div>
       ) : null}
       {displayMode === "gantt" ? (
-        <label className="calendar-toggle">
+        <label className="calendar-toggle" title="休日を考慮して工数と期間を計算">
           <input
             checked={calendarAware}
             onChange={(event) => onCalendarAwareChange(event.target.checked)}
             type="checkbox"
           />
-          休日を考慮
+          <span className="calendar-toggle-label">休日を考慮</span>
         </label>
       ) : null}
       <div className="toolbar-popover-wrap" ref={columnsPopoverRef}>
@@ -321,7 +321,8 @@ export function GanttToolbar({
           title="表示列"
           type="button"
         >
-          <ViewColumnsIcon />列
+          <ViewColumnsIcon />
+          <span className="toolbar-button-label">列</span>
         </button>
         {columnsOpen ? (
           <div className="column-settings-popover" id="gantt-column-settings">
@@ -365,8 +366,8 @@ export function GanttToolbar({
           type="button"
         >
           <FunnelIcon />
-          フィルター
-          <span>{activeFilterCount}</span>
+          <span className="toolbar-button-label">フィルター</span>
+          <span className="filter-count">{activeFilterCount}</span>
         </button>
         <button
           className="icon-button"

@@ -4,12 +4,14 @@ import {
   InformationCircleIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
+import { useEffect } from "react";
 import * as styles from "./ToastViewport.css";
 
 export type ToastTone = "success" | "info" | "warning";
 
 export type ToastMessage = {
   detail?: string;
+  durationMs: number;
   id: number;
   title: string;
   tone: ToastTone;
@@ -33,25 +35,35 @@ export function ToastViewport({ onDismiss, toasts }: ToastViewportProps) {
   return (
     <section aria-label="操作結果" aria-live="polite" className={styles.viewport}>
       {toasts.map((toast) => {
-        const Icon = toneIcon[toast.tone];
-        return (
-          <article className={styles.message} key={toast.id}>
-            <Icon className={`${styles.icon} ${styles.iconByTone[toast.tone]}`} />
-            <div className={styles.content}>
-              <strong className={styles.title}>{toast.title}</strong>
-              {toast.detail ? <p className={styles.detail}>{toast.detail}</p> : null}
-            </div>
-            <button
-              aria-label="通知を閉じる"
-              className={styles.dismiss}
-              onClick={() => onDismiss(toast.id)}
-              type="button"
-            >
-              <XMarkIcon className={styles.dismissIcon} />
-            </button>
-          </article>
-        );
+        return <ToastCard key={toast.id} onDismiss={onDismiss} toast={toast} />;
       })}
     </section>
+  );
+}
+
+function ToastCard({ onDismiss, toast }: { onDismiss: (id: number) => void; toast: ToastMessage }) {
+  const Icon = toneIcon[toast.tone];
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => onDismiss(toast.id), toast.durationMs);
+    return () => window.clearTimeout(timeoutId);
+  }, [onDismiss, toast.durationMs, toast.id]);
+
+  return (
+    <article className={styles.message}>
+      <Icon className={`${styles.icon} ${styles.iconByTone[toast.tone]}`} />
+      <div className={styles.content}>
+        <strong className={styles.title}>{toast.title}</strong>
+        {toast.detail ? <p className={styles.detail}>{toast.detail}</p> : null}
+      </div>
+      <button
+        aria-label="通知を閉じる"
+        className={styles.dismiss}
+        onClick={() => onDismiss(toast.id)}
+        type="button"
+      >
+        <XMarkIcon className={styles.dismissIcon} />
+      </button>
+    </article>
   );
 }

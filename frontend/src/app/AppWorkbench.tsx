@@ -102,6 +102,7 @@ import {
   tourScenarios,
   type TourId,
 } from "../features/onboarding/tourScenarios";
+import type { HelpDocumentId } from "../help/helpDocuments";
 
 type AppWorkbenchProps = {
   currentUser: AuthUser;
@@ -359,6 +360,9 @@ export function AppWorkbench({
   const [activeTeamId, setActiveTeamId] = useState(initialAppState.activeTeamId);
   const [activeProjectId, setActiveProjectId] = useState(initialAppState.activeProjectId);
   const [activeTab, setActiveTab] = useState<ViewTab>(initialAppState.activeTab);
+  const [helpDocumentId, setHelpDocumentId] = useState<HelpDocumentId>(() =>
+    getContextHelpDocumentId(initialAppState.activeTab, false, false),
+  );
   const [activeTourId, setActiveTourId] = useState<TourId | null>(null);
   const [dailyReportReminders, setDailyReportReminders] = useState<DailyReportReminder[]>([]);
   const [filters, setFilters] = useState<ScheduleFilters>(initialAppState.filters);
@@ -541,7 +545,8 @@ export function AppWorkbench({
     taskInspectorTaskId,
   } = useTaskSelection({ visibleRows });
   const activeTeam = workspace.teams.find((team) => team.id === schedule.project.teamId);
-  const managementTeam = activeTeam ?? workspace.teams[0];
+  const managementTeam =
+    workspace.teams.find((team) => team.id === activeTeamId) ?? activeTeam ?? workspace.teams[0];
   const projectMembers = useMemo(() => {
     const projectMemberIds = new Set(
       getProjectAssignedMembers({
@@ -928,6 +933,7 @@ export function AppWorkbench({
   );
   const isProjectSaveScope =
     !showMasterSettings &&
+    !showHelpPage &&
     activeTab !== "Projects" &&
     activeTab !== "Workload" &&
     activeTab !== "DailyReports" &&
@@ -1286,6 +1292,9 @@ export function AppWorkbench({
 
   /** 管理設定画面を開きます。 */
   function openMasterSettings() {
+    closeTaskInspector();
+    clearTaskSelection();
+    setFilterOpen(false);
     setPendingProjectImport(null);
     setPendingTaskCsvImport(null);
     setShowCreateSheet(false);
@@ -1321,6 +1330,9 @@ export function AppWorkbench({
 
   /** 操作ヘルプ画面を開きます。 */
   function openHelpPage() {
+    setHelpDocumentId(
+      getContextHelpDocumentId(activeTab, showMasterSettings, showProjectSettings),
+    );
     setPendingProjectImport(null);
     setPendingTaskCsvImport(null);
     setShowCreateSheet(false);
@@ -2849,7 +2861,11 @@ export function AppWorkbench({
             />
           ) : null}
           {showHelpPage ? (
-            <HelpPage availableTourIds={availableTourIds} onStartTour={startTour} />
+            <HelpPage
+              availableTourIds={availableTourIds}
+              initialDocumentId={helpDocumentId}
+              onStartTour={startTour}
+            />
           ) : null}
           {showMainProjectViews && activeTab === "Gantt" ? (
             <GanttWorkbench
@@ -3217,4 +3233,31 @@ export function AppWorkbench({
       ) : null}
     </div>
   );
+}
+
+const helpDocumentByView: Record<ViewTab, HelpDocumentId> = {
+  Activity: "activity",
+  Analysis: "analytics",
+  Calendar: "calendar",
+  DailyReports: "dailyReports",
+  Gantt: "gantt",
+  Issues: "issues",
+  Milestones: "milestones",
+  PersonalAnalytics: "analytics",
+  Projects: "projects",
+  Resource: "resource",
+  Status: "status",
+  WeeklyReport: "analytics",
+  WorkLogs: "workLogs",
+  Workload: "analytics",
+};
+
+function getContextHelpDocumentId(
+  activeTab: ViewTab,
+  masterSettingsOpen: boolean,
+  projectSettingsOpen: boolean,
+): HelpDocumentId {
+  if (masterSettingsOpen) return "adminSettings";
+  if (projectSettingsOpen) return "projectSettings";
+  return helpDocumentByView[activeTab];
 }

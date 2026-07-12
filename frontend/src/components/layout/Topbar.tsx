@@ -147,6 +147,8 @@ export function Topbar({
   const isDailyReportsContext = contextMode === "dailyReports";
   const isPersonalAnalyticsContext = contextMode === "personalAnalytics";
   const isProjectContext = contextMode === "project";
+  const showSyncActions =
+    !isDailyReportsContext && !isPersonalAnalyticsContext && !isHelpContext;
   const pageTitle = isAdminContext
     ? "管理設定"
     : isHelpContext
@@ -539,7 +541,7 @@ export function Topbar({
         </div>
       </div>
       <div className="topbar-actions">
-        {!isDailyReportsContext && !isPersonalAnalyticsContext ? (
+        {showSyncActions ? (
           <div className="topbar-action-wrap">
             <button
               className={`save-state ${syncStatus.status}${openMenu === "sync" ? " active" : ""}`}
@@ -649,7 +651,7 @@ export function Topbar({
             ) : null}
           </div>
         ) : null}
-        {!isDailyReportsContext && !isPersonalAnalyticsContext ? (
+        {showSyncActions ? (
           <button
             className={
               hasUnsavedChanges ? "toolbar-button save-button dirty" : "toolbar-button save-button"
@@ -662,7 +664,7 @@ export function Topbar({
             保存
           </button>
         ) : null}
-        {!isDailyReportsContext && !isPersonalAnalyticsContext ? (
+        {showSyncActions ? (
           <button
             aria-label="ローカル保存を初期化"
             className="icon-button"

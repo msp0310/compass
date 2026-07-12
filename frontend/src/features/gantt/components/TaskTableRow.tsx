@@ -306,6 +306,7 @@ export function TaskTableRow({
               event.stopPropagation();
               startTitleEdit();
             }}
+            title="クリックで選択 / ダブルクリックでタスク名を編集"
             type="button"
           >
             {task.title}

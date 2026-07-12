@@ -1,4 +1,4 @@
-import type { CSSProperties, KeyboardEvent, MouseEvent, RefObject } from "react";
+import { useEffect, useRef, type CSSProperties, type KeyboardEvent, type MouseEvent, type RefObject } from "react";
 import type {
   GanttTimeUnit,
   Member,
@@ -290,6 +290,7 @@ function TimelineRow({
   timeline,
   visibleSlotWindow,
 }: TimelineRowProps) {
+  const focusStartTimerRef = useRef<number | null>(null);
   const span = getTaskTimelineSpan(task, timeline);
   const baselineSpan =
     task.baselineStart && task.baselineEnd
@@ -334,6 +335,28 @@ function TimelineRow({
           ? "ahead"
           : "same"
       : "same";
+
+  useEffect(() => {
+    return () => {
+      if (focusStartTimerRef.current !== null) {
+        window.clearTimeout(focusStartTimerRef.current);
+      }
+    };
+  }, []);
+
+  function cancelPendingFocusStart() {
+    if (focusStartTimerRef.current === null) return;
+    window.clearTimeout(focusStartTimerRef.current);
+    focusStartTimerRef.current = null;
+  }
+
+  function scheduleFocusStart() {
+    cancelPendingFocusStart();
+    focusStartTimerRef.current = window.setTimeout(() => {
+      focusStartTimerRef.current = null;
+      onFocusTaskStart();
+    }, 140);
+  }
 
   function getSelectionOptions(event: {
     ctrlKey?: boolean;
@@ -540,6 +563,7 @@ function TimelineRow({
   }
 
   function handleOpenInspector(event: MouseEvent<HTMLElement>) {
+    cancelPendingFocusStart();
     event.preventDefault();
     event.stopPropagation();
     onSelect(getSelectionOptions(event));
@@ -551,7 +575,7 @@ function TimelineRow({
     const selectionOptions = getSelectionOptions(event);
     onSelect(selectionOptions);
     if (!selectionOptions.additive && !selectionOptions.range && event.detail === 1) {
-      onFocusTaskStart();
+      scheduleFocusStart();
     }
     if (event.detail >= 2) {
       handleOpenInspector(event);
@@ -599,7 +623,7 @@ function TimelineRow({
           onKeyDown={handleKeyDown}
           onMouseDown={(event) => startPointerOperation(event, "move")}
           style={{ left: left + 2, top: top + 10 }}
-          title={`${task.title} ${formatShortDate(task.start)}`}
+          title={`${task.title} ${formatShortDate(task.start)} / ドラッグで移動 / ダブルクリックで詳細`}
           type="button"
         >
           <span />
@@ -653,7 +677,7 @@ function TimelineRow({
             width,
           } as CSSProperties
         }
-        title={`${task.title} ${formatShortDate(task.start)} - ${formatShortDate(task.end)}`}
+        title={`${task.title} ${formatShortDate(task.start)} - ${formatShortDate(task.end)} / ドラッグで移動 / 両端で期間変更 / ダブルクリックで詳細`}
         type="button"
       >
         {canResize ? (

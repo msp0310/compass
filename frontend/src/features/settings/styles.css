@@ -21,11 +21,64 @@
 }
 
 .task-inspector {
-  top: 220px;
-  right: 22px;
-  width: min(430px, calc(100vw - 44px));
-  max-height: calc(100vh - 244px);
+  top: 92px;
+  right: 18px;
+  width: min(520px, calc(100vw - 36px));
+  max-height: calc(100vh - 116px);
   overflow: auto;
+}
+
+.task-inspector-tabs {
+  position: sticky;
+  top: -14px;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  margin: 0 -4px 14px;
+  border-bottom: 1px solid #dfe6ef;
+  background: #fff;
+  padding: 8px 4px 9px;
+}
+
+.task-inspector-tabs button {
+  display: inline-flex;
+  min-width: 0;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 0;
+  border-radius: 6px;
+  color: #5f6e84;
+  background: transparent;
+  padding: 0 7px;
+  font-size: 11px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.task-inspector-tabs button:hover,
+.task-inspector-tabs button:focus-visible {
+  color: #1649bf;
+  background: #f2f6ff;
+  outline: 0;
+}
+
+.task-inspector-tabs button.active {
+  color: #1649bf;
+  background: #eaf1ff;
+}
+
+.task-inspector-tabs button span {
+  display: grid;
+  min-width: 18px;
+  height: 18px;
+  place-items: center;
+  border-radius: 999px;
+  color: #fff;
+  background: #2864ea;
+  font-size: 10px;
 }
 
 .create-sheet {

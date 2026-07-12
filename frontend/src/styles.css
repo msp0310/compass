@@ -4975,11 +4975,11 @@ button.health-row:hover {
 }
 
 .workbench-toolbar {
-  flex-wrap: wrap;
-  min-height: 52px;
-  gap: 10px;
+  flex-wrap: nowrap;
+  min-height: 50px;
+  gap: 6px;
   border-bottom: 1px solid #dfe6ef;
-  padding: 8px 10px;
+  padding: 8px;
   font-size: 12px;
 }
 
@@ -5088,6 +5088,7 @@ button.health-row:hover {
 .paste-mode-control,
 .time-unit-control {
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   height: 32px;
   border: 1px solid #d9e1ed;
@@ -5189,19 +5190,21 @@ button.health-row:hover {
 
 .toolbar-spacer {
   flex: 1;
+  min-width: 0;
 }
 
 .toolbar-search-actions {
   display: inline-flex;
-  flex: 0 1 360px;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 6px;
   margin-left: auto;
 }
 
 .calendar-toggle {
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 7px;
   color: #526076;
@@ -5219,6 +5222,7 @@ button.health-row:hover {
 .toolbar-popover-wrap {
   position: relative;
   display: inline-flex;
+  flex: 0 0 auto;
 }
 
 .column-settings-popover {
@@ -5530,7 +5534,7 @@ button.health-row:hover {
   background: #f3f7ff;
 }
 
-.filter-button span {
+.filter-button .filter-count {
   display: grid;
   width: 18px;
   height: 18px;
@@ -5540,6 +5544,50 @@ button.health-row:hover {
   background: #163660;
   font-size: 10px;
   font-weight: 800;
+}
+
+@media (max-width: 1280px) {
+  .workbench-toolbar {
+    gap: 4px;
+  }
+
+  .assignee-quick-filter {
+    width: 158px;
+    flex-basis: 158px;
+  }
+
+  .timeline-nav-control button:not(.today-jump) {
+    min-width: 28px;
+    width: 28px;
+    padding: 0;
+  }
+
+  .timeline-nav-label,
+  .calendar-toggle-label,
+  .toolbar-button-label {
+    display: none;
+  }
+
+  .toolbar-popover-wrap > .subtle-action,
+  .filter-button {
+    width: 34px;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .filter-button {
+    position: relative;
+  }
+
+  .filter-button .filter-count {
+    position: absolute;
+    top: -5px;
+    right: -4px;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #fff;
+    font-size: 9px;
+  }
 }
 
 @media (max-width: 1120px) {

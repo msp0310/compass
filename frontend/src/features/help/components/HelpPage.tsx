@@ -1,6 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MagnifyingGlassIcon, PlayCircleIcon } from "@heroicons/react/24/outline";
-import { helpDocuments, type HelpDocument } from "../../../help/helpDocuments";
+import {
+  helpDocuments,
+  type HelpDocument,
+  type HelpDocumentId,
+} from "../../../help/helpDocuments";
 import { tourScenarios, type TourId } from "../../onboarding/tourScenarios";
 import * as styles from "./HelpPage.css";
 
@@ -12,13 +16,19 @@ type HelpBlock =
 
 type HelpPageProps = {
   availableTourIds: TourId[];
+  initialDocumentId: HelpDocumentId;
   onStartTour: (tourId: TourId) => void;
 };
 
 /** 操作方法と製品の補足情報を表示するヘルプページです。 */
-export function HelpPage({ availableTourIds, onStartTour }: HelpPageProps) {
-  const [activeId, setActiveId] = useState(helpDocuments[0]?.id ?? "overview");
+export function HelpPage({ availableTourIds, initialDocumentId, onStartTour }: HelpPageProps) {
+  const [activeId, setActiveId] = useState<HelpDocumentId>(initialDocumentId);
   const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    setActiveId(initialDocumentId);
+    setQuery("");
+  }, [initialDocumentId]);
   const normalizedQuery = query.trim().toLowerCase();
   const filteredDocuments = useMemo(() => {
     if (!normalizedQuery) return helpDocuments;

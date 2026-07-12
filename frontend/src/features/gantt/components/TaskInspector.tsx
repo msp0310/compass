@@ -62,6 +62,8 @@ type TaskInspectorProps = {
   task: ScheduleTask | null;
 };
 
+type InspectorSection = "basic" | "collaboration" | "relations";
+
 /** 選択中タスクの詳細情報と編集項目を表示します。 */
 export function TaskInspector({
   attachments,
@@ -82,6 +84,7 @@ export function TaskInspector({
   tasks,
   task,
 }: TaskInspectorProps) {
+  const [activeSection, setActiveSection] = useState<InspectorSection>("basic");
   const [checklistText, setChecklistText] = useState("");
   const [commentText, setCommentText] = useState("");
   const [dependencyQuery, setDependencyQuery] = useState("");
@@ -90,12 +93,24 @@ export function TaskInspector({
   const inspectorRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
+    setActiveSection("basic");
     setChecklistText("");
     setCommentText("");
     setDependencyQuery("");
     setLinkLabel("");
     setLinkUrl("");
   }, [task?.id]);
+
+  useEffect(() => {
+    if (!task || !focusRequest || focusRequest.taskId !== task.id) return;
+    if (focusRequest.target === "comments") {
+      setActiveSection("collaboration");
+    } else if (focusRequest.target === "dependencies") {
+      setActiveSection("relations");
+    } else {
+      setActiveSection("basic");
+    }
+  }, [focusRequest?.requestId, focusRequest?.target, focusRequest?.taskId, task?.id]);
 
   useEffect(() => {
     if (!task || !focusRequest || focusRequest.taskId !== task.id) return;
@@ -113,7 +128,7 @@ export function TaskInspector({
       }
     });
     return () => window.cancelAnimationFrame(frameId);
-  }, [focusRequest?.requestId, focusRequest?.target, focusRequest?.taskId, task?.id]);
+  }, [activeSection, focusRequest?.requestId, focusRequest?.target, focusRequest?.taskId, task?.id]);
 
   if (!task) return null;
   const currentTask = task;
@@ -361,6 +376,32 @@ export function TaskInspector({
           <XMarkIcon />
         </button>
       </div>
+      <nav className="task-inspector-tabs" aria-label="タスク詳細の表示切り替え">
+        <button
+          className={activeSection === "basic" ? "active" : ""}
+          onClick={() => setActiveSection("basic")}
+          type="button"
+        >
+          基本情報
+        </button>
+        <button
+          className={activeSection === "relations" ? "active" : ""}
+          onClick={() => setActiveSection("relations")}
+          type="button"
+        >
+          完了条件・関係
+        </button>
+        <button
+          className={activeSection === "collaboration" ? "active" : ""}
+          onClick={() => setActiveSection("collaboration")}
+          type="button"
+        >
+          コメント・添付
+          {comments.length > 0 ? <span>{comments.length}</span> : null}
+        </button>
+      </nav>
+      {activeSection === "basic" ? (
+        <>
       <label className="field-stack">
         タスク名
         <input
@@ -566,6 +607,10 @@ export function TaskInspector({
         onChange={updateAssigneeAllocation}
         task={currentTask}
       />
+        </>
+      ) : null}
+      {activeSection === "relations" ? (
+        <>
       <section className="task-detail-section">
         <div className="task-detail-heading">
           <span>完了条件</span>
@@ -717,6 +762,10 @@ export function TaskInspector({
           <p className="dependency-empty">一致する前提タスクがありません</p>
         ) : null}
       </div>
+        </>
+      ) : null}
+      {activeSection === "collaboration" ? (
+        <>
       <section className="task-detail-section" data-task-focus-target="comments" tabIndex={-1}>
         <div className="task-detail-heading">
           <span>
@@ -777,6 +826,9 @@ export function TaskInspector({
         ownerType="task"
         projectId={projectId}
       />
+        </>
+      ) : null}
+      {activeSection === "relations" ? (
       <section className="task-detail-section">
         <div className="task-detail-heading">
           <span>
@@ -825,6 +877,7 @@ export function TaskInspector({
           {links.length === 0 ? <p className="task-detail-empty">参考リンクは未登録です</p> : null}
         </div>
       </section>
+      ) : null}
     </aside>
   );
 }
