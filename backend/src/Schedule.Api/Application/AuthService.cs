@@ -281,7 +281,8 @@ public sealed class AuthService(ScheduleDbContext db)
     /// <summary>管理者が初期パスワードを再発行するときの一時パスワードを生成します。</summary>
     private static string CreateTemporaryPassword()
     {
-        return $"Temp-{RandomNumberGenerator.GetInt32(100000, 999999)}";
+        // 推測しやすい連番を避け、再設定までの短時間でも十分なエントロピーを確保します。
+        return $"Mirai-{Base64UrlEncode(RandomNumberGenerator.GetBytes(12))}7!";
     }
 
     /// <summary>ロールを許可された値へ正規化します。</summary>

@@ -86,8 +86,6 @@ export class ProjectImportError extends Error {
     this.name = "ProjectImportError";
   }
 }
-
-/** parseProjectImportJsonを実行し、アプリケーション用の値を返します。 */
 export function parseProjectImportJson(source: string): ProjectImportData {
   let parsed: unknown;
   try {
@@ -220,16 +218,12 @@ function parseProjectWorkLog(value: unknown): ProjectWorkLog {
     updatedAt: readString(record.updatedAt, "workLogs.updatedAt"),
   };
 }
-
-/** parseTaskCsvImportを実行し、アプリケーション用の値を返します。 */
 export function parseTaskCsvImport(
   source: string,
   context: TaskCsvImportContext,
 ): TaskCsvImportData {
   return parseTaskCsvImportFromDraft(createTaskCsvImportDraft(source), context);
 }
-
-/** createTaskCsvImportDraftを実行し、アプリケーション用の値を返します。 */
 export function createTaskCsvImportDraft(source: string): TaskCsvImportDraft {
   const rows = parseCsvRows(source);
   if (rows.length === 0) {
@@ -295,8 +289,6 @@ export async function createBrabioXlsxImportDraft(file: File): Promise<BrabioXls
     warnings,
   };
 }
-
-/** parseTaskCsvImportFromDraftを実行し、アプリケーション用の値を返します。 */
 export function parseTaskCsvImportFromDraft(
   draft: TaskCsvImportDraft,
   context: TaskCsvImportContext,
@@ -337,8 +329,6 @@ export function parseTaskCsvImportFromDraft(
     tasks,
   };
 }
-
-/** validateTaskCsvImportDataを実行し、アプリケーション用の値を返します。 */
 export function validateTaskCsvImportData(
   data: TaskCsvImportData,
   context: TaskCsvImportValidationContext,
@@ -350,8 +340,6 @@ export function validateTaskCsvImportData(
     tasks: data.tasks,
   });
 }
-
-/** validateProjectImportDataを実行し、アプリケーション用の値を返します。 */
 export function validateProjectImportData(data: ProjectImportData): ProjectImportValidation {
   const errors: string[] = [];
   const warnings: string[] = [];

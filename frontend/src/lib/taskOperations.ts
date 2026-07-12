@@ -26,8 +26,6 @@ export type TaskDateRange = Pick<ScheduleTask, "end" | "start">;
 
 export type TaskPasteMode = "child" | "sibling";
 export type TaskSiblingReorderPlacement = "before" | "after";
-
-/** createTaskFromInputを実行し、アプリケーション用の値を返します。 */
 export function createTaskFromInput(
   input: CreateTaskInput,
   existingTasks: ScheduleTask[],
@@ -65,8 +63,6 @@ function createEqualAssigneeAllocations(assigneeIds: string[]) {
     percent: base + (index === ids.length - 1 ? remainder : 0),
   }));
 }
-
-/** updateTaskByIdを実行し、アプリケーション用の値を返します。 */
 export function updateTaskById(
   tasks: ScheduleTask[],
   taskId: string,
@@ -80,8 +76,6 @@ export function updateTaskById(
     ),
   );
 }
-
-/** moveTaskByDaysを実行し、アプリケーション用の値を返します。 */
 export function moveTaskByDays(
   tasks: ScheduleTask[],
   taskId: string,
@@ -94,8 +88,6 @@ export function moveTaskByDays(
   targetIds.add(taskId);
   return moveTaskIdsByDays(tasks, targetIds, deltaDays, calendar, calendarAware);
 }
-
-/** moveTaskSubtreesByDaysを実行し、アプリケーション用の値を返します。 */
 export function moveTaskSubtreesByDays(
   tasks: ScheduleTask[],
   taskIds: string[],
@@ -188,8 +180,6 @@ function getDescendantIds(tasks: ScheduleTask[], taskId: string): Set<string> {
   walk(taskId);
   return ids;
 }
-
-/** resizeTaskByDaysを実行し、アプリケーション用の値を返します。 */
 export function resizeTaskByDays(
   tasks: ScheduleTask[],
   taskId: string,
@@ -204,8 +194,6 @@ export function resizeTaskByDays(
     }),
   );
 }
-
-/** addTaskを実行し、アプリケーション用の値を返します。 */
 export function addTask(
   tasks: ScheduleTask[],
   input: CreateTaskInput,
@@ -217,8 +205,6 @@ export function addTask(
     createTaskFromInput(input, tasks, calendar, calendarAware),
   ]);
 }
-
-/** insertTaskAfterTaskを実行し、アプリケーション用の値を返します。 */
 export function insertTaskAfterTask(
   tasks: ScheduleTask[],
   anchorTaskId: string | null,
@@ -239,8 +225,6 @@ export function insertTaskAfterTask(
     ]),
   };
 }
-
-/** insertTaskAtTaskPositionを実行し、アプリケーション用の値を返します。 */
 export function insertTaskAtTaskPosition(
   tasks: ScheduleTask[],
   anchorTaskId: string | null,
@@ -268,8 +252,6 @@ export function insertTaskAtTaskPosition(
     ]),
   };
 }
-
-/** getTaskSubtreeを実行し、アプリケーション用の値を返します。 */
 export function getTaskSubtree(tasks: ScheduleTask[], taskId: string): ScheduleTask[] {
   const task = tasks.find((item) => item.id === taskId);
   if (!task) return [];
@@ -277,8 +259,6 @@ export function getTaskSubtree(tasks: ScheduleTask[], taskId: string): ScheduleT
   subtreeIds.add(taskId);
   return tasks.filter((item) => subtreeIds.has(item.id));
 }
-
-/** getTaskSubtreesを実行し、アプリケーション用の値を返します。 */
 export function getTaskSubtrees(tasks: ScheduleTask[], taskIds: string[]): ScheduleTask[] {
   const selectedIds = new Set(taskIds);
   const movableSelectedIds = new Set(
@@ -299,8 +279,6 @@ export function getTaskSubtrees(tasks: ScheduleTask[], taskIds: string[]): Sched
   });
   return tasks.filter((task) => subtreeIds.has(task.id));
 }
-
-/** duplicateTaskSubtreeを実行し、アプリケーション用の値を返します。 */
 export function duplicateTaskSubtree(
   tasks: ScheduleTask[],
   sourceTaskId: string,
@@ -308,8 +286,6 @@ export function duplicateTaskSubtree(
 ): TaskInsertionResult {
   return duplicateTaskSubtrees(tasks, [sourceTaskId], targetTaskId);
 }
-
-/** duplicateTaskSubtreesを実行し、アプリケーション用の値を返します。 */
 export function duplicateTaskSubtrees(
   tasks: ScheduleTask[],
   sourceTaskIds: string[],
@@ -317,8 +293,6 @@ export function duplicateTaskSubtrees(
 ): TaskInsertionResult {
   return pasteTaskSubtree(tasks, getTaskSubtrees(tasks, sourceTaskIds), targetTaskId, "sibling");
 }
-
-/** pasteTaskSubtreeを実行し、アプリケーション用の値を返します。 */
 export function pasteTaskSubtree(
   tasks: ScheduleTask[],
   copiedTasks: ScheduleTask[],
@@ -352,8 +326,6 @@ export function pasteTaskSubtree(
     ]),
   };
 }
-
-/** deleteTaskSubtreesを実行し、アプリケーション用の値を返します。 */
 export function deleteTaskSubtrees(tasks: ScheduleTask[], taskIds: string[]): ScheduleTask[] {
   const deletedTasks = getTaskSubtrees(tasks, taskIds);
   if (deletedTasks.length === 0) return tasks;
@@ -369,8 +341,6 @@ export function deleteTaskSubtrees(tasks: ScheduleTask[], taskIds: string[]): Sc
       })),
   );
 }
-
-/** addMilestoneを実行し、アプリケーション用の値を返します。 */
 export function addMilestone(tasks: ScheduleTask[], input: CreateMilestoneInput): ScheduleTask[] {
   const siblings = tasks.filter((task) => task.parentId === input.parentId);
   const insertIndex = getInsertIndexAfterSiblings(tasks, input.parentId, siblings);
@@ -485,8 +455,6 @@ function createPastedSubtree(copiedTasks: ScheduleTask[], parentId: string | nul
     };
   });
 }
-
-/** indentTaskを実行し、アプリケーション用の値を返します。 */
 export function indentTask(
   tasks: ScheduleTask[],
   taskId: string,
@@ -503,8 +471,6 @@ export function indentTask(
     tasks.map((item) => (item.id === taskId ? { ...item, parentId: parent.id } : item)),
   );
 }
-
-/** outdentTaskを実行し、アプリケーション用の値を返します。 */
 export function outdentTask(tasks: ScheduleTask[], taskId: string): ScheduleTask[] {
   const task = tasks.find((item) => item.id === taskId);
   if (!task?.parentId) return tasks;
@@ -514,8 +480,6 @@ export function outdentTask(tasks: ScheduleTask[], taskId: string): ScheduleTask
     tasks.map((item) => (item.id === taskId ? { ...item, parentId: parent.parentId } : item)),
   );
 }
-
-/** moveTaskWithinSiblingsを実行し、アプリケーション用の値を返します。 */
 export function moveTaskWithinSiblings(
   tasks: ScheduleTask[],
   taskId: string,
@@ -540,8 +504,6 @@ export function moveTaskWithinSiblings(
     tasks.map((item) => (item.parentId === task.parentId ? nextSiblings[siblingCursor++] : item)),
   );
 }
-
-/** moveTaskSubtreesWithinSiblingsを実行し、アプリケーション用の値を返します。 */
 export function moveTaskSubtreesWithinSiblings(
   tasks: ScheduleTask[],
   taskIds: string[],
@@ -602,8 +564,6 @@ export function moveTaskSubtreesWithinSiblings(
     }),
   );
 }
-
-/** moveTaskSubtreesToSiblingPositionを実行し、アプリケーション用の値を返します。 */
 export function moveTaskSubtreesToSiblingPosition(
   tasks: ScheduleTask[],
   taskIds: string[],
@@ -645,8 +605,6 @@ export function moveTaskSubtreesToSiblingPosition(
     ),
   );
 }
-
-/** moveTaskSubtreesToParentを実行し、アプリケーション用の値を返します。 */
 export function moveTaskSubtreesToParent(
   tasks: ScheduleTask[],
   taskIds: string[],
@@ -654,8 +612,6 @@ export function moveTaskSubtreesToParent(
 ): ScheduleTask[] {
   return moveTaskSubtreesToParentPosition(tasks, taskIds, targetParentId);
 }
-
-/** moveTaskSubtreesToParentPositionを実行し、アプリケーション用の値を返します。 */
 export function moveTaskSubtreesToParentPosition(
   tasks: ScheduleTask[],
   taskIds: string[],
@@ -775,8 +731,6 @@ function getReferenceInsertIndex(
   const subtreeEndIndex = getSubtreeEndIndex(tasks, referenceTaskId);
   return (subtreeEndIndex >= 0 ? subtreeEndIndex : referenceIndex) + 1;
 }
-
-/** normalizeTaskDatesを実行し、アプリケーション用の値を返します。 */
 export function normalizeTaskDates(task: ScheduleTask): ScheduleTask {
   if (task.type === "milestone") {
     return { ...task, end: task.start };
@@ -786,20 +740,14 @@ export function normalizeTaskDates(task: ScheduleTask): ScheduleTask {
   }
   return task;
 }
-
-/** normalizeDateChangeを実行し、アプリケーション用の値を返します。 */
 export function normalizeDateChange(change: TaskDateChange): TaskDateChange {
   return change.end < change.start ? { ...change, end: change.start } : change;
 }
-
-/** normalizeProgressStatusを実行し、アプリケーション用の値を返します。 */
 export function normalizeProgressStatus(progress: number): TaskStatus {
   if (progress >= 100) return "done";
   if (progress > 0) return "inProgress";
   return "notStarted";
 }
-
-/** normalizeSummaryTasksを実行し、アプリケーション用の値を返します。 */
 export function normalizeSummaryTasks(tasks: ScheduleTask[]): ScheduleTask[] {
   const byParent = new Map<string | null, ScheduleTask[]>();
   tasks.forEach((task) => {
@@ -852,8 +800,6 @@ function deriveStatus(tasks: ScheduleTask[], progress: number): TaskStatus {
   }
   return "notStarted";
 }
-
-/** getDurationDaysを実行し、アプリケーション用の値を返します。 */
 export function getDurationDays(task: ScheduleTask): number {
   return Math.max(daysInclusive(task.start, task.end), 1);
 }

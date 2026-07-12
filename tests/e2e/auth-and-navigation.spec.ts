@@ -85,6 +85,22 @@ test.describe("Miraiの認証とプロジェクト導線", () => {
     await expect(projectCard).toBeVisible();
   });
 
+  test("端末保存には案件・タスク・活動履歴を含めない", async ({ page }) => {
+    await login(page);
+    await page.locator("article.portfolio-card:not(.active)").first().click();
+
+    await expect
+      .poll(() => page.evaluate(() => window.localStorage.getItem("si-schedule-manager-draft-v1")))
+      .not.toBeNull();
+    const localDraft = await page.evaluate(() =>
+      JSON.parse(window.localStorage.getItem("si-schedule-manager-draft-v1") ?? "null"),
+    );
+    expect(localDraft).not.toBeNull();
+    expect(localDraft).not.toHaveProperty("workspace");
+    expect(localDraft).not.toHaveProperty("activityLogs");
+    expect(localDraft.activeProjectId).toBeTruthy();
+  });
+
   test("初回ログインの基本ツアーとヘルプからの再実行を利用できる", async ({ page }) => {
     await login(page, { showInitialTour: true });
 
@@ -422,7 +438,9 @@ test.describe("Miraiの認証とプロジェクト導線", () => {
     await expect(page.getByRole("button", { name: "タスク追加" })).toBeVisible();
 
     const timelineBody = page.locator(".timeline-body");
-    const taskBar = page.locator('.timeline-canvas .gantt-bar[data-task-id="db-if-design"]');
+    // 初期表示内にありつつ左寄せでスクロールが発生するタスクを使い、
+    // 画面外の要素へマウス操作する不安定なテストを避ける。
+    const taskBar = page.locator('.timeline-canvas .gantt-bar[data-task-id="current-review"]');
     await expect(taskBar).toBeVisible();
     await timelineBody.evaluate((element) => {
       element.scrollLeft = 0;

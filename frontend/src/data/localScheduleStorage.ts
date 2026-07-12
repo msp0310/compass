@@ -1,5 +1,4 @@
 import type {
-  ActivityLogEntry,
   AppViewTab,
   GanttColumnVisibility,
   GanttScale,
@@ -9,13 +8,10 @@ import type {
   ScheduleFilters,
 } from "../types/schedule";
 import { normalizeResourceDisplaySettings } from "../lib/resourceDisplaySettings";
-import type { ScheduleWorkspace } from "./scheduleRepository";
-
-export type LocalScheduleDraft = {
+export type LocalSchedulePreferences = {
   activeProjectId: string;
   activeTab: AppViewTab;
   activeTeamId: string;
-  activityLogs: Record<string, ActivityLogEntry[]>;
   calendarAware: boolean;
   columnVisibility: GanttColumnVisibility;
   collapsedIdsByProject: Record<string, string[]>;
@@ -24,17 +20,19 @@ export type LocalScheduleDraft = {
   filters: ScheduleFilters;
   resourceDisplaySettings: ResourceDisplaySettings;
   resourceScope: ResourceScope;
-  savedAt: string;
   scale: GanttScale;
   timeUnit: GanttTimeUnit;
+};
+
+export type LocalScheduleDraft = LocalSchedulePreferences & {
+  savedAt: string;
   version: 1 | 2;
-  workspace: ScheduleWorkspace;
 };
 
 const localScheduleDraftKey = "si-schedule-manager-draft-v1";
 const localScheduleDraftVersion = 2;
 
-/** loadLocalScheduleDraftを実行し、アプリケーション用の値を返します。 */
+/** 端末に保存した表示設定を、旧バージョンを含めて安全に読み込みます。 */
 export function loadLocalScheduleDraft(): LocalScheduleDraft | null {
   if (typeof window === "undefined") return null;
   try {
@@ -42,10 +40,11 @@ export function loadLocalScheduleDraft(): LocalScheduleDraft | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<LocalScheduleDraft>;
     if (!isLocalScheduleDraft(parsed)) return null;
-    return {
-      ...parsed,
+    const draft: LocalScheduleDraft = {
+      activeProjectId: parsed.activeProjectId,
       activeTab: isAppViewTab(parsed.activeTab) ? parsed.activeTab : "Projects",
-      activityLogs: normalizeActivityLogs(parsed.activityLogs),
+      activeTeamId: parsed.activeTeamId,
+      calendarAware: parsed.calendarAware,
       columnVisibility: normalizeColumnVisibility(
         parsed.version === 1
           ? migrateVersion1ColumnVisibility(parsed.columnVisibility)
@@ -54,27 +53,47 @@ export function loadLocalScheduleDraft(): LocalScheduleDraft | null {
       collapsedIdsByProject: normalizeCollapsedIdsByProject(parsed.collapsedIdsByProject),
       filterOpen: typeof parsed.filterOpen === "boolean" ? parsed.filterOpen : true,
       filters: normalizeScheduleFilters(parsed.filters),
+      favoriteProjectIds: parsed.favoriteProjectIds,
       resourceDisplaySettings: normalizeResourceDisplaySettings(parsed.resourceDisplaySettings),
       resourceScope: isResourceScope(parsed.resourceScope) ? parsed.resourceScope : "project",
+      savedAt: parsed.savedAt,
+      scale: parsed.scale,
+      timeUnit: parsed.timeUnit,
+      version: parsed.version,
     };
+    // 旧版は案件データ一式を保存していたため、読み込み時に表示設定だけへ縮小します。
+    saveLocalScheduleDraft(draft);
+    return draft;
   } catch {
     return null;
   }
 }
 
-/** saveLocalScheduleDraftを実行し、アプリケーション用の値を返します。 */
-export function saveLocalScheduleDraft(draft: Omit<LocalScheduleDraft, "savedAt" | "version">) {
+/** 案件データを含めず、画面の表示設定だけを端末へ保存します。 */
+export function saveLocalScheduleDraft(draft: LocalSchedulePreferences) {
   const savedAt = new Date().toISOString();
   const payload: LocalScheduleDraft = {
-    ...draft,
+    activeProjectId: draft.activeProjectId,
+    activeTab: draft.activeTab,
+    activeTeamId: draft.activeTeamId,
+    calendarAware: draft.calendarAware,
+    columnVisibility: draft.columnVisibility,
+    collapsedIdsByProject: draft.collapsedIdsByProject,
+    favoriteProjectIds: draft.favoriteProjectIds,
+    filterOpen: draft.filterOpen,
+    filters: draft.filters,
+    resourceDisplaySettings: draft.resourceDisplaySettings,
+    resourceScope: draft.resourceScope,
     savedAt,
+    scale: draft.scale,
+    timeUnit: draft.timeUnit,
     version: localScheduleDraftVersion,
   };
   window.localStorage.setItem(localScheduleDraftKey, JSON.stringify(payload));
   return payload;
 }
 
-/** clearLocalScheduleDraftを実行し、アプリケーション用の値を返します。 */
+/** ログアウトや再初期化の際に、端末へ残した表示設定を破棄します。 */
 export function clearLocalScheduleDraft() {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(localScheduleDraftKey);
@@ -87,7 +106,6 @@ function isLocalScheduleDraft(value: Partial<LocalScheduleDraft>): value is Loca
     typeof value.activeTeamId === "string" &&
     typeof value.activeProjectId === "string" &&
     (value.activeTab === undefined || isAppViewTab(value.activeTab)) &&
-    (value.activityLogs === undefined || isActivityLogs(value.activityLogs)) &&
     typeof value.calendarAware === "boolean" &&
     (value.columnVisibility === undefined || isGanttColumnVisibility(value.columnVisibility)) &&
     (value.collapsedIdsByProject === undefined ||
@@ -97,53 +115,7 @@ function isLocalScheduleDraft(value: Partial<LocalScheduleDraft>): value is Loca
     (value.resourceScope === undefined || isResourceScope(value.resourceScope)) &&
     isGanttScale(value.scale) &&
     isGanttTimeUnit(value.timeUnit) &&
-    Array.isArray(value.favoriteProjectIds) &&
-    value.workspace != null &&
-    Array.isArray(value.workspace.schedules) &&
-    Array.isArray(value.workspace.teams)
-  );
-}
-
-function normalizeActivityLogs(value: unknown): Record<string, ActivityLogEntry[]> {
-  if (isActivityLogs(value)) return value;
-  return {};
-}
-
-function isActivityLogs(value: unknown): value is Record<string, ActivityLogEntry[]> {
-  if (value == null || typeof value !== "object" || Array.isArray(value)) {
-    return false;
-  }
-  return Object.values(value).every(
-    (entries) => Array.isArray(entries) && entries.every(isActivityLogEntry),
-  );
-}
-
-function isActivityLogEntry(value: unknown): value is ActivityLogEntry {
-  if (value == null || typeof value !== "object") return false;
-  const maybe = value as Partial<ActivityLogEntry>;
-  return (
-    typeof maybe.actor === "string" &&
-    isActivityCategory(maybe.category) &&
-    typeof maybe.detail === "string" &&
-    typeof maybe.happenedAt === "string" &&
-    typeof maybe.id === "string" &&
-    typeof maybe.projectId === "string" &&
-    (maybe.taskId === undefined || typeof maybe.taskId === "string") &&
-    typeof maybe.title === "string" &&
-    isActivityTone(maybe.tone)
-  );
-}
-
-function isActivityCategory(value: unknown) {
-  return (
-    value === "calendar" ||
-    value === "import" ||
-    value === "issue" ||
-    value === "project" ||
-    value === "sync" ||
-    value === "task" ||
-    value === "team" ||
-    value === "workLog"
+    Array.isArray(value.favoriteProjectIds)
   );
 }
 
@@ -195,10 +167,6 @@ function isScheduleFilters(value: unknown): value is ScheduleFilters {
     typeof maybe.statuses.inProgress === "boolean" &&
     typeof maybe.statuses.notStarted === "boolean"
   );
-}
-
-function isActivityTone(value: unknown) {
-  return value === "danger" || value === "info" || value === "success" || value === "warning";
 }
 
 function migrateVersion1ColumnVisibility(value: unknown): unknown {

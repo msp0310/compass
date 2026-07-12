@@ -250,6 +250,74 @@ public sealed class ScheduleService(
         return new SaveScheduleResponse("remote", $"project-{projectId}-v{nextVersion}", now, savedSnapshot);
     }
 
+    /// <summary>案件設定・課題・工数を変更せず、タスク計画だけを保存します。</summary>
+    public async Task<SaveScheduleResponse?> SaveTaskPlanAsync(
+        string projectId,
+        SaveTaskPlanRequest request,
+        AuthUserDto user,
+        CancellationToken cancellationToken)
+    {
+        var access = await authorization.GetProjectAccessAsync(user, projectId, cancellationToken);
+        if (!access.CanEditPlan) throw new ProjectAccessDeniedException();
+
+        var project = await LoadProjectsQuery()
+            .FirstOrDefaultAsync(entity => entity.Id == projectId, cancellationToken);
+        if (project is null || project.Calendar is null) return null;
+        if (request.ExpectedVersion is not null && request.ExpectedVersion != project.Version)
+        {
+            throw new ScheduleConflictException(project.Version);
+        }
+
+        var oldTasks = project.Tasks.ToDictionary(
+            task => task.Id,
+            task => new TaskChangeState(
+                task.Start,
+                task.End,
+                task.Progress,
+                task.Status,
+                task.Assignments.Select(assignment => assignment.MemberId).Order().ToArray()));
+        var nextVersion = project.Version + 1;
+        var now = DateTimeOffset.UtcNow.ToString("O");
+
+        ReplaceTasks(project, request.Tasks);
+        RecordTaskChanges(
+            projectId,
+            oldTasks,
+            request.Tasks,
+            now,
+            user.Name,
+            NormalizeChangeReason(request.ChangeReason));
+        project.Version = nextVersion;
+
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            var currentVersion = await db.Projects
+                .AsNoTracking()
+                .Where(entity => entity.Id == projectId)
+                .Select(entity => (int?)entity.Version)
+                .SingleOrDefaultAsync(cancellationToken);
+            throw new ScheduleConflictException(currentVersion ?? project.Version);
+        }
+
+        await auditLogs.RecordAsync(
+            user,
+            "project.tasks.save",
+            "project",
+            projectId,
+            "tasks",
+            projectId,
+            new { version = nextVersion, taskCount = request.Tasks.Count },
+            cancellationToken);
+
+        var savedSnapshot = await GetProjectScheduleAsync(projectId, user, cancellationToken)
+            ?? throw new InvalidOperationException("Saved project disappeared.");
+        return new SaveScheduleResponse("remote", $"project-{projectId}-v{nextVersion}", now, savedSnapshot);
+    }
+
     /// <summary>計画を変更できない利用者について、運用データだけを制限付きで保存します。</summary>
     private async Task<SaveScheduleResponse> SaveRestrictedActivityAsync(
         ProjectEntity project,
@@ -597,7 +665,6 @@ public sealed class ScheduleService(
         }
     }
 
-    /// <summary>タスクをID単位で差分更新し、変更のない行を再作成しません。</summary>
     /// <summary>タスクをID単位で追加・更新・削除し、並び順を同期します。</summary>
     private void ReplaceTasks(ProjectEntity project, IReadOnlyList<ScheduleTaskDto> tasks)
     {
@@ -622,7 +689,6 @@ public sealed class ScheduleService(
         }
     }
 
-    /// <summary>既存タスクの値と関連行を必要な範囲だけ更新します。</summary>
     /// <summary>1件のタスク本体と担当者・依存関係を更新します。</summary>
     private static void ApplyTask(TaskEntity entity, ScheduleTaskDto dto, int sortOrder)
     {

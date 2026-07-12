@@ -3,7 +3,6 @@ import { apiScheduleRepository } from "../data/apiScheduleRepository";
 import { saveLocalScheduleDraft } from "../data/localScheduleStorage";
 import { createDraftSignature } from "./appState";
 import type { ApiSyncState, PersistableDraft } from "./appTypes";
-import type { ApiConnectionMode } from "../components/layout/Topbar";
 import type { ScheduleWorkspace } from "../data/scheduleRepository";
 
 type UseScheduleSyncOptions = {
@@ -12,13 +11,11 @@ type UseScheduleSyncOptions = {
     title: string;
     tone?: "info" | "success" | "warning";
   }) => void;
-  apiConnectionModeRef: MutableRefObject<ApiConnectionMode>;
   apiSyncState: ApiSyncState;
   hasUnsavedChangesRef: MutableRefObject<boolean>;
   requestSaveDraft: () => void;
   saveOperationIdRef: MutableRefObject<number>;
   savedDraftRef: MutableRefObject<PersistableDraft>;
-  setApiConnectionMode: Dispatch<SetStateAction<ApiConnectionMode>>;
   setApiSyncState: Dispatch<SetStateAction<ApiSyncState>>;
   setLastSavedAt: Dispatch<SetStateAction<string | null>>;
   setSavedSignature: Dispatch<SetStateAction<string>>;
@@ -27,36 +24,22 @@ type UseScheduleSyncOptions = {
 };
 
 /**
- * ローカル保存とSchedule APIへの同期状態を管理します。
- * 送信中の競合、オフライン保留、再送を画面本体から分離します。
+ * Schedule APIへの送信状態と競合時の再送を管理します。
  */
 export function useScheduleSync({
   addToast,
-  apiConnectionModeRef,
   apiSyncState,
   hasUnsavedChangesRef,
   requestSaveDraft,
   saveOperationIdRef,
   savedDraftRef,
-  setApiConnectionMode,
   setApiSyncState,
   setLastSavedAt,
   setSavedSignature,
   setSavedWorkspace,
   setWorkspace,
 }: UseScheduleSyncOptions) {
-  /** changeApiConnectionModeを実行します。 */
-  function changeApiConnectionMode(mode: ApiConnectionMode) {
-    setApiConnectionMode(mode);
-    addToast({
-      detail:
-        mode === "online" ? "Schedule APIへの保存を有効にしました" : "API保存を一時停止しました",
-      title: mode === "online" ? "API online" : "API offline",
-      tone: mode === "online" ? "success" : "warning",
-    });
-  }
-
-  /** scheduleApiSyncを実行します。 */
+  /** 指定時点の案件データをAPIへ送信し、成功した応答を保存基準にします。 */
   async function scheduleApiSync(
     draftToSync: PersistableDraft,
     changeCount: number,
@@ -75,30 +58,17 @@ export function useScheduleSync({
       status: "sending",
     }));
 
-    if (apiConnectionModeRef.current === "offline") {
-      const errorMessage = "API offlineのため送信を保留しました。";
-      setApiSyncState((current) => ({
-        ...current,
-        error: errorMessage,
-        lastAttemptAt: attemptAt,
-        queuedChangeCount,
-        status: "failed",
-      }));
-      addToast({
-        detail: "ローカル保存済みです。API onlineに戻して再送できます。",
-        title: "API送信を保留しました",
-        tone: "warning",
-      });
-      return;
-    }
-
     try {
-      const result = await apiScheduleRepository.saveWorkspace(draftToSync.workspace, {
-        activeProjectId: draftToSync.activeProjectId,
-        activeTeamId: draftToSync.activeTeamId,
-        changeReason,
-        reason: "manual",
-      });
+      const result = await apiScheduleRepository.saveWorkspace(
+        draftToSync.workspace,
+        {
+          activeProjectId: draftToSync.activeProjectId,
+          activeTeamId: draftToSync.activeTeamId,
+          changeReason,
+          reason: "manual",
+        },
+        savedDraftRef.current.workspace,
+      );
       if (saveOperationIdRef.current !== operationId) return;
       const successAt = new Date().toISOString();
       const syncedDraft = { ...draftToSync, workspace: result.workspace };
@@ -134,14 +104,14 @@ export function useScheduleSync({
         status: "failed",
       }));
       addToast({
-        detail: "ローカル保存済みです。内容を確認して再送できます。",
+        detail: "変更は未保存のまま画面に保持しています。内容を確認して再送できます。",
         title: "API送信に失敗しました",
         tone: "warning",
       });
     }
   }
 
-  /** retryApiSyncを実行します。 */
+  /** 失敗した送信を、現在の未保存内容を失わずに再試行します。 */
   function retryApiSync() {
     if (apiSyncState.status === "sending") return;
     if (hasUnsavedChangesRef.current) {
@@ -159,5 +129,5 @@ export function useScheduleSync({
     void scheduleApiSync(savedDraftRef.current, apiSyncState.queuedChangeCount, "retry");
   }
 
-  return { changeApiConnectionMode, retryApiSync, scheduleApiSync };
+  return { retryApiSync, scheduleApiSync };
 }

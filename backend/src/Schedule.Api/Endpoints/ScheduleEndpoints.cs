@@ -109,6 +109,44 @@ public static class ScheduleEndpoints
             }
         });
 
+        api.MapPut("/projects/{projectId}/tasks", async (
+            string projectId,
+            HttpContext context,
+            SaveTaskPlanRequest request,
+            ScheduleService schedules,
+            CancellationToken cancellationToken) =>
+        {
+            var validationError = ScheduleRequestValidator.ValidateTasks(request.Tasks);
+            if (validationError is not null)
+            {
+                return Results.BadRequest(new { message = validationError });
+            }
+
+            var user = GetCurrentUser(context);
+            if (user is null) return Results.Unauthorized();
+            try
+            {
+                var result = await schedules.SaveTaskPlanAsync(
+                    projectId,
+                    request,
+                    user,
+                    cancellationToken);
+                return result is null ? Results.NotFound() : Results.Ok(result);
+            }
+            catch (ScheduleConflictException conflict)
+            {
+                return Results.Conflict(new
+                {
+                    message = "プロジェクトが更新されています。",
+                    currentVersion = conflict.CurrentVersion
+                });
+            }
+            catch (ProjectAccessDeniedException)
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+        });
+
         api.MapPatch("/projects/{projectId}/tasks/{taskId}/actual", async (
             string projectId,
             string taskId,

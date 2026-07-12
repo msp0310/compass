@@ -13,39 +13,8 @@ public static class ScheduleRequestValidator
             return "URLのプロジェクトIDと保存データのプロジェクトIDが一致しません。";
         }
 
-        var taskIds = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var task in request.Tasks)
-        {
-            if (string.IsNullOrWhiteSpace(task.Id) || !taskIds.Add(task.Id))
-            {
-                return "タスクIDが空、または重複しています。";
-            }
-
-            if (!DateOnly.TryParse(task.Start, out var start) ||
-                !DateOnly.TryParse(task.End, out var end) ||
-                start > end)
-            {
-                return $"タスク「{task.Title}」の期間が不正です。";
-            }
-
-            if (!TryValidateActualRange(task.ActualStart, task.ActualEnd))
-            {
-                return $"タスク「{task.Title}」の実績期間が不正です。";
-            }
-        }
-
-        foreach (var task in request.Tasks)
-        {
-            if (task.ParentId is not null && !taskIds.Contains(task.ParentId))
-            {
-                return $"タスク「{task.Title}」の親タスクが存在しません。";
-            }
-
-            if ((task.Dependencies ?? []).Any(dependencyId => !taskIds.Contains(dependencyId)))
-            {
-                return $"タスク「{task.Title}」の依存先タスクが存在しません。";
-            }
-        }
+        var taskValidationError = ValidateTasks(request.Tasks);
+        if (taskValidationError is not null) return taskValidationError;
 
         if (!DateOnly.TryParse(request.Project.RangeStart, out var projectStart) ||
             !DateOnly.TryParse(request.Project.RangeEnd, out var projectEnd) ||
@@ -105,6 +74,53 @@ public static class ScheduleRequestValidator
         return null;
     }
 
+    /// <summary>タスク計画だけを更新するAPIでも共通利用する整合性検証です。</summary>
+    public static string? ValidateTasks(IReadOnlyList<ScheduleTaskDto> tasks)
+    {
+        var taskIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var task in tasks)
+        {
+            if (string.IsNullOrWhiteSpace(task.Id) || !taskIds.Add(task.Id))
+            {
+                return "タスクIDが空、または重複しています。";
+            }
+
+            if (!DateOnly.TryParse(task.Start, out var start) ||
+                !DateOnly.TryParse(task.End, out var end) ||
+                start > end)
+            {
+                return $"タスク「{task.Title}」の期間が不正です。";
+            }
+
+            if (!TryValidateActualRange(task.ActualStart, task.ActualEnd))
+            {
+                return $"タスク「{task.Title}」の実績期間が不正です。";
+            }
+        }
+
+        foreach (var task in tasks)
+        {
+            if (task.ParentId is not null && !taskIds.Contains(task.ParentId))
+            {
+                return $"タスク「{task.Title}」の親タスクが存在しません。";
+            }
+
+            if ((task.Dependencies ?? []).Any(dependencyId => !taskIds.Contains(dependencyId)))
+            {
+                return $"タスク「{task.Title}」の依存先タスクが存在しません。";
+            }
+        }
+
+        if (ContainsCycle(tasks, task => task.ParentId is null ? [] : [task.ParentId]))
+        {
+            return "タスク階層が循環しています。親タスクの指定を見直してください。";
+        }
+
+        return ContainsCycle(tasks, task => task.Dependencies ?? [])
+            ? "タスクの依存関係が循環しています。依存先の指定を見直してください。"
+            : null;
+    }
+
     private static bool TryValidateActualRange(string? actualStart, string? actualEnd)
     {
         if (actualStart is null && actualEnd is null) return true;
@@ -122,5 +138,39 @@ public static class ScheduleRequestValidator
         }
         if (actualStart is null || actualEnd is null) return true;
         return parsedStart <= parsedEnd;
+    }
+
+    private static bool ContainsCycle(
+        IReadOnlyList<ScheduleTaskDto> tasks,
+        Func<ScheduleTaskDto, IEnumerable<string>> getAdjacentIds)
+    {
+        var indegrees = tasks.ToDictionary(task => task.Id, _ => 0, StringComparer.Ordinal);
+        var adjacentById = tasks.ToDictionary(
+            task => task.Id,
+            task => getAdjacentIds(task).Distinct(StringComparer.Ordinal).ToArray(),
+            StringComparer.Ordinal);
+
+        // Kahn法を使い、1万件規模でも再帰スタックを消費せず循環を判定します。
+        foreach (var adjacentIds in adjacentById.Values)
+        {
+            foreach (var adjacentId in adjacentIds)
+            {
+                indegrees[adjacentId] += 1;
+            }
+        }
+
+        var queue = new Queue<string>(indegrees.Where(pair => pair.Value == 0).Select(pair => pair.Key));
+        var visitedCount = 0;
+        while (queue.TryDequeue(out var taskId))
+        {
+            visitedCount += 1;
+            foreach (var adjacentId in adjacentById[taskId])
+            {
+                indegrees[adjacentId] -= 1;
+                if (indegrees[adjacentId] == 0) queue.Enqueue(adjacentId);
+            }
+        }
+
+        return visitedCount != tasks.Count;
     }
 }

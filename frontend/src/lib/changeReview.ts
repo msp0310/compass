@@ -86,8 +86,6 @@ const taskTypeLabels: Record<ScheduleTask["type"], string> = {
   summary: "サマリー",
   task: "タスク",
 };
-
-/** buildTaskChangeReviewを実行し、アプリケーション用の値を返します。 */
 export function buildTaskChangeReview({
   currentTasks,
   members,
@@ -165,8 +163,6 @@ export function buildTaskChangeReview({
 
   return summarizeTaskChangeRows(rows);
 }
-
-/** buildWorkspaceTaskChangeReviewを実行し、アプリケーション用の値を返します。 */
 export function buildWorkspaceTaskChangeReview({
   currentSchedules,
   savedSchedules,
@@ -207,8 +203,6 @@ export function buildWorkspaceTaskChangeReview({
 
   return summarizeTaskChangeRows(rows);
 }
-
-/** buildWorkspaceConfigChangeReviewを実行し、アプリケーション用の値を返します。 */
 export function buildWorkspaceConfigChangeReview({
   currentWorkspace,
   savedWorkspace,

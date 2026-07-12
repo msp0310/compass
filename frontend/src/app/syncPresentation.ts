@@ -1,11 +1,10 @@
-import type { ApiConnectionMode, TopbarSyncQueueItem, TopbarSyncStatus } from "../components/layout/Topbar";
+import type { TopbarSyncQueueItem, TopbarSyncStatus } from "../components/layout/Topbar";
 import type { ConfigChangeReview, TaskChangeReview } from "../lib/changeReview";
 import type { LocalDraftChangeSummary } from "../types/schedule";
 import type { ApiSyncState } from "./appTypes";
 
 /** 未保存・送信中・同期済みの状態を、ヘッダー表示用モデルへ変換します。 */
 export function createTopbarSyncStatus(input: {
-  apiConnectionMode: ApiConnectionMode;
   apiSyncState: ApiSyncState;
   hasUnsavedChanges: boolean;
   lastSavedAt: string | null;
@@ -49,10 +48,9 @@ export function createTopbarSyncStatus(input: {
                 : ""
             }保存後にAPI送信キューへ渡します。`
           : "表示設定や履歴など、ローカル保存待ちの変更があります。",
-      endpointLabel:
-        input.apiConnectionMode === "online" ? "Schedule.Api /api" : "Schedule.Api / offline",
+      endpointLabel: "Schedule.Api /api",
       lastSyncedAt: input.lastSavedAt,
-      modeLabel: "ローカル",
+      modeLabel: "API",
       pendingChangeCount: pendingCount,
       providerLabel: "ASP.NET Core + SQLite",
       scopeLabel: input.scopeLabel,
@@ -63,9 +61,8 @@ export function createTopbarSyncStatus(input: {
 
   if (input.apiSyncState.status === "sending") {
     return {
-      detail: "ローカル保存済みの変更をAPIへ送信しています。",
-      endpointLabel:
-        input.apiConnectionMode === "online" ? "Schedule.Api /api" : "Schedule.Api / offline",
+      detail: "変更をAPIへ送信しています。",
+      endpointLabel: "Schedule.Api /api",
       lastSyncedAt: input.apiSyncState.lastAttemptAt,
       modeLabel: "送信中",
       pendingChangeCount: input.apiSyncState.queuedChangeCount,
@@ -78,8 +75,7 @@ export function createTopbarSyncStatus(input: {
 
   if (input.apiSyncState.status === "failed") {
     return {
-      detail:
-        input.apiSyncState.error ?? "API送信に失敗しました。ローカル保存済みのため、再送できます。",
+      detail: input.apiSyncState.error ?? "API送信に失敗しました。画面の未保存内容を再送できます。",
       endpointLabel: "Schedule.Api /api",
       lastSyncedAt: input.apiSyncState.lastAttemptAt,
       modeLabel: "再送待ち",
@@ -94,13 +90,12 @@ export function createTopbarSyncStatus(input: {
   return {
     detail: input.lastSavedAt
       ? input.apiSyncState.status === "synced"
-        ? "API保存とローカルキャッシュの更新が完了しています。"
+        ? "APIへの保存が完了しています。"
         : "APIから取得した作業状態を表示しています。"
       : "APIから取得したプロジェクトデータを表示しています。",
-    endpointLabel:
-      input.apiConnectionMode === "online" ? "Schedule.Api /api" : "Schedule.Api / offline",
+    endpointLabel: "Schedule.Api /api",
     lastSyncedAt: input.apiSyncState.lastSuccessAt ?? input.lastSavedAt,
-    modeLabel: "ローカル",
+    modeLabel: "API",
     pendingChangeCount: 0,
     providerLabel: "ASP.NET Core + SQLite",
     scopeLabel: input.scopeLabel,
@@ -181,5 +176,3 @@ export function buildTopbarSyncQueueItems(input: {
 
   return items;
 }
-
-

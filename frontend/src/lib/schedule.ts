@@ -27,28 +27,20 @@ export type DependencyIssue = {
   dependency: ScheduleTask;
   incomplete: boolean;
 };
-
-/** parseDateを実行し、アプリケーション用の値を返します。 */
 export function parseDate(value: string): Date {
   return new Date(`${value}T00:00:00`);
 }
-
-/** toDateKeyを実行し、アプリケーション用の値を返します。 */
 export function toDateKey(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
-
-/** addDaysを実行し、アプリケーション用の値を返します。 */
 export function addDays(date: Date, days: number): Date {
   const next = new Date(date);
   next.setDate(next.getDate() + days);
   return next;
 }
-
-/** addMonthsを実行し、アプリケーション用の値を返します。 */
 export function addMonths(date: Date, months: number): Date {
   const next = new Date(date);
   const targetDay = next.getDate();
@@ -58,18 +50,12 @@ export function addMonths(date: Date, months: number): Date {
   next.setDate(Math.min(targetDay, lastDay));
   return next;
 }
-
-/** diffDaysを実行し、アプリケーション用の値を返します。 */
 export function diffDays(start: string, end: string): number {
   return Math.round((parseDate(end).getTime() - parseDate(start).getTime()) / dayMs);
 }
-
-/** daysInclusiveを実行し、アプリケーション用の値を返します。 */
 export function daysInclusive(start: string, end: string): number {
   return diffDays(start, end) + 1;
 }
-
-/** isWorkingDayを実行し、アプリケーション用の値を返します。 */
 export function isWorkingDay(
   date: Date,
   calendar: CalendarDefinition,
@@ -80,8 +66,6 @@ export function isWorkingDay(
   const isHoliday = calendar.holidays.some((item) => item.date === key);
   return calendar.workWeek.includes(date.getDay()) && !isHoliday;
 }
-
-/** addWorkingDaysを実行し、アプリケーション用の値を返します。 */
 export function addWorkingDays(
   start: string,
   workingDays: number,
@@ -106,8 +90,6 @@ export function addWorkingDays(
 
   return toDateKey(date);
 }
-
-/** extendEndForWorkingDaysを実行し、アプリケーション用の値を返します。 */
 export function extendEndForWorkingDays(
   start: string,
   workingDays: number,
@@ -116,8 +98,6 @@ export function extendEndForWorkingDays(
 ): string {
   return addWorkingDays(start, workingDays, calendar, includeCalendar);
 }
-
-/** getDateDeltaForTimeUnitを実行し、アプリケーション用の値を返します。 */
 export function getDateDeltaForTimeUnit(
   dateKey: string,
   unit: GanttTimeUnit,
@@ -147,8 +127,6 @@ function startOfMonth(date: Date): Date {
 function endOfMonth(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth() + 1, 0);
 }
-
-/** buildTimelineを実行し、アプリケーション用の値を返します。 */
 export function buildTimeline(
   start: string,
   end: string,
@@ -167,16 +145,12 @@ export function buildTimeline(
 
   const slots: TimelineDay[] = [];
   const rangeEnd = parseDate(end);
-  let cursor =
-    unit === "week" ? startOfWeek(parseDate(start)) : startOfMonth(parseDate(start));
+  let cursor = unit === "week" ? startOfWeek(parseDate(start)) : startOfMonth(parseDate(start));
   let index = 0;
   while (cursor <= rangeEnd) {
     const slotEnd = unit === "week" ? endOfWeek(cursor) : endOfMonth(cursor);
-    slots.push(
-      buildTimelineSlot(cursor, slotEnd, index, calendar, includeNonWorking, unit),
-    );
-    cursor =
-      unit === "week" ? addDays(cursor, 7) : startOfMonth(addMonths(cursor, 1));
+    slots.push(buildTimelineSlot(cursor, slotEnd, index, calendar, includeNonWorking, unit));
+    cursor = unit === "week" ? addDays(cursor, 7) : startOfMonth(addMonths(cursor, 1));
     index += 1;
   }
   return slots;
@@ -209,9 +183,7 @@ function buildTimelineSlot(
     isWeekend,
     holiday,
     isNonWorking:
-      unit === "day" &&
-      includeNonWorking &&
-      !isWorkingDay(date, calendar, includeNonWorking),
+      unit === "day" && includeNonWorking && !isWorkingDay(date, calendar, includeNonWorking),
   };
 }
 
@@ -220,8 +192,6 @@ function getTimelineSlotLabel(date: Date, unit: GanttTimeUnit): string {
   if (unit === "week") return `W${getWeekNumber(date)}`;
   return String(date.getDate());
 }
-
-/** buildWeekColumnsを実行し、アプリケーション用の値を返します。 */
 export function buildWeekColumns(days: TimelineDay[]): TimelineColumn[] {
   const columns: TimelineColumn[] = [];
   let current: TimelineColumn | null = null;
@@ -244,8 +214,6 @@ export function buildWeekColumns(days: TimelineDay[]): TimelineColumn[] {
 
   return columns;
 }
-
-/** buildMonthColumnsを実行し、アプリケーション用の値を返します。 */
 export function buildMonthColumns(days: TimelineDay[]): TimelineColumn[] {
   const columns: TimelineColumn[] = [];
   let current: TimelineColumn | null = null;
@@ -266,8 +234,6 @@ export function buildMonthColumns(days: TimelineDay[]): TimelineColumn[] {
 
   return columns;
 }
-
-/** buildYearColumnsを実行し、アプリケーション用の値を返します。 */
 export function buildYearColumns(days: TimelineDay[]): TimelineColumn[] {
   const columns: TimelineColumn[] = [];
   let current: TimelineColumn | null = null;
@@ -288,8 +254,6 @@ export function buildYearColumns(days: TimelineDay[]): TimelineColumn[] {
 
   return columns;
 }
-
-/** buildUnitColumnsを実行し、アプリケーション用の値を返します。 */
 export function buildUnitColumns(days: TimelineDay[]): TimelineColumn[] {
   return days.map((day) => ({
     key: day.key,
@@ -299,8 +263,6 @@ export function buildUnitColumns(days: TimelineDay[]): TimelineColumn[] {
     start: day.start,
   }));
 }
-
-/** buildGanttHeaderColumnsを実行し、アプリケーション用の値を返します。 */
 export function buildGanttHeaderColumns(
   days: TimelineDay[],
   unit: GanttTimeUnit,
@@ -322,8 +284,6 @@ export function buildGanttHeaderColumns(
     secondary: buildUnitColumns(days),
   };
 }
-
-/** getWeekNumberを実行し、アプリケーション用の値を返します。 */
 export function getWeekNumber(date: Date): number {
   const firstDay = new Date(date.getFullYear(), 0, 1);
   const pastDays = Math.floor((date.getTime() - firstDay.getTime()) / dayMs);
@@ -366,8 +326,6 @@ export function flattenTasks(tasks: ScheduleTask[], collapsedIds = new Set<strin
 
   return rows;
 }
-
-/** filterTaskRowsを実行し、アプリケーション用の値を返します。 */
 export function filterTaskRows(rows: TaskRow[], filters: ScheduleFilters): TaskRow[] {
   return rows.filter((task) => {
     const statusMatch = filters.statuses[task.status] || task.type !== "task";
@@ -380,8 +338,6 @@ export function filterTaskRows(rows: TaskRow[], filters: ScheduleFilters): TaskR
     return statusMatch && assigneeMatch;
   });
 }
-
-/** taskMatchesQueryを実行し、アプリケーション用の値を返します。 */
 export function taskMatchesQuery(
   task: Pick<ScheduleTask, "assigneeIds" | "title">,
   query: string,
@@ -393,15 +349,11 @@ export function taskMatchesQuery(
       task.assigneeIds.some((id) => id.toLowerCase().includes(normalizedQuery)))
   );
 }
-
-/** getDependencyIssuesを実行し、アプリケーション用の値を返します。 */
 export function getDependencyIssues(
   task: Pick<ScheduleTask, "dependencies" | "start">,
   tasks: ScheduleTask[] | Map<string, ScheduleTask>,
 ): DependencyIssue[] {
-  const taskById = Array.isArray(tasks)
-    ? new Map(tasks.map((item) => [item.id, item]))
-    : tasks;
+  const taskById = Array.isArray(tasks) ? new Map(tasks.map((item) => [item.id, item])) : tasks;
   return (task.dependencies ?? [])
     .map((dependencyId) => taskById.get(dependencyId))
     .filter((dependency): dependency is ScheduleTask => Boolean(dependency))
@@ -412,26 +364,21 @@ export function getDependencyIssues(
     }))
     .filter((issue) => issue.dateOrder || issue.incomplete);
 }
-
-/** getTaskSpanを実行し、アプリケーション用の値を返します。 */
-export function getTaskSpan(task: ScheduleTask, rangeStart: string): { offset: number; duration: number } {
+export function getTaskSpan(
+  task: ScheduleTask,
+  rangeStart: string,
+): { offset: number; duration: number } {
   const offset = diffDays(rangeStart, task.start);
   const duration = Math.max(daysInclusive(task.start, task.end), 1);
   return { offset, duration };
 }
-
-/** getTimelineSlotIndexを実行し、アプリケーション用の値を返します。 */
 export function getTimelineSlotIndex(dateKey: string, timeline: TimelineDay[]): number {
   if (timeline.length === 0) return 0;
-  const slotIndex = timeline.findIndex(
-    (day) => dateKey >= day.start && dateKey <= day.end,
-  );
+  const slotIndex = timeline.findIndex((day) => dateKey >= day.start && dateKey <= day.end);
   if (slotIndex >= 0) return slotIndex;
   if (dateKey < timeline[0].start) return 0;
   return timeline.length - 1;
 }
-
-/** getTaskTimelineSpanを実行し、アプリケーション用の値を返します。 */
 export function getTaskTimelineSpan(
   task: ScheduleTask,
   timeline: TimelineDay[],
@@ -444,8 +391,6 @@ export function getTaskTimelineSpan(
     duration: Math.max(end - offset + 1, 1),
   };
 }
-
-/** getProgressStatsを実行し、アプリケーション用の値を返します。 */
 export function getProgressStats(tasks: ScheduleTask[]): ProgressStats {
   const actionable = tasks.filter((task) => task.type === "task");
   const delayed = actionable.filter((task) => task.status === "delayed").length;
@@ -455,12 +400,9 @@ export function getProgressStats(tasks: ScheduleTask[]): ProgressStats {
     delayed,
     completed,
     total: actionable.length,
-    progress:
-      actionable.length > 0 ? Math.round(totalProgress / actionable.length) : 0,
+    progress: actionable.length > 0 ? Math.round(totalProgress / actionable.length) : 0,
   };
 }
-
-/** getWorkingDaysを実行し、アプリケーション用の値を返します。 */
 export function getWorkingDays(
   start: string,
   end: string,
@@ -470,15 +412,11 @@ export function getWorkingDays(
   if (end < start) return 0;
   const first = parseDate(start);
   const total = daysInclusive(start, end);
-  return Array.from({ length: total }, (_, index) => addDays(first, index)).filter(
-    (date) => isWorkingDay(date, calendar, includeCalendar),
+  return Array.from({ length: total }, (_, index) => addDays(first, index)).filter((date) =>
+    isWorkingDay(date, calendar, includeCalendar),
   ).length;
 }
-
-/** getMemberUnavailableDatesを実行し、アプリケーション用の値を返します。 */
-export function getMemberUnavailableDates(
-  member: Pick<Member, "availabilityOverrides">,
-) {
+export function getMemberUnavailableDates(member: Pick<Member, "availabilityOverrides">) {
   return new Set(
     (member.availabilityOverrides ?? [])
       .filter((override) => override.type === "unavailable")
@@ -497,15 +435,10 @@ function getMemberAvailableWorkingDays(
   const unavailableDates = getMemberUnavailableDates(member);
   const first = parseDate(start);
   const total = daysInclusive(start, end);
-  return Array.from({ length: total }, (_, index) => addDays(first, index)).filter(
-    (date) => {
-      const key = toDateKey(date);
-      return (
-        isWorkingDay(date, calendar, includeCalendar) &&
-        !unavailableDates.has(key)
-      );
-    },
-  ).length;
+  return Array.from({ length: total }, (_, index) => addDays(first, index)).filter((date) => {
+    const key = toDateKey(date);
+    return isWorkingDay(date, calendar, includeCalendar) && !unavailableDates.has(key);
+  }).length;
 }
 
 function getMemberUnavailableWorkingDays(
@@ -525,8 +458,6 @@ function getMemberUnavailableWorkingDays(
   );
   return Math.max(calendarWorkingDays - memberWorkingDays, 0);
 }
-
-/** getWorkingDaySpanを実行し、アプリケーション用の値を返します。 */
 export function getWorkingDaySpan(
   start: string,
   end: string,
@@ -535,8 +466,6 @@ export function getWorkingDaySpan(
 ): number {
   return Math.max(getWorkingDays(start, end, calendar, includeCalendar), 1);
 }
-
-/** getTaskAssigneeAllocationMapを実行し、アプリケーション用の値を返します。 */
 export function getTaskAssigneeAllocationMap(
   task: Pick<ScheduleTask, "assigneeAllocations" | "assigneeIds">,
 ) {
@@ -556,10 +485,7 @@ export function getTaskAssigneeAllocationMap(
           Number.isFinite(allocation.percent) &&
           allocation.percent > 0,
       )
-      .map((allocation) => [
-        allocation.memberId,
-        Math.min(Math.max(allocation.percent, 0), 100),
-      ]),
+      .map((allocation) => [allocation.memberId, Math.min(Math.max(allocation.percent, 0), 100)]),
   );
   const explicitTotal = [...explicitAllocations.values()].reduce(
     (sum, percent) => sum + percent,
@@ -580,29 +506,20 @@ export function getTaskAssigneeAllocationMap(
     return allocationMap;
   }
 
-  const missingMemberIds = assigneeIds.filter(
-    (memberId) => !explicitAllocations.has(memberId),
-  );
+  const missingMemberIds = assigneeIds.filter((memberId) => !explicitAllocations.has(memberId));
   const missingShare =
     missingMemberIds.length > 0 ? (100 - explicitTotal) / missingMemberIds.length : 0;
   assigneeIds.forEach((memberId) => {
-    allocationMap.set(
-      memberId,
-      explicitAllocations.get(memberId) ?? missingShare,
-    );
+    allocationMap.set(memberId, explicitAllocations.get(memberId) ?? missingShare);
   });
   return allocationMap;
 }
-
-/** getTaskAssigneeAllocationPercentを実行し、アプリケーション用の値を返します。 */
 export function getTaskAssigneeAllocationPercent(
   task: Pick<ScheduleTask, "assigneeAllocations" | "assigneeIds">,
   memberId: string,
 ) {
   return getTaskAssigneeAllocationMap(task).get(memberId) ?? 0;
 }
-
-/** buildResourceMatrixを実行し、アプリケーション用の値を返します。 */
 export function buildResourceMatrix(
   tasks: Array<
     ScheduleTask & {
@@ -652,12 +569,7 @@ export function buildResourceMatrix(
       const weekEnd = addDays(weekStart, week.span - 1);
       const weekStartKey = toDateKey(weekStart);
       const weekEndKey = toDateKey(weekEnd);
-      const weekWorkingDays = getWorkingDays(
-        weekStartKey,
-        weekEndKey,
-        calendar,
-        includeCalendar,
-      );
+      const weekWorkingDays = getWorkingDays(weekStartKey, weekEndKey, calendar, includeCalendar);
       const availableWorkingDays = getMemberAvailableWorkingDays(
         weekStartKey,
         weekEndKey,
@@ -690,8 +602,7 @@ export function buildResourceMatrix(
             includeCalendar,
           );
           const contributionHours =
-            ((taskHours / totalWorkingDays) * workingDays * allocationPercent) /
-            100;
+            ((taskHours / totalWorkingDays) * workingDays * allocationPercent) / 100;
           if (contributionHours <= 0) return [];
           return [
             {
@@ -710,16 +621,9 @@ export function buildResourceMatrix(
           ];
         })
         .sort((a, b) => b.hours - a.hours || a.start.localeCompare(b.start));
-      const hours = contributions.reduce(
-        (sum, contribution) => sum + contribution.hours,
-        0,
-      );
+      const hours = contributions.reduce((sum, contribution) => sum + contribution.hours, 0);
       const percent =
-        capacityHours > 0
-          ? Math.round((hours / capacityHours) * 100)
-          : hours > 0
-            ? 100
-            : 0;
+        capacityHours > 0 ? Math.round((hours / capacityHours) * 100) : hours > 0 ? 100 : 0;
       let tone: UtilizationTone = "good";
       if (percent >= 100) tone = "danger";
       else if (percent >= 82) tone = "warning";
@@ -733,8 +637,7 @@ export function buildResourceMatrix(
         unavailableDays,
       };
     });
-    const average =
-      cells.reduce((sum, cell) => sum + cell.percent, 0) / cells.length;
+    const average = cells.reduce((sum, cell) => sum + cell.percent, 0) / cells.length;
     return {
       member,
       utilization: Math.round(average),
@@ -746,14 +649,10 @@ export function buildResourceMatrix(
 function roundResourceContributionHours(hours: number): number {
   return Math.round(hours * 10) / 10;
 }
-
-/** formatShortDateを実行し、アプリケーション用の値を返します。 */
 export function formatShortDate(dateKey: string): string {
   const date = parseDate(dateKey);
   return `${date.getMonth() + 1}/${date.getDate()}`;
 }
-
-/** formatDateWithWeekdayを実行し、アプリケーション用の値を返します。 */
 export function formatDateWithWeekday(dateKey: string): string {
   const date = parseDate(dateKey);
   const weekdays = ["日", "月", "火", "水", "木", "金", "土"];

@@ -4,13 +4,10 @@ import { PasswordChangeScreen } from "./features/auth/components/PasswordChangeS
 import { AppWorkbench } from "./app/AppWorkbench";
 import { authRepository, AuthRequestError } from "./data/authRepository";
 import { apiScheduleRepository, ApiRequestError } from "./data/apiScheduleRepository";
-import { loadLocalScheduleDraft } from "./data/localScheduleStorage";
+import { clearLocalScheduleDraft, loadLocalScheduleDraft } from "./data/localScheduleStorage";
 import { createInitialAppState, getProjectIdFromHash } from "./app/appState";
 import type { AppBootState, AuthState } from "./app/appTypes";
-import {
-  createInitialScheduleWorkspace,
-  selectInitialProject,
-} from "./app/projectLoading";
+import { createInitialScheduleWorkspace, selectInitialProject } from "./app/projectLoading";
 
 /** 認証状態とAPI初期化中に表示する共通プレースホルダーです。 */
 function AppBootScreen({
@@ -27,7 +24,11 @@ function AppBootScreen({
       <div className="app-boot-panel">
         <img alt="Mirai" className="app-boot-wordmark" src="/brand/mirai-wordmark.png" />
         <h1>{title}</h1>
-        {error ? <p>{error}</p> : <p>チーム、プロジェクト、ガントの初期データを読み込んでいます。</p>}
+        {error ? (
+          <p>{error}</p>
+        ) : (
+          <p>チーム、プロジェクト、ガントの初期データを読み込んでいます。</p>
+        )}
         {onRetry ? (
           <button className="primary-button" onClick={onRetry} type="button">
             再読み込み
@@ -52,6 +53,7 @@ export function App() {
       .getCurrentUser()
       .then((user) => {
         if (cancelled) return;
+        if (!user) clearLocalScheduleDraft();
         setAuthState(user ? { status: "signedIn", user } : { error: null, status: "signedOut" });
       })
       .catch((error: unknown) => {
@@ -102,6 +104,7 @@ export function App() {
         if (cancelled) return;
         if (error instanceof ApiRequestError && error.status === 401) {
           authRepository.clearSession();
+          clearLocalScheduleDraft();
           setAuthState({
             error: "セッションが切れました。もう一度ログインしてください。",
             status: "signedOut",
@@ -142,6 +145,8 @@ export function App() {
 
   async function logout() {
     await authRepository.logout().catch(() => undefined);
+    // 共有端末で前利用者の表示状態を引き継がないよう、認証終了時に端末設定を破棄します。
+    clearLocalScheduleDraft();
     setAuthState({ error: null, status: "signedOut" });
     setBootState({ status: "loading" });
   }
@@ -151,9 +156,15 @@ export function App() {
     setPasswordChangeError(null);
     try {
       await authRepository.changePassword(currentPassword, newPassword);
-      setAuthState({ error: "パスワードを変更しました。もう一度ログインしてください。", status: "signedOut" });
+      clearLocalScheduleDraft();
+      setAuthState({
+        error: "パスワードを変更しました。もう一度ログインしてください。",
+        status: "signedOut",
+      });
     } catch (error) {
-      setPasswordChangeError(error instanceof Error ? error.message : "パスワードを変更できませんでした。");
+      setPasswordChangeError(
+        error instanceof Error ? error.message : "パスワードを変更できませんでした。",
+      );
     } finally {
       setLoginSubmitting(false);
     }
@@ -168,7 +179,13 @@ export function App() {
   }
 
   if (authState.user.passwordResetRequired) {
-    return <PasswordChangeScreen error={passwordChangeError} loading={loginSubmitting} onChangePassword={changePassword} />;
+    return (
+      <PasswordChangeScreen
+        error={passwordChangeError}
+        loading={loginSubmitting}
+        onChangePassword={changePassword}
+      />
+    );
   }
 
   if (bootState.status === "loading") {

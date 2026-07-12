@@ -178,7 +178,9 @@ export function createLocalDraftChangeSummary(
     );
     if (!savedSchedule) return [];
     return [
-      !areDraftValuesEqual(currentSchedule.issues ?? [], savedSchedule.issues ?? []) ? "課題" : null,
+      !areDraftValuesEqual(currentSchedule.issues ?? [], savedSchedule.issues ?? [])
+        ? "課題"
+        : null,
       !areDraftValuesEqual(currentSchedule.workLogs ?? [], savedSchedule.workLogs ?? [])
         ? "作業時間"
         : null,
@@ -292,7 +294,9 @@ export function createInitialAppState(
   if (workspace.schedules.length === 0) {
     throw new Error("APIからプロジェクトが取得できませんでした。");
   }
-  const activeSchedules = workspace.schedules.filter((snapshot) => !isProjectArchived(snapshot.project));
+  const activeSchedules = workspace.schedules.filter(
+    (snapshot) => !isProjectArchived(snapshot.project),
+  );
   const firstSchedule = activeSchedules[0] ?? workspace.schedules[0];
   const hashProjectId = getProjectIdFromHash();
   const hashSchedule = hashProjectId
@@ -301,14 +305,16 @@ export function createInitialAppState(
       ) ?? null)
     : null;
   const hasDraftProject = workspace.schedules.some(
-    (snapshot) => snapshot.project.id === draft?.activeProjectId && !isProjectArchived(snapshot.project),
+    (snapshot) =>
+      snapshot.project.id === draft?.activeProjectId && !isProjectArchived(snapshot.project),
   );
   const draftSchedule = hasDraftProject
-    ? (workspace.schedules.find((snapshot) => snapshot.project.id === draft?.activeProjectId) ?? firstSchedule)
+    ? (workspace.schedules.find((snapshot) => snapshot.project.id === draft?.activeProjectId) ??
+      firstSchedule)
     : null;
   const activeSchedule = hashSchedule ?? draftSchedule ?? firstSchedule;
   const taskHistories = createTaskHistories(workspace);
-  const activityLogs = ensureActivityLogs(workspace, draft?.activityLogs);
+  const activityLogs = ensureActivityLogs(workspace, undefined);
   const persistableDraft = createPersistableDraft({
     activeProjectId: activeSchedule.project.id,
     activeTab: hashSchedule ? "Gantt" : (draft?.activeTab ?? "Projects"),

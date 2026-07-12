@@ -69,7 +69,7 @@ export function AnalysisPanel({
     (task) => task.type === "task" && task.baselineStart && task.baselineEnd,
   ).length;
   const baselineCapturedAt = tasks.find((task) => task.baselineCapturedAt)?.baselineCapturedAt;
-  const hasBaseline = baselineTaskCount > 0;
+  const hasBaseline = stats.total > 0 && baselineTaskCount === stats.total;
   const baselineDelayedTasks = tasks.filter(
     (task) => task.type === "task" && task.baselineEnd && task.end > task.baselineEnd,
   );
@@ -87,16 +87,44 @@ export function AnalysisPanel({
           <p>進捗・日程変更・リスクを案件単位で確認します。</p>
         </div>
         <div className="analysis-header-meta">
-          <strong>{project.rangeStart} - {project.rangeEnd}</strong>
-          <span>{baselineCapturedAt ? `基準計画 ${formatDate(baselineCapturedAt)}` : "基準計画 未設定"}</span>
+          <strong>
+            {project.rangeStart} - {project.rangeEnd}
+          </strong>
+          <span>
+            {hasBaseline && baselineCapturedAt
+              ? `基準計画 ${formatDate(baselineCapturedAt)}`
+              : baselineTaskCount > 0
+                ? `基準計画 一部設定（${baselineTaskCount}/${stats.total}件）`
+                : "基準計画 未設定"}
+          </span>
         </div>
       </header>
 
       <div className="analysis-kpi-grid">
-        <AnalysisKpi label="対象タスク" value={`${stats.total}件`} detail={`${stats.completed}件完了`} tone="blue" />
-        <AnalysisKpi label="平均進捗" value={`${stats.progress}%`} detail={`${stats.completed} / ${stats.total}件完了`} tone="teal" />
-        <AnalysisKpi label="日程変更" value={`${scheduleChanges.length}件`} detail={`${changedTaskCount}タスクに変更`} tone={scheduleChanges.length > 0 ? "orange" : "teal"} />
-        <AnalysisKpi label="要確認タスク" value={`${riskTasks.length}件`} detail={`遅延 ${delayedTasks.length} / 前提未完了 ${blockedTasks.length}`} tone={riskTasks.length > 0 ? "orange" : "teal"} />
+        <AnalysisKpi
+          label="対象タスク"
+          value={`${stats.total}件`}
+          detail={`${stats.completed}件完了`}
+          tone="blue"
+        />
+        <AnalysisKpi
+          label="平均進捗"
+          value={`${stats.progress}%`}
+          detail={`${stats.completed} / ${stats.total}件完了`}
+          tone="teal"
+        />
+        <AnalysisKpi
+          label="日程変更"
+          value={`${scheduleChanges.length}件`}
+          detail={`${changedTaskCount}タスクに変更`}
+          tone={scheduleChanges.length > 0 ? "orange" : "teal"}
+        />
+        <AnalysisKpi
+          label="要確認タスク"
+          value={`${riskTasks.length}件`}
+          detail={`遅延 ${delayedTasks.length} / 前提未完了 ${blockedTasks.length}`}
+          tone={riskTasks.length > 0 ? "orange" : "teal"}
+        />
       </div>
 
       <div className="analysis-main-grid">
@@ -130,20 +158,20 @@ export function AnalysisPanel({
                   {task.status === "delayed" ? "遅延" : "前提"}
                 </span>
                 <strong>{task.title}</strong>
-                <small>{formatDate(task.start)} - {formatDate(task.end)}</small>
+                <small>
+                  {formatDate(task.start)} - {formatDate(task.end)}
+                </small>
               </button>
             ))}
-            {riskTasks.length === 0 ? <div className="analysis-empty">要確認タスクはありません。</div> : null}
+            {riskTasks.length === 0 ? (
+              <div className="analysis-empty">要確認タスクはありません。</div>
+            ) : null}
           </div>
         </section>
       </div>
 
       <div className="analysis-bottom-grid">
-        <ScheduleChangeAnalysis
-          changeLogs={changeLogs}
-          onSelectTask={onSelectTask}
-          tasks={tasks}
-        />
+        <ScheduleChangeAnalysis changeLogs={changeLogs} onSelectTask={onSelectTask} tasks={tasks} />
         <section className="dashboard-panel analysis-baseline-panel">
           <div className="dashboard-panel-header">
             <div>
@@ -153,7 +181,11 @@ export function AnalysisPanel({
             <strong>{baselineTaskCount}件</strong>
           </div>
           <div className="analysis-baseline-content">
-            <p>{baselineCapturedAt ? `最終設定 ${formatDate(baselineCapturedAt)}` : "まだ基準計画が設定されていません。"}</p>
+            <p>
+              {baselineCapturedAt
+                ? `最終設定 ${formatDate(baselineCapturedAt)}`
+                : "まだ基準計画が設定されていません。"}
+            </p>
             <small>
               {hasBaseline
                 ? `終了日超過 ${baselineDelayedTasks.length}件 / 最大 +${maximumBaselineDelay}日`

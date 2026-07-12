@@ -43,10 +43,11 @@ export function BurndownChart({
   tasks,
 }: BurndownChartProps) {
   const points = useMemo(
-    () => buildBurndownPoints(tasks, projectStart, projectEnd, calendar, calendarAware),
-    [calendar, calendarAware, projectEnd, projectStart, tasks],
+    () =>
+      buildBurndownPoints(tasks, projectStart, projectEnd, calendar, calendarAware, hasBaseline),
+    [calendar, calendarAware, hasBaseline, projectEnd, projectStart, tasks],
   );
-  const totalTasks = points[0]?.planned ?? 0;
+  const totalTasks = tasks.filter((task) => task.type === "task").length;
   const currentRemaining = points[points.length - 1]?.actual ?? 0;
   const maxTasks = Math.max(totalTasks, ...points.map((point) => point.actual), 1);
   const plotWidth = chartWidth - chartPadding.left - chartPadding.right;
@@ -60,7 +61,7 @@ export function BurndownChart({
       <div className="dashboard-panel-header">
         <div>
           <h2>バーンダウン</h2>
-          <p>計画と現在進捗から見た残タスク数</p>
+          <p>{hasBaseline ? "基準計画と現在予測の残タスク数" : "理想線と現在予測の残タスク数"}</p>
         </div>
         <div className="burndown-summary">
           <strong>{formatTasks(currentRemaining)}</strong>
@@ -76,12 +77,18 @@ export function BurndownChart({
         </button>
       </div>
       <div className="burndown-legend" aria-label="バーンダウンの凡例">
-        <span><i className="burndown-legend-line planned" />計画</span>
-        <span><i className="burndown-legend-line actual" />現在進捗</span>
+        <span>
+          <i className="burndown-legend-line planned" />
+          {hasBaseline ? "基準計画" : "理想線"}
+        </span>
+        <span>
+          <i className="burndown-legend-line actual" />
+          現在予測
+        </span>
       </div>
       <div className="burndown-chart-wrap">
         <svg
-          aria-label="計画と現在進捗から見た残タスク数の推移"
+          aria-label={`${hasBaseline ? "基準計画" : "理想線"}と現在予測の残タスク数の推移`}
           className="burndown-chart"
           role="img"
           viewBox={"0 0 " + chartWidth + " " + chartHeight}
@@ -131,10 +138,10 @@ export function BurndownChart({
         </svg>
       </div>
       <small className="burndown-note">
-        現在のタスク進捗をもとに残タスク数を表示しています。
-        {baselineCapturedAt
+        現在予測は、現在の進捗から終了日までを線形に補間した参考値です。
+        {hasBaseline && baselineCapturedAt
           ? " 基準計画: " + formatShortDate(baselineCapturedAt.slice(0, 10))
-          : " 基準計画は未設定です。"}
+          : " 基準計画が未設定のため理想線と比較しています。"}
       </small>
     </section>
   );
@@ -146,28 +153,48 @@ function buildBurndownPoints(
   projectEnd: string,
   calendar: CalendarDefinition,
   calendarAware: boolean,
+  hasBaseline: boolean,
 ): BurndownPoint[] {
   const actionable = tasks.filter((task) => task.type === "task");
   const totalTasks = actionable.length;
-  const projectWorkingDays = Math.max(getWorkingDays(projectStart, projectEnd, calendar, calendarAware), 1);
+  const projectWorkingDays = Math.max(
+    getWorkingDays(projectStart, projectEnd, calendar, calendarAware),
+    1,
+  );
   const currentRemaining = actionable.reduce((sum, task) => sum + (1 - task.progress / 100), 0);
   const today = toDateKey(new Date());
   const actualDate = today < projectStart ? projectStart : today > projectEnd ? projectEnd : today;
   const actualDateSpan = Math.max(diffDays(projectStart, actualDate), 1);
   const projectDateSpan = Math.max(diffDays(projectStart, projectEnd), 1);
   const points: BurndownPoint[] = [];
-  const pointCount = Math.min(Math.max(Math.ceil(daysInclusive(projectStart, projectEnd) / 7), 2), 14);
+  const pointCount = Math.min(
+    Math.max(Math.ceil(daysInclusive(projectStart, projectEnd) / 7), 2),
+    14,
+  );
 
   for (let index = 0; index < pointCount; index += 1) {
     const ratio = index / (pointCount - 1);
-    const date = index === pointCount - 1
-      ? projectEnd
-      : toDateKey(addDays(parseDate(projectStart), Math.round(projectDateSpan * ratio)));
+    const date =
+      index === pointCount - 1
+        ? projectEnd
+        : toDateKey(addDays(parseDate(projectStart), Math.round(projectDateSpan * ratio)));
     const elapsedWorkingDays = getWorkingDays(projectStart, date, calendar, calendarAware);
-    const planned = totalTasks * Math.max(0, 1 - elapsedWorkingDays / projectWorkingDays);
-    const actual = date <= actualDate
-      ? totalTasks - (totalTasks - currentRemaining) * Math.min(Math.max(diffDays(projectStart, date) / actualDateSpan, 0), 1)
-      : currentRemaining * Math.max(0, 1 - diffDays(actualDate, date) / Math.max(diffDays(actualDate, projectEnd), 1));
+    const planned = hasBaseline
+      ? actionable.reduce(
+          (remaining, task) => remaining + (task.baselineEnd && task.baselineEnd <= date ? 0 : 1),
+          0,
+        )
+      : totalTasks * Math.max(0, 1 - elapsedWorkingDays / projectWorkingDays);
+    const actual =
+      date <= actualDate
+        ? totalTasks -
+          (totalTasks - currentRemaining) *
+            Math.min(Math.max(diffDays(projectStart, date) / actualDateSpan, 0), 1)
+        : currentRemaining *
+          Math.max(
+            0,
+            1 - diffDays(actualDate, date) / Math.max(diffDays(actualDate, projectEnd), 1),
+          );
     points.push({ actual, date, planned });
   }
   return points;

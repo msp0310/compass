@@ -34,8 +34,6 @@ type ScheduleHealthInput = {
   resourceRows: ResourceRowModel[];
   tasks: ScheduleTask[];
 };
-
-/** buildScheduleHealthReportを実行し、アプリケーション用の値を返します。 */
 export function buildScheduleHealthReport({
   calendar,
   calendarAware = true,
@@ -284,18 +282,16 @@ export function buildScheduleHealthReport({
     });
   });
 
-  findCycles(tasks, (task) => (task.parentId ? [task.parentId] : [])).forEach(
-    (task) => {
-      issues.push({
-        category: "hierarchy",
-        detail: "親子階層が循環しています。",
-        id: `${task.id}-parent-cycle`,
-        severity: "danger",
-        taskId: task.id,
-        title: `${task.title} の階層が循環しています`,
-      });
-    },
-  );
+  findCycles(tasks, (task) => (task.parentId ? [task.parentId] : [])).forEach((task) => {
+    issues.push({
+      category: "hierarchy",
+      detail: "親子階層が循環しています。",
+      id: `${task.id}-parent-cycle`,
+      severity: "danger",
+      taskId: task.id,
+      title: `${task.title} の階層が循環しています`,
+    });
+  });
 
   findCycles(tasks, (task) => task.dependencies ?? []).forEach((task) => {
     issues.push({
@@ -326,8 +322,7 @@ export function buildScheduleHealthReport({
   const dangerPenalty = Math.min(dangerCount * 18, 100);
   const warningPenalty = Math.min(warningCount * 3, 55);
   const score = Math.max(0, 100 - dangerPenalty - warningPenalty);
-  const statusLabel =
-    dangerCount > 0 ? "要修正" : warningCount > 0 ? "要確認" : "健全";
+  const statusLabel = dangerCount > 0 ? "要修正" : warningCount > 0 ? "要確認" : "健全";
 
   return {
     dangerCount,
@@ -347,10 +342,7 @@ function compareIssues(a: ScheduleHealthIssue, b: ScheduleHealthIssue) {
   return severityRank[a.severity] - severityRank[b.severity];
 }
 
-function findCycles(
-  tasks: ScheduleTask[],
-  getNextIds: (task: ScheduleTask) => string[],
-) {
+function findCycles(tasks: ScheduleTask[], getNextIds: (task: ScheduleTask) => string[]) {
   const taskById = new Map(tasks.map((task) => [task.id, task]));
   const visited = new Set<string>();
   const visiting = new Set<string>();
@@ -383,11 +375,7 @@ function isDateKey(value: string) {
   const month = Number(match[2]);
   const day = Number(match[3]);
   const date = new Date(year, month - 1, day);
-  return (
-    date.getFullYear() === year &&
-    date.getMonth() === month - 1 &&
-    date.getDate() === day
-  );
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
 }
 
 function pushDuplicates(

@@ -129,6 +129,7 @@ export const apiScheduleRepository: ScheduleRepository = {
   async saveWorkspace(
     workspace: ScheduleWorkspace,
     options: ScheduleRepositorySaveOptions,
+    previousWorkspace?: ScheduleWorkspace,
   ): Promise<ScheduleRepositorySaveResult> {
     const schedule = workspace.schedules.find(
       (snapshot) => snapshot.project.id === options.activeProjectId,
@@ -137,19 +138,50 @@ export const apiScheduleRepository: ScheduleRepository = {
       throw new Error(`保存対象のプロジェクトが見つかりません: ${options.activeProjectId}`);
     }
 
+    const previousSchedule = previousWorkspace?.schedules.find(
+      (snapshot) => snapshot.project.id === options.activeProjectId,
+    );
+    const taskPlanChanged =
+      previousSchedule != null && !hasSameValue(schedule.tasks, previousSchedule.tasks);
+    const projectDataChanged =
+      previousSchedule != null && !hasSameProjectData(schedule, previousSchedule);
+
+    if (previousSchedule && !taskPlanChanged && !projectDataChanged) {
+      return {
+        mode: "remote",
+        revision: `project-${schedule.project.id}-v${schedule.project.version ?? 0}`,
+        savedAt: new Date().toISOString(),
+        workspace,
+      };
+    }
+
+    const useTaskPlanBoundary =
+      previousSchedule != null &&
+      taskPlanChanged &&
+      !projectDataChanged &&
+      (schedule.access?.canEditPlan ?? true);
+
     const result = await requestAuthenticatedJson<SaveScheduleResponse>(
-      `/projects/${encodeURIComponent(options.activeProjectId)}/schedule`,
+      `/projects/${encodeURIComponent(options.activeProjectId)}/${useTaskPlanBoundary ? "tasks" : "schedule"}`,
       {
-        body: JSON.stringify({
-          calendar: schedule.calendar,
-          changeReason: options.changeReason?.trim() || null,
-          expectedVersion: schedule.project.version ?? null,
-          issues: schedule.issues ?? [],
-          members: schedule.members,
-          project: schedule.project,
-          tasks: schedule.tasks,
-          workLogs: schedule.workLogs ?? [],
-        }),
+        body: JSON.stringify(
+          useTaskPlanBoundary
+            ? {
+                changeReason: options.changeReason?.trim() || null,
+                expectedVersion: schedule.project.version ?? null,
+                tasks: schedule.tasks,
+              }
+            : {
+                calendar: schedule.calendar,
+                changeReason: options.changeReason?.trim() || null,
+                expectedVersion: schedule.project.version ?? null,
+                issues: schedule.issues ?? [],
+                members: schedule.members,
+                project: schedule.project,
+                tasks: schedule.tasks,
+                workLogs: schedule.workLogs ?? [],
+              },
+        ),
         method: "PUT",
       },
     );
@@ -176,3 +208,28 @@ export const apiScheduleRepository: ScheduleRepository = {
     };
   },
 };
+
+function hasSameProjectData(left: ScheduleSnapshot, right: ScheduleSnapshot) {
+  const { version: _leftVersion, ...leftProject } = left.project;
+  const { version: _rightVersion, ...rightProject } = right.project;
+  return hasSameValue(
+    {
+      calendar: left.calendar,
+      issues: left.issues ?? [],
+      members: left.members,
+      project: leftProject,
+      workLogs: left.workLogs ?? [],
+    },
+    {
+      calendar: right.calendar,
+      issues: right.issues ?? [],
+      members: right.members,
+      project: rightProject,
+      workLogs: right.workLogs ?? [],
+    },
+  );
+}
+
+function hasSameValue(left: unknown, right: unknown) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}

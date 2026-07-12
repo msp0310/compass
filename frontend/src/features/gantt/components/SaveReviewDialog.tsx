@@ -90,9 +90,9 @@ export function SaveReviewDialog({
         <section className="save-review-message" aria-label="保存内容">
           <CheckCircleIcon />
           <div>
-            <strong>{scopeLabel}をローカル保存します</strong>
+            <strong>{scopeLabel}をAPIへ保存します</strong>
             <p>
-              タスク差分は保存後に基準状態へ反映されます。API接続後は、この差分を送信前確認や監査ログの候補として扱えます。
+              表示中の差分を確認し、現在の案件バージョンを基準にAPIへ送信します。競合した場合は保存せず、最新状態の確認を促します。
             </p>
           </div>
         </section>

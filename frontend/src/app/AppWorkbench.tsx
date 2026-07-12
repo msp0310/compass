@@ -1,12 +1,7 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GanttWorkbench } from "../features/gantt/components/GanttWorkbench";
 import { Sidebar } from "../components/layout/Sidebar";
-import {
-  Topbar,
-  type ApiConnectionMode,
-  type ExportFormat,
-  type TopbarNotification,
-} from "../components/layout/Topbar";
+import { Topbar, type ExportFormat, type TopbarNotification } from "../components/layout/Topbar";
 import { type ViewTab } from "../components/layout/ViewTabs";
 import type { ProjectImportMode } from "../features/projects/components/ProjectImportSheet";
 import type { CreateProjectTemplateInput } from "../features/projects/components/ProjectCreateSheet";
@@ -88,7 +83,7 @@ import type { ApiSyncState, AppInitialState, TaskClipboard } from "./appTypes";
 import { buildTopbarSyncQueueItems, createTopbarSyncStatus } from "./syncPresentation";
 import { useToastQueue } from "../hooks/useToastQueue";
 import { useGanttKeyboardShortcuts } from "../features/gantt/hooks/useGanttKeyboardShortcuts";
-import { findMissingProjectIds, mergeScheduleIntoWorkspace } from "./projectLoading";
+import { mergeScheduleIntoWorkspace } from "./projectLoading";
 import { useTaskHistory } from "../features/gantt/hooks/useTaskHistory";
 import { useProjectActivityActions } from "../features/projects/hooks/useProjectActivityActions";
 import { useTaskActions } from "../features/gantt/hooks/useTaskActions";
@@ -96,6 +91,7 @@ import { useTaskActualUpdater } from "../features/gantt/hooks/useTaskActualUpdat
 import { useScheduleSync } from "./useScheduleSync";
 import { useTaskSelection } from "../features/gantt/hooks/useTaskSelection";
 import { useWorkbenchOverlays, type PendingTaskCsvImport } from "./useWorkbenchOverlays";
+import { useTeamScheduleLoading } from "./useTeamScheduleLoading";
 import { todayKey } from "../features/gantt/components/constants";
 import { OnboardingTour } from "../features/onboarding/components/OnboardingTour";
 import {
@@ -104,6 +100,33 @@ import {
   type TourId,
 } from "../features/onboarding/tourScenarios";
 import type { HelpDocumentId } from "../help/helpDocuments";
+import {
+  ActivityPanel,
+  AnalysisPanel,
+  BrabioTaskImportSheet,
+  CalendarPanel,
+  CreateTaskSheet,
+  DailyReportPage,
+  HelpPage,
+  MasterSettingsPage,
+  MilestonePanel,
+  PersonalAnalyticsPage,
+  ProjectCreateSheet,
+  ProjectImportSheet,
+  ProjectIssuePanel,
+  ProjectPortfolioPanel,
+  ProjectSettingsPage,
+  ResetDraftDialog,
+  ResourcePanel,
+  SaveReviewDialog,
+  ShortcutHelpSheet,
+  SummaryStrip,
+  TaskCsvImportSheet,
+  TaskInspector,
+  WeeklyReportPanel,
+  WorkloadOverviewPage,
+  WorkLogPanel,
+} from "./workbenchLazyViews";
 
 type AppWorkbenchProps = {
   currentUser: AuthUser;
@@ -113,156 +136,6 @@ type AppWorkbenchProps = {
 };
 
 type CollapsedIdUpdate = Set<string> | ((current: Set<string>) => Set<string>);
-
-const ActivityPanel = lazy(() =>
-  import("../features/activity/components/ActivityPanel").then((module) => ({
-    default: module.ActivityPanel,
-  })),
-);
-
-const AnalysisPanel = lazy(() =>
-  import("../features/analysis/components/AnalysisPanel").then((module) => ({
-    default: module.AnalysisPanel,
-  })),
-);
-
-const WeeklyReportPanel = lazy(() =>
-  import("../features/analysis/components/WeeklyReportPanel").then((module) => ({
-    default: module.WeeklyReportPanel,
-  })),
-);
-
-const CalendarPanel = lazy(() =>
-  import("../features/calendar/components/CalendarPanel").then((module) => ({
-    default: module.CalendarPanel,
-  })),
-);
-
-const HelpPage = lazy(() =>
-  import("../features/help/components/HelpPage").then((module) => ({
-    default: module.HelpPage,
-  })),
-);
-
-const ProjectIssuePanel = lazy(() =>
-  import("../features/issues/components/ProjectIssuePanel").then((module) => ({
-    default: module.ProjectIssuePanel,
-  })),
-);
-
-const WorkLogPanel = lazy(() =>
-  import("../features/worklogs/components/WorkLogPanel").then((module) => ({
-    default: module.WorkLogPanel,
-  })),
-);
-
-const CreateTaskSheet = lazy(() =>
-  import("../features/gantt/components/CreateTaskSheet").then((module) => ({
-    default: module.CreateTaskSheet,
-  })),
-);
-
-const MilestonePanel = lazy(() =>
-  import("../features/milestones/components/MilestonePanel").then((module) => ({
-    default: module.MilestonePanel,
-  })),
-);
-
-const MasterSettingsPage = lazy(() =>
-  import("../features/settings/components/MasterSettingsSheet").then((module) => ({
-    default: module.MasterSettingsPage,
-  })),
-);
-
-const ProjectCreateSheet = lazy(() =>
-  import("../features/projects/components/ProjectCreateSheet").then((module) => ({
-    default: module.ProjectCreateSheet,
-  })),
-);
-
-const ProjectImportSheet = lazy(() =>
-  import("../features/projects/components/ProjectImportSheet").then((module) => ({
-    default: module.ProjectImportSheet,
-  })),
-);
-
-const ProjectPortfolioPanel = lazy(() =>
-  import("../features/projects/components/ProjectPortfolioPanel").then((module) => ({
-    default: module.ProjectPortfolioPanel,
-  })),
-);
-
-const ProjectSettingsPage = lazy(() =>
-  import("../features/projects/components/ProjectSettingsSheet").then((module) => ({
-    default: module.ProjectSettingsPage,
-  })),
-);
-
-const ResetDraftDialog = lazy(() =>
-  import("../features/gantt/components/ResetDraftDialog").then((module) => ({
-    default: module.ResetDraftDialog,
-  })),
-);
-
-const ResourcePanel = lazy(() =>
-  import("../features/resource/components/ResourcePanel").then((module) => ({
-    default: module.ResourcePanel,
-  })),
-);
-
-const WorkloadOverviewPage = lazy(() =>
-  import("../features/resource/components/WorkloadOverviewPage").then((module) => ({
-    default: module.WorkloadOverviewPage,
-  })),
-);
-
-const DailyReportPage = lazy(() =>
-  import("../features/dailyReports/components/DailyReportPage").then((module) => ({
-    default: module.DailyReportPage,
-  })),
-);
-
-const PersonalAnalyticsPage = lazy(() =>
-  import("../features/personalAnalytics/components/PersonalAnalyticsPage").then((module) => ({
-    default: module.PersonalAnalyticsPage,
-  })),
-);
-
-const SaveReviewDialog = lazy(() =>
-  import("../features/gantt/components/SaveReviewDialog").then((module) => ({
-    default: module.SaveReviewDialog,
-  })),
-);
-
-const ShortcutHelpSheet = lazy(() =>
-  import("../features/gantt/components/ShortcutHelpSheet").then((module) => ({
-    default: module.ShortcutHelpSheet,
-  })),
-);
-
-const SummaryStrip = lazy(() =>
-  import("../features/status/components/SummaryStrip").then((module) => ({
-    default: module.SummaryStrip,
-  })),
-);
-
-const BrabioTaskImportSheet = lazy(() =>
-  import("../features/gantt/components/BrabioTaskImportSheet").then((module) => ({
-    default: module.BrabioTaskImportSheet,
-  })),
-);
-
-const TaskCsvImportSheet = lazy(() =>
-  import("../features/gantt/components/TaskCsvImportSheet").then((module) => ({
-    default: module.TaskCsvImportSheet,
-  })),
-);
-
-const TaskInspector = lazy(() =>
-  import("../features/gantt/components/TaskInspector").then((module) => ({
-    default: module.TaskInspector,
-  })),
-);
 
 type ActivityInput = {
   category: ActivityCategory;
@@ -281,7 +154,6 @@ function focusTaskTitleEditor(taskId: string) {
   const rowSelector = `.task-table-row[data-task-id="${taskId}"]`;
   const inputSelector = `${rowSelector} input[data-inline-field="title"]`;
 
-  /** focusInputを実行し、関連する処理をまとめます。 */
   function focusInput() {
     const input = document.querySelector<HTMLInputElement>(inputSelector);
     if (!input) return false;
@@ -407,7 +279,6 @@ export function AppWorkbench({
     showShortcutHelp,
   } = useWorkbenchOverlays();
   const [loadingProjectId, setLoadingProjectId] = useState<string | null>(null);
-  const [teamResourcesLoading, setTeamResourcesLoading] = useState(false);
   const [activityLogs, setActivityLogs] = useState(initialAppState.activityLogs);
   const [favoriteProjectIds, setFavoriteProjectIds] = useState<Set<string>>(
     () => new Set(initialAppState.favoriteProjectIds),
@@ -415,7 +286,6 @@ export function AppWorkbench({
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(initialAppState.lastSavedAt);
   const [savedSignature, setSavedSignature] = useState(initialAppState.savedSignature);
   const [savedWorkspace, setSavedWorkspace] = useState(initialAppState.savedWorkspace);
-  const [apiConnectionMode, setApiConnectionMode] = useState<ApiConnectionMode>("online");
   const [apiSyncState, setApiSyncState] = useState<ApiSyncState>({
     error: null,
     lastAttemptAt: null,
@@ -441,22 +311,31 @@ export function AppWorkbench({
   const [taskPasteMode] = useState<TaskPasteMode>("sibling");
   const taskClipboardRef = useRef<TaskClipboard | null>(null);
   const activityIdRef = useRef(0);
-  const apiConnectionModeRef = useRef<ApiConnectionMode>(apiConnectionMode);
   const initialRouteNoticeShownRef = useRef(false);
   const initialTourCheckedRef = useRef(false);
   const projectLoadRequestIdRef = useRef(0);
   const saveOperationIdRef = useRef(0);
   const { addToast, dismissToast, toasts } = useToastQueue();
+  const handleTeamScheduleLoadError = useCallback(
+    (message: string) =>
+      addToast({
+        detail: message,
+        title: "チーム案件を読み込めませんでした",
+        tone: "warning",
+      }),
+    [addToast],
+  );
   const projectSummaries = useMemo(
     () => workspace.projectSummaries ?? workspace.schedules.map(createProjectSummaryFromSnapshot),
     [workspace.projectSummaries, workspace.schedules],
   );
-
   const activeTeamProjects = useMemo(
     () =>
       projectSummaries
         .map((summary) => summary.project)
-        .filter((project) => project.teamId === (activeTeamId || null) && !isProjectArchived(project)),
+        .filter(
+          (project) => project.teamId === (activeTeamId || null) && !isProjectArchived(project),
+        ),
     [activeTeamId, projectSummaries],
   );
   const workspaceProjects = useMemo(
@@ -631,64 +510,12 @@ export function AppWorkbench({
     () =>
       currentReviewSchedules.filter(
         (snapshot) =>
-          snapshot.project.teamId === (activeTeamId || null) && !isProjectArchived(snapshot.project),
+          snapshot.project.teamId === (activeTeamId || null) &&
+          !isProjectArchived(snapshot.project),
       ),
     [activeTeamId, currentReviewSchedules],
   );
 
-  useEffect(() => {
-    if (
-      resourceScope !== "team" &&
-      activeTab !== "Workload" &&
-      activeTab !== "DailyReports" &&
-      activeTab !== "PersonalAnalytics"
-    )
-      return;
-    const targetTeamIds =
-      activeTab === "Workload" || activeTab === "DailyReports" || activeTab === "PersonalAnalytics"
-        ? workspace.teams.map((team) => team.id)
-        : [activeTeamId || null];
-    const missingProjectIds = [
-      ...new Set(
-        targetTeamIds.flatMap((teamId) =>
-          findMissingProjectIds(projectSummaries, workspace.schedules, teamId),
-        ),
-      ),
-    ];
-    if (missingProjectIds.length === 0) return;
-
-    let cancelled = false;
-    setTeamResourcesLoading(true);
-    Promise.all(
-      missingProjectIds.map((projectId) => apiScheduleRepository.getProjectSchedule(projectId)),
-    )
-      .then((schedules) => {
-        if (cancelled) return;
-        setWorkspace((current) => schedules.reduce(mergeScheduleIntoWorkspace, current));
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return;
-        addToast({
-          detail: error instanceof Error ? error.message : "チーム案件を取得できませんでした。",
-          title: "Resourceを読み込めませんでした",
-          tone: "warning",
-        });
-      })
-      .finally(() => {
-        if (!cancelled) setTeamResourcesLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    activeTab,
-    activeTeamId,
-    projectSummaries,
-    resourceScope,
-    workspace.schedules,
-    workspace.teams,
-  ]);
   const teamResourceTasks = useMemo(
     () =>
       activeTeamReviewSchedules.flatMap((snapshot) =>
@@ -961,6 +788,25 @@ export function AppWorkbench({
   const currentSignature = useMemo(() => createDraftSignature(currentDraft), [currentDraft]);
   const hasUnsavedChanges = currentSignature !== savedSignature;
   const savedDraftRef = useRef(initialAppState.savedDraft);
+  const handleTeamSchedulesLoaded = useCallback((loadedSchedules: ScheduleSnapshot[]) => {
+    const nextSavedWorkspace = loadedSchedules.reduce(
+      mergeScheduleIntoWorkspace,
+      savedDraftRef.current.workspace,
+    );
+    savedDraftRef.current = { ...savedDraftRef.current, workspace: nextSavedWorkspace };
+    setSavedWorkspace(nextSavedWorkspace);
+    setSavedSignature(createDraftSignature(savedDraftRef.current));
+  }, []);
+  const teamResourcesLoading = useTeamScheduleLoading({
+    activeTab,
+    activeTeamId,
+    onError: handleTeamScheduleLoadError,
+    onLoaded: handleTeamSchedulesLoaded,
+    projectSummaries,
+    resourceScope,
+    setWorkspace,
+    workspace,
+  });
   const localDraftChangeSummary = useMemo(
     () => createLocalDraftChangeSummary(currentDraft, savedDraftRef.current),
     [currentDraft, savedSignature],
@@ -968,7 +814,6 @@ export function AppWorkbench({
   const syncStatus = useMemo(
     () =>
       createTopbarSyncStatus({
-        apiConnectionMode,
         apiSyncState,
         hasUnsavedChanges,
         lastSavedAt,
@@ -979,7 +824,6 @@ export function AppWorkbench({
         scopeLabel: saveScopeLabel,
       }),
     [
-      apiConnectionMode,
       apiSyncState,
       configChangeReview.totalCount,
       hasUnsavedChanges,
@@ -1012,15 +856,13 @@ export function AppWorkbench({
   const hasUnsavedChangesRef = useRef(hasUnsavedChanges);
   const taskChangeReviewRef = useRef(taskChangeReview);
   const configChangeReviewRef = useRef(configChangeReview);
-  const { changeApiConnectionMode, retryApiSync, scheduleApiSync } = useScheduleSync({
+  const { retryApiSync, scheduleApiSync } = useScheduleSync({
     addToast,
-    apiConnectionModeRef,
     apiSyncState,
     hasUnsavedChangesRef,
     requestSaveDraft,
     saveOperationIdRef,
     savedDraftRef,
-    setApiConnectionMode,
     setApiSyncState,
     setLastSavedAt,
     setSavedSignature,
@@ -1035,10 +877,6 @@ export function AppWorkbench({
   useEffect(() => {
     activityLogsRef.current = activityLogs;
   }, [activityLogs]);
-
-  useEffect(() => {
-    apiConnectionModeRef.current = apiConnectionMode;
-  }, [apiConnectionMode]);
 
   useEffect(() => {
     if (initialRouteNoticeShownRef.current) return;
@@ -1069,18 +907,28 @@ export function AppWorkbench({
 
   useEffect(() => {
     if (!hasUnsavedChanges) return;
-    const currentWithSavedNavigation = {
+    const savedDraft = savedDraftRef.current;
+    const currentWithSavedLocalState = {
       ...currentDraft,
-      activeProjectId: savedDraftRef.current.activeProjectId,
-      activeTeamId: savedDraftRef.current.activeTeamId,
+      activeProjectId: savedDraft.activeProjectId,
+      activeTab: savedDraft.activeTab,
+      activeTeamId: savedDraft.activeTeamId,
+      activityLogs: savedDraft.activityLogs,
+      calendarAware: savedDraft.calendarAware,
+      collapsedIdsByProject: savedDraft.collapsedIdsByProject,
+      columnVisibility: savedDraft.columnVisibility,
+      favoriteProjectIds: savedDraft.favoriteProjectIds,
+      filterOpen: savedDraft.filterOpen,
+      filters: savedDraft.filters,
+      resourceDisplaySettings: savedDraft.resourceDisplaySettings,
+      resourceScope: savedDraft.resourceScope,
+      scale: savedDraft.scale,
+      timeUnit: savedDraft.timeUnit,
     };
-    if (
-      createDraftSignature(currentWithSavedNavigation) ===
-      createDraftSignature(savedDraftRef.current)
-    ) {
-      persistNavigationState(activeProjectId, activeTeamId);
+    if (createDraftSignature(currentWithSavedLocalState) === createDraftSignature(savedDraft)) {
+      persistLocalState(currentDraft);
     }
-  }, [activeProjectId, activeTeamId, currentDraft, hasUnsavedChanges]);
+  }, [currentDraft, hasUnsavedChanges]);
 
   useEffect(() => {
     if (showMasterSettings || (activeTab === "Projects" && !showProjectSettings)) return;
@@ -1149,18 +997,37 @@ export function AppWorkbench({
     setActivityLogs(logs);
   }
 
-  /** 現在の案件・チーム選択をローカル保存します。 */
+  /** API保存対象ではない表示状態を端末へ保存し、未保存判定から除外します。 */
+  function persistLocalState(draft: typeof currentDraft) {
+    saveLocalScheduleDraft(draft);
+    savedDraftRef.current = {
+      ...savedDraftRef.current,
+      activeProjectId: draft.activeProjectId,
+      activeTab: draft.activeTab,
+      activeTeamId: draft.activeTeamId,
+      activityLogs: draft.activityLogs,
+      calendarAware: draft.calendarAware,
+      collapsedIdsByProject: draft.collapsedIdsByProject,
+      columnVisibility: draft.columnVisibility,
+      favoriteProjectIds: draft.favoriteProjectIds,
+      filterOpen: draft.filterOpen,
+      filters: draft.filters,
+      resourceDisplaySettings: draft.resourceDisplaySettings,
+      resourceScope: draft.resourceScope,
+      scale: draft.scale,
+      timeUnit: draft.timeUnit,
+    };
+    setSavedSignature(createDraftSignature(savedDraftRef.current));
+  }
+
+  /** 案件・チーム選択を表示設定として保存します。 */
   function persistNavigationState(projectId: string, teamId: string | null) {
     const nextSavedDraft = {
       ...savedDraftRef.current,
       activeProjectId: projectId,
       activeTeamId: teamId ?? "",
     };
-    const saved = saveLocalScheduleDraft(nextSavedDraft);
-    savedDraftRef.current = nextSavedDraft;
-    setLastSavedAt(saved.savedAt);
-    setSavedSignature(createDraftSignature(nextSavedDraft));
-    setSavedWorkspace(nextSavedDraft.workspace);
+    persistLocalState(nextSavedDraft);
   }
 
   /** 添付メタデータだけを案件単位で更新します。スケジュール保存とは分離します。 */
@@ -1335,9 +1202,7 @@ export function AppWorkbench({
 
   /** 操作ヘルプ画面を開きます。 */
   function openHelpPage() {
-    setHelpDocumentId(
-      getContextHelpDocumentId(activeTab, showMasterSettings, showProjectSettings),
-    );
+    setHelpDocumentId(getContextHelpDocumentId(activeTab, showMasterSettings, showProjectSettings));
     setPendingProjectImport(null);
     setPendingTaskCsvImport(null);
     setShowCreateSheet(false);
@@ -1662,13 +1527,21 @@ export function AppWorkbench({
     team = {
       ...team,
       memberships: team.memberIds.map(
-        (memberId) => team.memberships?.find((item) => item.memberId === memberId) ?? { memberId, role: "member" },
+        (memberId) =>
+          team.memberships?.find((item) => item.memberId === memberId) ?? {
+            memberId,
+            role: "member",
+          },
       ),
     };
     try {
       team = await apiScheduleRepository.saveTeam(team);
     } catch (error) {
-      addToast({ detail: error instanceof Error ? error.message : "保存できませんでした。", title: "チーム設定の保存に失敗しました", tone: "warning" });
+      addToast({
+        detail: error instanceof Error ? error.message : "保存できませんでした。",
+        title: "チーム設定の保存に失敗しました",
+        tone: "warning",
+      });
       return;
     }
     setWorkspace((current) => ({
@@ -1689,7 +1562,11 @@ export function AppWorkbench({
     try {
       team = await apiScheduleRepository.saveTeam(team);
     } catch (error) {
-      addToast({ detail: error instanceof Error ? error.message : "追加できませんでした。", title: "チームの追加に失敗しました", tone: "warning" });
+      addToast({
+        detail: error instanceof Error ? error.message : "追加できませんでした。",
+        title: "チームの追加に失敗しました",
+        tone: "warning",
+      });
       return;
     }
     setWorkspace((current) => ({
@@ -1710,7 +1587,11 @@ export function AppWorkbench({
     try {
       member = await apiScheduleRepository.saveMember(member);
     } catch (error) {
-      addToast({ detail: error instanceof Error ? error.message : "保存できませんでした。", title: "メンバーの保存に失敗しました", tone: "warning" });
+      addToast({
+        detail: error instanceof Error ? error.message : "保存できませんでした。",
+        title: "メンバーの保存に失敗しました",
+        tone: "warning",
+      });
       return;
     }
     setWorkspace((current) => ({
@@ -1772,7 +1653,11 @@ export function AppWorkbench({
     try {
       member = await apiScheduleRepository.saveMember(member);
     } catch (error) {
-      addToast({ detail: error instanceof Error ? error.message : "追加できませんでした。", title: "メンバーの追加に失敗しました", tone: "warning" });
+      addToast({
+        detail: error instanceof Error ? error.message : "追加できませんでした。",
+        title: "メンバーの追加に失敗しました",
+        tone: "warning",
+      });
       return;
     }
     setWorkspace((current) => ({
@@ -1808,7 +1693,11 @@ export function AppWorkbench({
     });
     if (teamId) {
       const targetTeam = workspace.teams.find((item) => item.id === teamId);
-      if (targetTeam) await updateTeam({ ...targetTeam, memberIds: Array.from(new Set([...targetTeam.memberIds, member.id])) });
+      if (targetTeam)
+        await updateTeam({
+          ...targetTeam,
+          memberIds: Array.from(new Set([...targetTeam.memberIds, member.id])),
+        });
     }
   }
 
@@ -1825,7 +1714,11 @@ export function AppWorkbench({
     try {
       await apiScheduleRepository.saveTeam(savedTeam);
     } catch (error) {
-      addToast({ detail: error instanceof Error ? error.message : "保存できませんでした。", title: "チーム所属の更新に失敗しました", tone: "warning" });
+      addToast({
+        detail: error instanceof Error ? error.message : "保存できませんでした。",
+        title: "チーム所属の更新に失敗しました",
+        tone: "warning",
+      });
       return;
     }
     setWorkspace((current) => ({
@@ -1859,7 +1752,11 @@ export function AppWorkbench({
     try {
       calendar = await apiScheduleRepository.saveTeamCalendar(teamId, calendar);
     } catch (error) {
-      addToast({ detail: error instanceof Error ? error.message : "保存できませんでした。", title: "標準カレンダーの保存に失敗しました", tone: "warning" });
+      addToast({
+        detail: error instanceof Error ? error.message : "保存できませんでした。",
+        title: "標準カレンダーの保存に失敗しました",
+        tone: "warning",
+      });
       return;
     }
     const targetProjectCount = projectSummaries.filter(
@@ -1869,12 +1766,19 @@ export function AppWorkbench({
       ...current,
       schedules: current.schedules.map((snapshot) =>
         snapshot.project.teamId === teamId
-          ? { ...snapshot, calendar, project: { ...snapshot.project, version: (snapshot.project.version ?? 0) + 1 } }
+          ? {
+              ...snapshot,
+              calendar,
+              project: { ...snapshot.project, version: (snapshot.project.version ?? 0) + 1 },
+            }
           : snapshot,
       ),
       projectSummaries: (current.projectSummaries ?? []).map((summary) =>
         summary.project.teamId === teamId
-          ? { ...summary, project: { ...summary.project, version: (summary.project.version ?? 0) + 1 } }
+          ? {
+              ...summary,
+              project: { ...summary.project, version: (summary.project.version ?? 0) + 1 },
+            }
           : summary,
       ),
     }));
@@ -2025,7 +1929,11 @@ export function AppWorkbench({
     try {
       createdSchedule = await apiScheduleRepository.createProject(nextSchedule);
     } catch (error) {
-      addToast({ detail: error instanceof Error ? error.message : "作成できませんでした。", title: "プロジェクトの追加に失敗しました", tone: "warning" });
+      addToast({
+        detail: error instanceof Error ? error.message : "作成できませんでした。",
+        title: "プロジェクトの追加に失敗しました",
+        tone: "warning",
+      });
       return;
     }
     const nextSummary = createProjectSummaryFromSnapshot(createdSchedule);
@@ -2532,7 +2440,7 @@ export function AppWorkbench({
     });
   }
 
-  /** 現在の変更をローカル保存し、API同期を開始します。 */
+  /** 現在の変更をAPIへ送り、成功するまで未保存状態を維持します。 */
   function saveDraft(draft = currentDraftRef.current, changeReason?: string) {
     const projectScopedSave = isProjectSaveScope;
     const apiChangeCount = Math.max(
@@ -2543,10 +2451,10 @@ export function AppWorkbench({
     const entry = createActivityEntry({
       category: "sync",
       detail: projectScopedSave
-        ? `${schedule.project.workspace} のガントをこのブラウザに保存しました。`
-        : `${saveScopeLabel}をこのブラウザに保存しました。`,
-      title: projectScopedSave ? "ガントを保存しました" : "ローカル保存しました",
-      tone: "success",
+        ? `${schedule.project.workspace} の変更をAPIへ送信します。`
+        : `${saveScopeLabel}の変更をAPIへ送信します。`,
+      title: "保存を開始しました",
+      tone: "info",
     });
     const nextActivityLogs = appendActivityLogEntry(activityLogsRef.current, entry);
     const draftWithActivity = {
@@ -2556,16 +2464,13 @@ export function AppWorkbench({
     const nextDraft = projectScopedSave
       ? mergeProjectScopedSavedDraft(savedDraftRef.current, draftWithActivity, schedule.project.id)
       : draftWithActivity;
-    const saved = saveLocalScheduleDraft(nextDraft);
-    savedDraftRef.current = nextDraft;
+    saveLocalScheduleDraft(nextDraft);
     setShowSaveReview(false);
     setActivityLogSnapshot(nextActivityLogs);
-    setLastSavedAt(saved.savedAt);
-    setSavedSignature(createDraftSignature(nextDraft));
-    setSavedWorkspace(nextDraft.workspace);
     addToast({
       detail: projectScopedSave ? schedule.project.workspace : saveScopeLabel,
-      title: projectScopedSave ? "このガントを保存しました" : "ローカル保存しました",
+      title: "APIへ送信しています",
+      tone: "info",
     });
     void scheduleApiSync(nextDraft, apiChangeCount, "save", changeReason);
   }
@@ -2742,7 +2647,8 @@ export function AppWorkbench({
     (filters.assigneeId !== "all" ? 1 : 0);
   const nextProjectIndex =
     projectSummaries.filter(
-      (summary) => summary.project.teamId === (activeTeamId || null) && !isProjectArchived(summary.project),
+      (summary) =>
+        summary.project.teamId === (activeTeamId || null) && !isProjectArchived(summary.project),
     ).length + 1;
   const importExistingProject = pendingProjectImport
     ? (projectSummaries.find(
@@ -2772,7 +2678,9 @@ export function AppWorkbench({
         }
         projectSettingsOpen={showProjectSettings}
         settingsOpen={showMasterSettings}
-        showAdminSettings={currentUser.role === "admin" || (schedule.access?.canManageStaffing ?? false)}
+        showAdminSettings={
+          currentUser.role === "admin" || (schedule.access?.canManageStaffing ?? false)
+        }
         showProjectSettings={schedule.access?.canManageProject ?? true}
       />
       <main className="workspace">
@@ -2785,7 +2693,6 @@ export function AppWorkbench({
         <Topbar
           activeTeamId={activeTeamId}
           allProjects={workspaceProjects}
-          apiConnectionMode={apiConnectionMode}
           contextMode={
             showHelpPage
               ? "help"
@@ -2806,7 +2713,6 @@ export function AppWorkbench({
           favoriteProjectIds={favoriteProjectIds}
           hasUnsavedChanges={hasUnsavedChanges}
           notifications={topbarNotifications}
-          onApiConnectionModeChange={changeApiConnectionMode}
           onExportProject={exportProject}
           onImportBrabioXlsx={importBrabioXlsx}
           onFavoriteToggle={toggleFavoriteProject}
@@ -3058,8 +2964,7 @@ export function AppWorkbench({
                 workspace.teams.some((team) =>
                   (team.memberships ?? []).some(
                     (membership) =>
-                      membership.memberId === currentUser.memberId &&
-                      membership.role === "manager",
+                      membership.memberId === currentUser.memberId && membership.role === "manager",
                   ),
                 )
               }

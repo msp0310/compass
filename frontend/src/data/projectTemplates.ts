@@ -320,8 +320,6 @@ export const projectTemplates: ProjectTemplateSummary[] = templateDefinitions.ma
     taskCount,
   }),
 );
-
-/** createProjectFromTemplateを実行し、アプリケーション用の値を返します。 */
 export function createProjectFromTemplate({
   calendar,
   includeCalendar,

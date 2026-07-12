@@ -38,7 +38,6 @@ export type TopbarSyncStatus = {
   title: string;
 };
 
-export type ApiConnectionMode = "offline" | "online";
 export type TopbarContextMode =
   | "admin"
   | "dailyReports"
@@ -65,14 +64,12 @@ export type TopbarSyncQueueItem = {
 type TopbarProps = {
   activeTeamId: string;
   allProjects: Project[];
-  apiConnectionMode: ApiConnectionMode;
   contextMode: TopbarContextMode;
   currentUser: TopbarAuthUser;
   favorite: boolean;
   favoriteProjectIds: Set<string>;
   hasUnsavedChanges: boolean;
   notifications: TopbarNotification[];
-  onApiConnectionModeChange: (mode: ApiConnectionMode) => void;
   onExportProject: (format: ExportFormat) => void;
   onImportBrabioXlsx: (file: File) => void;
   onFavoriteToggle: () => void;
@@ -99,14 +96,12 @@ type TopbarProps = {
 export function Topbar({
   activeTeamId,
   allProjects,
-  apiConnectionMode,
   contextMode,
   currentUser,
   favorite,
   favoriteProjectIds,
   hasUnsavedChanges,
   notifications,
-  onApiConnectionModeChange,
   onExportProject,
   onImportBrabioXlsx,
   onFavoriteToggle,
@@ -147,8 +142,7 @@ export function Topbar({
   const isDailyReportsContext = contextMode === "dailyReports";
   const isPersonalAnalyticsContext = contextMode === "personalAnalytics";
   const isProjectContext = contextMode === "project";
-  const showSyncActions =
-    !isDailyReportsContext && !isPersonalAnalyticsContext && !isHelpContext;
+  const showSyncActions = !isDailyReportsContext && !isPersonalAnalyticsContext && !isHelpContext;
   const pageTitle = isAdminContext
     ? "管理設定"
     : isHelpContext
@@ -587,22 +581,6 @@ export function Topbar({
                     <dd>{syncStatus.pendingChangeCount}件</dd>
                   </div>
                 </dl>
-                <div className="sync-mode-toggle" aria-label="API接続状態">
-                  <button
-                    className={apiConnectionMode === "online" ? "active" : ""}
-                    onClick={() => onApiConnectionModeChange("online")}
-                    type="button"
-                  >
-                    API online
-                  </button>
-                  <button
-                    className={apiConnectionMode === "offline" ? "active" : ""}
-                    onClick={() => onApiConnectionModeChange("offline")}
-                    type="button"
-                  >
-                    API offline
-                  </button>
-                </div>
                 <section className="sync-queue" aria-label="API送信キュー">
                   <div className="sync-queue-heading">
                     <strong>API送信キュー</strong>
@@ -666,10 +644,10 @@ export function Topbar({
         ) : null}
         {showSyncActions ? (
           <button
-            aria-label="ローカル保存を初期化"
+            aria-label="表示設定を初期化"
             className="icon-button"
             onClick={onResetDraft}
-            title="サンプルデータに戻す"
+            title="表示設定を初期化してAPIから再読み込み"
             type="button"
           >
             <ArrowPathIcon />

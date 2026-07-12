@@ -8,12 +8,22 @@ import type {
   CalendarDefinition,
   Member,
   ProjectAssignment,
-  ResourceRowModel,
   StaffingDemand,
   Team,
 } from "../../../types/schedule";
 import { Avatar } from "../../../components/ui/Avatar";
 import * as styles from "./WorkloadOverviewPage.css";
+import {
+  AssignmentEditor,
+  DemandEditor,
+  type AssignmentEditorState,
+  type DemandEditorState,
+} from "./StaffingEditors";
+import {
+  MemberCapacityGrid,
+  TeamCapacityGrid,
+  aggregateTeamCapacityCell,
+} from "./WorkloadCapacityGrid";
 
 type WorkloadOverviewPageProps = {
   calendar: CalendarDefinition;
@@ -31,19 +41,13 @@ type WorkloadOverviewPageProps = {
 };
 
 type ViewMode = "plan" | "member" | "team";
+type CapacityFilter = "all" | "overloaded" | "available";
 type AssignmentWithProject = ProjectAssignment & { projectId: string; projectName: string };
 type OpenDemandWithProject = {
   demand: StaffingDemand;
   projectId: string;
   projectName: string;
 };
-type AssignmentEditorState = {
-  assignment: ProjectAssignment;
-  demandId?: string;
-  projectId: string;
-};
-type DemandEditorState = { demand: StaffingDemand; projectId: string };
-
 /** 全案件をメンバーまたはチーム単位で横断して、週次負荷を比較します。 */
 export function WorkloadOverviewPage({
   calendar,
@@ -57,6 +61,7 @@ export function WorkloadOverviewPage({
 }: WorkloadOverviewPageProps) {
   const [mode, setMode] = useState<ViewMode>("plan");
   const [teamId, setTeamId] = useState("all");
+  const [capacityFilter, setCapacityFilter] = useState<CapacityFilter>("all");
   const [periodOffset, setPeriodOffset] = useState(0);
   const [editorState, setEditorState] = useState<AssignmentEditorState | null>(null);
   const [demandEditorState, setDemandEditorState] = useState<DemandEditorState | null>(null);
@@ -144,7 +149,7 @@ export function WorkloadOverviewPage({
       ? memberRows.filter((row) => row.cells.some((cell) => cell.percent >= 100)).length
       : teamRows.filter((item) =>
           visibleWeeks.some(
-            (week, index) => aggregateTeamCell(item.rows, index, week.key).percent >= 100,
+            (week, index) => aggregateTeamCapacityCell(item.rows, index, week.key).percent >= 100,
           ),
         ).length;
   const availableCount =
@@ -152,7 +157,7 @@ export function WorkloadOverviewPage({
       ? memberRows.filter((row) => row.cells.every((cell) => cell.percent < 70)).length
       : teamRows.filter((item) =>
           visibleWeeks.every(
-            (week, index) => aggregateTeamCell(item.rows, index, week.key).percent < 70,
+            (week, index) => aggregateTeamCapacityCell(item.rows, index, week.key).percent < 70,
           ),
         ).length;
   const unassignedCount = scopedSchedules.reduce(
@@ -160,6 +165,30 @@ export function WorkloadOverviewPage({
       count +
       snapshot.tasks.filter((task) => task.type === "task" && task.assigneeIds.length === 0).length,
     0,
+  );
+  const peakLoad = Math.max(
+    0,
+    ...(mode === "team"
+      ? teamRows.flatMap((item) =>
+          visibleWeeks.map(
+            (week, index) => aggregateTeamCapacityCell(item.rows, index, week.key).percent,
+          ),
+        )
+      : memberRows.flatMap((row) => row.cells.map((cell) => cell.percent))),
+  );
+  const filteredMemberRows = memberRows.filter((row) =>
+    matchesCapacityFilter(
+      row.cells.map((cell) => cell.percent),
+      capacityFilter,
+    ),
+  );
+  const filteredTeamRows = teamRows.filter((item) =>
+    matchesCapacityFilter(
+      visibleWeeks.map(
+        (week, index) => aggregateTeamCapacityCell(item.rows, index, week.key).percent,
+      ),
+      capacityFilter,
+    ),
   );
 
   function openNewAssignment(
@@ -285,6 +314,7 @@ export function WorkloadOverviewPage({
         <Summary
           label="稼働超過"
           value={`${overloadedCount}${mode === "team" ? "チーム" : "名"}`}
+          detail={`最大 ${peakLoad}%`}
         />
         <Summary label="余力あり" value={`${availableCount}${mode === "team" ? "チーム" : "名"}`} />
         <Summary
@@ -294,23 +324,35 @@ export function WorkloadOverviewPage({
       </div>
 
       <div className={styles.controls}>
-        {mode !== "team" ? (
-          <select
-            className={styles.select}
-            aria-label="表示チーム"
-            onChange={(event) => setTeamId(event.target.value)}
-            value={teamId}
-          >
-            <option value="all">すべてのチーム</option>
-            {teams.map((team) => (
-              <option key={team.id} value={team.id}>
-                {team.name}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <span />
-        )}
+        <div className={styles.filterControls}>
+          {mode !== "team" ? (
+            <select
+              className={styles.select}
+              aria-label="表示チーム"
+              onChange={(event) => setTeamId(event.target.value)}
+              value={teamId}
+            >
+              <option value="all">すべてのチーム</option>
+              {teams.map((team) => (
+                <option key={team.id} value={team.id}>
+                  {team.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
+          {mode !== "plan" ? (
+            <select
+              aria-label="負荷状態"
+              className={styles.capacitySelect}
+              onChange={(event) => setCapacityFilter(event.target.value as CapacityFilter)}
+              value={capacityFilter}
+            >
+              <option value="all">すべての負荷</option>
+              <option value="overloaded">過負荷のみ</option>
+              <option value="available">余力ありのみ</option>
+            </select>
+          ) : null}
+        </div>
         <div className={styles.timelineControls}>
           <div className={styles.pager} aria-label="表示期間の切り替え">
             <button
@@ -388,12 +430,18 @@ export function WorkloadOverviewPage({
           />
         </>
       ) : mode === "member" ? (
-        <MemberGrid onOpenProject={onOpenProject} rows={memberRows} weeks={visibleWeeks} />
+        <MemberCapacityGrid
+          onOpenProject={onOpenProject}
+          rows={filteredMemberRows}
+          todayKey={todayKey}
+          weeks={visibleWeeks}
+        />
       ) : (
-        <TeamGrid
+        <TeamCapacityGrid
           onOpenProject={onOpenProject}
           onOpenTeam={onOpenTeam}
-          rows={teamRows}
+          rows={filteredTeamRows}
+          todayKey={todayKey}
           weeks={visibleWeeks}
         />
       )}
@@ -723,515 +771,20 @@ function StaffingShortageTimeline({
   );
 }
 
-function DemandEditor({
-  onClose,
-  onSave,
-  projects,
-  state,
-}: {
-  onClose: () => void;
-  onSave: (state: DemandEditorState) => void;
-  projects: ScheduleSnapshot[];
-  state: DemandEditorState;
-}) {
-  const [draft, setDraft] = useState(state);
-  const selectedProject = projects.find((item) => item.project.id === draft.projectId)?.project;
-  function update(patch: Partial<StaffingDemand>) {
-    setDraft((current) => ({ ...current, demand: { ...current.demand, ...patch } }));
-  }
-  return (
-    <>
-      <div className={styles.overlay} onClick={onClose} />
-      <aside className={styles.editor} aria-label="要員要求編集">
-        <header className={styles.editorHeader}>
-          <h3 className={styles.editorTitle}>要員要求</h3>
-          <button
-            aria-label="閉じる"
-            className={styles.closeButton}
-            onClick={onClose}
-            type="button"
-          >
-            ×
-          </button>
-        </header>
-        <label className={styles.field}>
-          プロジェクト
-          <select
-            className={styles.input}
-            onChange={(event) => {
-              const project = projects.find(
-                (item) => item.project.id === event.target.value,
-              )?.project;
-              setDraft((current) => ({
-                ...current,
-                projectId: event.target.value,
-                demand: project
-                  ? { ...current.demand, startDate: project.rangeStart, endDate: project.rangeEnd }
-                  : current.demand,
-              }));
-            }}
-            value={draft.projectId}
-          >
-            {projects.map((item) => (
-              <option key={item.project.id} value={item.project.id}>
-                {item.project.workspace}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className={styles.field}>
-          必要な役割
-          <input
-            className={styles.input}
-            onChange={(event) => update({ role: event.target.value })}
-            value={draft.demand.role}
-          />
-        </label>
-        <div className={styles.dateFields}>
-          <label className={styles.field}>
-            開始日
-            <input
-              className={styles.input}
-              min={selectedProject?.rangeStart}
-              onChange={(event) => update({ startDate: event.target.value })}
-              type="date"
-              value={draft.demand.startDate}
-            />
-          </label>
-          <label className={styles.field}>
-            終了日
-            <input
-              className={styles.input}
-              max={selectedProject?.rangeEnd}
-              onChange={(event) => update({ endDate: event.target.value })}
-              type="date"
-              value={draft.demand.endDate}
-            />
-          </label>
-        </div>
-        <div className={styles.dateFields}>
-          <label className={styles.field}>
-            必要人数
-            <input
-              className={styles.input}
-              min="1"
-              onChange={(event) => update({ requiredCount: Number(event.target.value) })}
-              type="number"
-              value={draft.demand.requiredCount}
-            />
-          </label>
-          <label className={styles.field}>
-            配分率
-            <input
-              className={styles.input}
-              max="100"
-              min="10"
-              onChange={(event) => update({ allocationPercent: Number(event.target.value) })}
-              step="10"
-              type="number"
-              value={draft.demand.allocationPercent}
-            />
-          </label>
-        </div>
-        <div className={styles.editorActions}>
-          <span />
-          <button
-            className={styles.primaryAction}
-            disabled={!draft.demand.role || draft.demand.startDate > draft.demand.endDate}
-            onClick={() => onSave(draft)}
-            type="button"
-          >
-            要求を追加
-          </button>
-        </div>
-      </aside>
-    </>
-  );
-}
-
-function AssignmentEditor({
-  members,
-  onClose,
-  onDelete,
-  onSave,
-  projects,
-  state,
-}: {
-  members: Member[];
-  onClose: () => void;
-  onDelete: () => void;
-  onSave: (state: AssignmentEditorState) => void;
-  projects: ScheduleSnapshot[];
-  state: AssignmentEditorState;
-}) {
-  const [draft, setDraft] = useState(state);
-  const selectedProject = projects.find((item) => item.project.id === draft.projectId)?.project;
-  function update(patch: Partial<ProjectAssignment>) {
-    setDraft((current) => ({ ...current, assignment: { ...current.assignment, ...patch } }));
-  }
-  return (
-    <>
-      <div className={styles.overlay} onClick={onClose} />
-      <aside className={styles.editor} aria-label="アサイン編集">
-        <header className={styles.editorHeader}>
-          <h3 className={styles.editorTitle}>アサイン編集</h3>
-          <button
-            aria-label="閉じる"
-            className={styles.closeButton}
-            onClick={onClose}
-            type="button"
-          >
-            ×
-          </button>
-        </header>
-        <label className={styles.field}>
-          プロジェクト
-          <select
-            className={styles.input}
-            onChange={(event) => {
-              const project = projects.find(
-                (item) => item.project.id === event.target.value,
-              )?.project;
-              setDraft((current) => ({
-                ...current,
-                projectId: event.target.value,
-                assignment: project
-                  ? {
-                      ...current.assignment,
-                      startDate: project.rangeStart,
-                      endDate: project.rangeEnd,
-                    }
-                  : current.assignment,
-              }));
-            }}
-            value={draft.projectId}
-          >
-            {projects.map((item) => (
-              <option key={item.project.id} value={item.project.id}>
-                {item.project.workspace}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className={styles.field}>
-          メンバー
-          <select
-            className={styles.input}
-            onChange={(event) => update({ memberId: event.target.value })}
-            value={draft.assignment.memberId}
-          >
-            {members.map((member) => (
-              <option key={member.id} value={member.id}>
-                {member.name} / {member.role}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className={styles.field}>
-          役割
-          <input
-            className={styles.input}
-            onChange={(event) => update({ role: event.target.value })}
-            value={draft.assignment.role}
-          />
-        </label>
-        <div className={styles.dateFields}>
-          <label className={styles.field}>
-            参画開始
-            <input
-              className={styles.input}
-              max={draft.assignment.endDate}
-              min={selectedProject?.rangeStart}
-              onChange={(event) => update({ startDate: event.target.value })}
-              type="date"
-              value={draft.assignment.startDate}
-            />
-          </label>
-          <label className={styles.field}>
-            参画終了
-            <input
-              className={styles.input}
-              max={selectedProject?.rangeEnd}
-              min={draft.assignment.startDate}
-              onChange={(event) => update({ endDate: event.target.value })}
-              type="date"
-              value={draft.assignment.endDate}
-            />
-          </label>
-        </div>
-        <label className={styles.field}>
-          配分率
-          <input
-            className={styles.input}
-            max="100"
-            min="10"
-            onChange={(event) => update({ allocationPercent: Number(event.target.value) })}
-            step="10"
-            type="number"
-            value={draft.assignment.allocationPercent}
-          />
-        </label>
-        <label className={styles.field}>
-          状態
-          <select
-            className={styles.input}
-            onChange={(event) =>
-              update({ status: event.target.value as ProjectAssignment["status"] })
-            }
-            value={draft.assignment.status}
-          >
-            <option value="draft">仮アサイン</option>
-            <option value="confirmed">確定</option>
-          </select>
-        </label>
-        <div className={styles.editorActions}>
-          <button className={styles.deleteAction} onClick={onDelete} type="button">
-            削除
-          </button>
-          <button
-            className={styles.primaryAction}
-            disabled={
-              !draft.assignment.memberId || draft.assignment.startDate > draft.assignment.endDate
-            }
-            onClick={() => onSave(draft)}
-            type="button"
-          >
-            計画へ反映
-          </button>
-        </div>
-      </aside>
-    </>
-  );
-}
-
-function Summary({ label, value }: { label: string; value: string }) {
+function Summary({ detail, label, value }: { detail?: string; label: string; value: string }) {
   return (
     <article className={styles.summaryItem}>
       <span className={styles.summaryLabel}>{label}</span>
       <strong className={styles.summaryValue}>{value}</strong>
+      {detail ? <small className={styles.summaryDetail}>{detail}</small> : null}
     </article>
   );
 }
 
-function TimelineHeader({
-  entityLabel,
-  weeks,
-}: {
-  entityLabel: string;
-  weeks: ReturnType<typeof buildWeekColumns>;
-}) {
-  const monthGroups = buildMonthGroups(weeks);
-  const weekLabels = buildMonthWeekLabels(weeks);
-  return (
-    <>
-      <div
-        className={`${styles.cell} ${styles.head} ${styles.entityCell} ${styles.timelineEntityHead}`}
-      >
-        {entityLabel}
-      </div>
-      {monthGroups.map((month) => (
-        <div
-          className={`${styles.cell} ${styles.head} ${styles.monthHead}`}
-          key={month.key}
-          style={{ gridColumn: `span ${month.span}` }}
-        >
-          {month.label}
-        </div>
-      ))}
-      {weeks.map((week, index) => (
-        <div className={`${styles.cell} ${styles.head} ${styles.weekHead}`} key={week.key}>
-          {weekLabels[index]}
-        </div>
-      ))}
-    </>
-  );
-}
-
-function MemberGrid({
-  onOpenProject,
-  rows,
-  weeks,
-}: {
-  onOpenProject: (projectId: string) => void;
-  rows: ResourceRowModel[];
-  weeks: ReturnType<typeof buildWeekColumns>;
-}) {
-  return (
-    <div className={styles.gridScroll}>
-      <div
-        className={styles.grid}
-        style={{ gridTemplateColumns: `220px repeat(${weeks.length}, minmax(60px, 1fr))` }}
-      >
-        <TimelineHeader entityLabel="メンバー" weeks={weeks} />
-        {rows.map((row) => (
-          <MemberGridRow key={row.member.id} onOpenProject={onOpenProject} row={row} />
-        ))}
-      </div>
-      {rows.length === 0 ? (
-        <div className={styles.empty}>表示対象のメンバーがいません。</div>
-      ) : null}
-    </div>
-  );
-}
-
-function MemberGridRow({
-  onOpenProject,
-  row,
-}: {
-  onOpenProject: (projectId: string) => void;
-  row: ResourceRowModel;
-}) {
-  return (
-    <>
-      <div className={`${styles.cell} ${styles.entityCell}`}>
-        <Avatar member={row.member} />
-        <span className={styles.entityText}>
-          <strong className={styles.entityName}>{row.member.name}</strong>
-          <small className={styles.entityMeta}>{row.member.role}</small>
-        </span>
-      </div>
-      {row.cells.map((cell) => (
-        <LoadCell cell={cell} key={cell.week} onOpenProject={onOpenProject} />
-      ))}
-    </>
-  );
-}
-
-function TeamGrid({
-  onOpenProject,
-  onOpenTeam,
-  rows,
-  weeks,
-}: {
-  onOpenProject: (projectId: string) => void;
-  onOpenTeam: (teamId: string) => void;
-  rows: Array<{ projectCount: number; rows: ResourceRowModel[]; team: Team }>;
-  weeks: ReturnType<typeof buildWeekColumns>;
-}) {
-  return (
-    <div className={styles.gridScroll}>
-      <div
-        className={styles.grid}
-        style={{ gridTemplateColumns: `220px repeat(${weeks.length}, minmax(60px, 1fr))` }}
-      >
-        <TimelineHeader entityLabel="チーム" weeks={weeks} />
-        {rows.map(({ projectCount, rows: memberRows, team }) => (
-          <TeamGridRow
-            key={team.id}
-            memberRows={memberRows}
-            onOpenProject={onOpenProject}
-            onOpenTeam={onOpenTeam}
-            projectCount={projectCount}
-            team={team}
-            weeks={weeks}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function TeamGridRow({
-  memberRows,
-  onOpenProject,
-  onOpenTeam,
-  projectCount,
-  team,
-  weeks,
-}: {
-  memberRows: ResourceRowModel[];
-  onOpenProject: (projectId: string) => void;
-  onOpenTeam: (teamId: string) => void;
-  projectCount: number;
-  team: Team;
-  weeks: ReturnType<typeof buildWeekColumns>;
-}) {
-  return (
-    <>
-      <div className={`${styles.cell} ${styles.entityCell}`}>
-        <span className={styles.entityText}>
-          <button className={styles.teamButton} onClick={() => onOpenTeam(team.id)} type="button">
-            {team.name}
-          </button>
-          <small className={styles.entityMeta}>
-            {projectCount}案件 / {memberRows.length}名
-          </small>
-        </span>
-      </div>
-      {weeks.map((week, index) => (
-        <LoadCell
-          cell={aggregateTeamCell(memberRows, index, week.key)}
-          key={week.key}
-          onOpenProject={onOpenProject}
-        />
-      ))}
-    </>
-  );
-}
-
-function LoadCell({
-  cell,
-  onOpenProject,
-}: {
-  cell: ResourceRowModel["cells"][number];
-  onOpenProject: (projectId: string) => void;
-}) {
-  const projects = [
-    ...new Map(
-      cell.contributions
-        .filter((item) => item.projectId)
-        .map((item) => [item.projectId!, item.projectName ?? item.projectId!]),
-    ).entries(),
-  ].slice(0, 2);
-  const tone =
-    cell.percent >= 100 ? styles.loadDanger : cell.percent >= 82 ? styles.loadWarning : "";
-  return (
-    <div className={`${styles.cell} ${styles.weekCell}`}>
-      <div className={styles.loadLine}>
-        <strong className={styles.loadValue}>{cell.percent}%</strong>
-        <span className={styles.loadHours}>{cell.hours}h</span>
-      </div>
-      <div className={styles.loadTrack}>
-        <div
-          className={`${styles.loadBar} ${tone}`}
-          style={{ width: `${Math.min(cell.percent, 100)}%` }}
-        />
-      </div>
-      <div className={styles.projectLinks}>
-        {projects.map(([id, name]) => (
-          <button
-            className={styles.projectLink}
-            key={id}
-            onClick={() => onOpenProject(id)}
-            title={name}
-            type="button"
-          >
-            {name}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function aggregateTeamCell(
-  rows: ResourceRowModel[],
-  index: number,
-  week: string,
-): ResourceRowModel["cells"][number] {
-  const cells = rows.map((row) => row.cells[index]).filter(Boolean);
-  const hours = cells.reduce((sum, cell) => sum + cell.hours, 0);
-  const capacityHours = cells.reduce((sum, cell) => sum + cell.capacityHours, 0);
-  const percent = capacityHours > 0 ? Math.round((hours / capacityHours) * 100) : 0;
-  return {
-    week,
-    hours,
-    capacityHours,
-    percent,
-    tone: percent >= 100 ? "danger" : percent >= 82 ? "warning" : "good",
-    unavailableDays: cells.reduce((sum, cell) => sum + cell.unavailableDays, 0),
-    contributions: cells.flatMap((cell) => cell.contributions),
-  };
+function matchesCapacityFilter(percentages: number[], filter: CapacityFilter) {
+  if (filter === "overloaded") return percentages.some((percent) => percent >= 100);
+  if (filter === "available") return percentages.every((percent) => percent < 70);
+  return true;
 }
 
 function collectMembers(schedules: ScheduleSnapshot[]): Member[] {

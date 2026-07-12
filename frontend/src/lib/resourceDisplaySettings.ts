@@ -6,11 +6,7 @@ export const defaultResourceDisplaySettings: ResourceDisplaySettings = {
   showPercent: true,
   warningThreshold: 90,
 };
-
-/** normalizeResourceDisplaySettingsを実行し、アプリケーション用の値を返します。 */
-export function normalizeResourceDisplaySettings(
-  value: unknown,
-): ResourceDisplaySettings {
+export function normalizeResourceDisplaySettings(value: unknown): ResourceDisplaySettings {
   if (value == null || typeof value !== "object") {
     return defaultResourceDisplaySettings;
   }
@@ -18,9 +14,7 @@ export function normalizeResourceDisplaySettings(
   const maybe = value as Partial<ResourceDisplaySettings>;
   return {
     compact:
-      typeof maybe.compact === "boolean"
-        ? maybe.compact
-        : defaultResourceDisplaySettings.compact,
+      typeof maybe.compact === "boolean" ? maybe.compact : defaultResourceDisplaySettings.compact,
     showHours:
       typeof maybe.showHours === "boolean"
         ? maybe.showHours

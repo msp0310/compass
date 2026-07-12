@@ -1,5 +1,5 @@
 import type { AuthUser } from "../data/authRepository";
-import type { LocalScheduleDraft } from "../data/localScheduleStorage";
+import type { LocalSchedulePreferences } from "../data/localScheduleStorage";
 import type { ScheduleWorkspace } from "../data/scheduleRepository";
 import type { ViewTab } from "../components/layout/ViewTabs";
 import type {
@@ -22,7 +22,10 @@ export type TaskHistory = {
 };
 
 /** ローカルに保存できるアプリケーション状態です。 */
-export type PersistableDraft = Omit<LocalScheduleDraft, "savedAt" | "version">;
+export type PersistableDraft = LocalSchedulePreferences & {
+  activityLogs: Record<string, ActivityLogEntry[]>;
+  workspace: ScheduleWorkspace;
+};
 
 /** 認証後のワークベンチを表示するために正規化された初期状態です。 */
 export type AppInitialState = {

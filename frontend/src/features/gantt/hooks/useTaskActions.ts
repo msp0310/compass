@@ -112,7 +112,6 @@ export function useTaskActions({
   tasks,
   visibleRows,
 }: UseTaskActionsOptions) {
-  /** getSelectedTaskIdListを実行します。 */
   function getSelectedTaskIdList(taskIdOverride?: string | null) {
     if (taskIdOverride) return [taskIdOverride];
     const ids =
@@ -120,7 +119,6 @@ export function useTaskActions({
     return tasks.filter((task) => ids.has(task.id)).map((task) => task.id);
   }
 
-  /** commitTaskInsertionを実行します。 */
   function commitTaskInsertion(createNext: (current: ScheduleTask[]) => TaskInsertionResult) {
     const result = createNext(tasks);
     if (result.tasks === tasks) return;
@@ -128,7 +126,6 @@ export function useTaskActions({
     if (result.insertedTaskId) selectAndFocusTaskTitle(result.insertedTaskId);
   }
 
-  /** getEditableSelectedTasksを実行します。 */
   function getEditableSelectedTasks(taskIdOverride?: string | null) {
     const selectedIds = new Set(getSelectedTaskIdList(taskIdOverride));
     return tasks.filter(
@@ -136,7 +133,6 @@ export function useTaskActions({
     );
   }
 
-  /** updateTaskを実行します。 */
   function updateTask(taskId: string, patch: Partial<ScheduleTask>) {
     if (!canEditPlan) {
       if (canComment && Object.keys(patch).every((key) => key === "comments")) {
@@ -154,7 +150,6 @@ export function useTaskActions({
     commitTasks((current) => updateTaskById(current, taskId, patch, calendar, calendarAware));
   }
 
-  /** setTaskDatesを実行します。 */
   function setTaskDates(taskId: string, patch: Partial<Pick<ScheduleTask, "end" | "start">>) {
     commitTasks((current) =>
       normalizeSummaryTasks(
@@ -168,7 +163,6 @@ export function useTaskActions({
     );
   }
 
-  /** bulkUpdateSelectedStatusを実行します。 */
   function bulkUpdateSelectedStatus(status: TaskStatus, taskIdOverride?: string | null) {
     const editableTasks = getEditableSelectedTasks(taskIdOverride);
     if (editableTasks.length === 0) {
@@ -195,7 +189,6 @@ export function useTaskActions({
     });
   }
 
-  /** bulkUpdateSelectedAssigneeを実行します。 */
   function bulkUpdateSelectedAssignee(memberId: string, taskIdOverride?: string | null) {
     const editableTasks = getEditableSelectedTasks(taskIdOverride);
     const member = projectMembers.find((item) => item.id === memberId);
@@ -229,7 +222,6 @@ export function useTaskActions({
     });
   }
 
-  /** shareTaskWithMemberを実行します。 */
   function shareTaskWithMember(taskId: string, memberId: string) {
     const task = tasks.find((item) => item.id === taskId);
     const member = projectMembers.find((item) => item.id === memberId);
@@ -269,7 +261,6 @@ export function useTaskActions({
     });
   }
 
-  /** createTaskを実行します。 */
   function createTask(input: CreateTaskInput) {
     commitTasks((current) => {
       const next = addTask(current, input, calendar, calendarAware);
@@ -287,7 +278,6 @@ export function useTaskActions({
     });
   }
 
-  /** buildQuickTaskInputを実行します。 */
   function buildQuickTaskInput(anchorTask: ScheduleTask | undefined): CreateTaskInput {
     const fallbackAssigneeId = projectMembers[0]?.id ?? scheduleMembers[0]?.id ?? "yk";
     const start = anchorTask?.start ?? projectRangeStart;
@@ -310,7 +300,6 @@ export function useTaskActions({
     };
   }
 
-  /** insertTaskNearSelectionを実行します。 */
   function insertTaskNearSelection(
     placement: "before" | "after",
     anchorTaskIdOverride?: string | null,
@@ -342,7 +331,6 @@ export function useTaskActions({
     });
   }
 
-  /** copySelectedTaskを実行します。 */
   function copySelectedTask(taskIdOverride?: string | null) {
     const taskIds = getSelectedTaskIdList(taskIdOverride);
     if (taskIds.length === 0) return;
@@ -359,7 +347,6 @@ export function useTaskActions({
     });
   }
 
-  /** pasteCopiedTaskを実行します。 */
   function pasteCopiedTask(targetTaskIdOverride?: string | null) {
     const clipboard = taskClipboardRef.current ?? taskClipboard;
     if (!clipboard) {
@@ -386,7 +373,6 @@ export function useTaskActions({
     });
   }
 
-  /** duplicateSelectedTaskを実行します。 */
   function duplicateSelectedTask(taskIdOverride?: string | null) {
     const taskIds = getSelectedTaskIdList(taskIdOverride);
     if (taskIds.length === 0) return;
@@ -403,7 +389,6 @@ export function useTaskActions({
     });
   }
 
-  /** deleteSelectedTasksを実行します。 */
   function deleteSelectedTasks(taskIdOverride?: string | null) {
     const taskIds = getSelectedTaskIdList(taskIdOverride);
     if (taskIds.length === 0) return;
@@ -418,7 +403,6 @@ export function useTaskActions({
     });
   }
 
-  /** createMilestoneを実行します。 */
   function createMilestone(input: CreateMilestoneInput) {
     commitTasks((current) => addMilestone(current, input));
     onToast({ detail: input.title, title: "マイルストーンを追加しました" });
@@ -430,7 +414,6 @@ export function useTaskActions({
     });
   }
 
-  /** moveTaskを実行します。 */
   function moveTask(taskId: string, deltaDays: number) {
     const task = tasks.find((item) => item.id === taskId);
     commitTasks((current) => moveTaskByDays(current, taskId, deltaDays, calendar, calendarAware));
@@ -445,7 +428,6 @@ export function useTaskActions({
     }
   }
 
-  /** shiftSelectedTasksByDaysを実行します。 */
   function shiftSelectedTasksByDays(deltaDays: number, taskIdOverride?: string | null) {
     const selectedIds = getSelectedTaskIdList(taskIdOverride);
     const selectedSet = new Set(selectedIds);
@@ -474,7 +456,6 @@ export function useTaskActions({
     });
   }
 
-  /** resizeTaskを実行します。 */
   function resizeTask(taskId: string, edge: "start" | "end", deltaDays: number) {
     const task = tasks.find((item) => item.id === taskId);
     commitTasks((current) => resizeTaskByDays(current, taskId, edge, deltaDays));
@@ -489,7 +470,6 @@ export function useTaskActions({
     }
   }
 
-  /** getSelectedMovableRootIdsを実行します。 */
   function getSelectedMovableRootIds(taskIds: string[]) {
     const selectedIds = new Set(taskIds);
     const taskById = new Map(tasks.map((task) => [task.id, task]));
@@ -506,7 +486,6 @@ export function useTaskActions({
       .map((task) => task.id);
   }
 
-  /** indentSelectedTasksを実行します。 */
   function indentSelectedTasks() {
     const taskIds = getSelectedTaskIdList();
     if (taskIds.length === 0) return;
@@ -541,7 +520,6 @@ export function useTaskActions({
     });
   }
 
-  /** outdentSelectedTasksを実行します。 */
   function outdentSelectedTasks() {
     const movableRootIds = getSelectedMovableRootIds(getSelectedTaskIdList());
     if (movableRootIds.length === 0) {
@@ -561,7 +539,6 @@ export function useTaskActions({
     });
   }
 
-  /** scrollTaskを実行します。 */
   function scrollTask(taskId: string) {
     window.requestAnimationFrame(() => {
       document
@@ -570,7 +547,6 @@ export function useTaskActions({
     });
   }
 
-  /** moveSelectedTaskWithinSiblingsを実行します。 */
   function moveSelectedTaskWithinSiblings(direction: -1 | 1, taskIdOverride?: string | null) {
     const taskIds = getSelectedTaskIdList(taskIdOverride);
     if (taskIds.length === 0) return;
@@ -599,7 +575,6 @@ export function useTaskActions({
     });
   }
 
-  /** moveSelectedTasksToSiblingPositionを実行します。 */
   function moveSelectedTasksToSiblingPosition(
     targetTaskId: string,
     placement: TaskSiblingReorderPlacement,
@@ -635,7 +610,6 @@ export function useTaskActions({
     });
   }
 
-  /** moveSelectedTasksToParentPositionを実行します。 */
   function moveSelectedTasksToParentPosition(
     targetParentId: string | null,
     taskIdsOverride: string[],
@@ -718,7 +692,6 @@ export function useTaskActions({
 }
 
 /** 担当者をできるだけ均等な割合で割り当てます。 */
-/** buildEvenAssigneeAllocationsを実行します。 */
 function buildEvenAssigneeAllocations(assigneeIds: string[]) {
   const ids = [...new Set(assigneeIds)];
   if (ids.length === 0) return undefined;

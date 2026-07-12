@@ -8,32 +8,21 @@ import {
 } from "@heroicons/react/24/outline";
 import { useMemo, useState, type ReactNode } from "react";
 import type { ProjectSummary, ScheduleSnapshot } from "../../../data/scheduleRepository";
+import { formatShortDate } from "../../../lib/schedule";
+import { projectLifecycleOptions } from "../../../lib/projects";
+import type { ProjectLifecycleStatus, Team } from "../../../types/schedule";
 import {
-  formatShortDate,
-  getProgressStats,
-  getTaskAssigneeAllocationPercent,
-  getWorkingDays,
-} from "../../../lib/schedule";
-import { isMemberActive } from "../../../lib/members";
-import {
-  getProjectAssignedMembers,
-  getProjectLifecycleStatus,
-  projectLifecycleLabels,
-  projectLifecycleOptions,
-} from "../../../lib/projects";
-import type {
-  Member,
-  Project,
-  ProjectLifecycleStatus,
-  ScheduleTask,
-  Team,
-} from "../../../types/schedule";
+  buildPortfolioItem,
+  buildPortfolioSummaryItem,
+  buildTeamWorkloads,
+  comparePortfolioItems,
+  isAttentionProject,
+  matchesPortfolioFilter,
+  matchesPortfolioQuery,
+  type PortfolioFilter,
+  type PortfolioSort,
+} from "../projectPortfolioModel";
 import { ProjectPortfolioCard } from "./ProjectPortfolioCard";
-import type {
-  ProjectPortfolioBuildInput,
-  ProjectPortfolioItem,
-  ProjectPortfolioSummaryBuildInput,
-} from "./projectPortfolioTypes";
 
 type ProjectPortfolioPanelProps = {
   activeProjectId: string;
@@ -50,18 +39,6 @@ type ProjectPortfolioPanelProps = {
   schedules: ScheduleSnapshot[];
   teams: Team[];
 };
-
-type TeamWorkloadItem = {
-  delayedTaskCount: number;
-  member: Member;
-  openTaskCount: number;
-  projectCount: number;
-  remainingHours: number;
-  topProject: Project | null;
-};
-
-type PortfolioFilter = "all" | "attention" | "favorites" | "lowProgress" | ProjectLifecycleStatus;
-type PortfolioSort = "priority" | "milestone" | "name" | "progressAsc" | "progressDesc";
 
 const portfolioFilterOptions: { label: string; value: PortfolioFilter }[] = [
   { label: "全件", value: "all" },
@@ -107,7 +84,8 @@ export function ProjectPortfolioPanel({
       snapshot.project.teamId === normalizedTeamId && snapshot.project.status !== "archived",
   );
   const teamProjectCount = projectSummaries.filter(
-    (summary) => summary.project.teamId === normalizedTeamId && summary.project.status !== "archived",
+    (summary) =>
+      summary.project.teamId === normalizedTeamId && summary.project.status !== "archived",
   ).length;
   const teamDetailsComplete = teamSchedules.length >= teamProjectCount;
   const schedulesByProjectId = useMemo(
@@ -156,9 +134,7 @@ export function ProjectPortfolioPanel({
     [allItems, filter, normalizedQuery, sort],
   );
   const inProgressItems = allItems.filter((item) => item.lifecycleStatus === "inProgress");
-  const delayedProjectCount = filteredItems.filter(
-    (item) => item.lifecycleStatus !== "completed" && item.delayedTasks.length > 0,
-  ).length;
+  const attentionProjectCount = allItems.filter(isAttentionProject).length;
   const totalTasks = inProgressItems.reduce((sum, item) => sum + item.taskCount, 0);
   const completedTasks = inProgressItems.reduce((sum, item) => sum + item.completedCount, 0);
   const averageProgress =
@@ -200,19 +176,27 @@ export function ProjectPortfolioPanel({
   const maxWorkloadHours = Math.max(...teamWorkloads.map((item) => item.remainingHours), 1);
   const hasActiveFilter = filter !== "all" || normalizedQuery.length > 0;
   const teamCards = useMemo(
-    () =>
-      [
-        ...teams.map((item) => ({
+    () => [
+      ...teams.map((item) => ({
         activeProjectCount: projectSummaries.filter(
           (summary) => summary.project.teamId === item.id && summary.project.status !== "archived",
         ).length,
         memberCount: item.memberIds.length,
         team: item,
-        })),
-        ...(projectSummaries.some((summary) => summary.project.teamId == null)
-          ? [{ activeProjectCount: projectSummaries.filter((summary) => summary.project.teamId == null && summary.project.status !== "archived").length, memberCount: 0, team: null }]
-          : []),
-      ],
+      })),
+      ...(projectSummaries.some((summary) => summary.project.teamId == null)
+        ? [
+            {
+              activeProjectCount: projectSummaries.filter(
+                (summary) =>
+                  summary.project.teamId == null && summary.project.status !== "archived",
+              ).length,
+              memberCount: 0,
+              team: null,
+            },
+          ]
+        : []),
+    ],
     [projectSummaries, teams],
   );
 
@@ -240,7 +224,9 @@ export function ProjectPortfolioPanel({
           <button
             aria-current={(item.team?.id ?? "") === activeTeamId ? "true" : undefined}
             className={
-              (item.team?.id ?? "") === activeTeamId ? "portfolio-team-card active" : "portfolio-team-card"
+              (item.team?.id ?? "") === activeTeamId
+                ? "portfolio-team-card active"
+                : "portfolio-team-card"
             }
             key={item.team?.id ?? "unassigned"}
             onClick={() => onTeamChange(item.team?.id ?? "")}
@@ -275,11 +261,13 @@ export function ProjectPortfolioPanel({
         />
         <PortfolioSummaryCard
           detail={
-            delayedProjectCount > 0 ? "遅延タスクを含む案件があります" : "遅延タスクを含む案件なし"
+            attentionProjectCount > 0
+              ? "遅延または進捗35%未満の案件があります"
+              : "要対応案件はありません"
           }
           label="要対応案件"
-          tone={delayedProjectCount > 0 ? "hot" : "good"}
-          value={`${delayedProjectCount}件`}
+          tone={attentionProjectCount > 0 ? "hot" : "good"}
+          value={`${attentionProjectCount}件`}
         />
         <PortfolioSummaryCard
           detail={
@@ -428,296 +416,57 @@ export function ProjectPortfolioPanel({
             </div>
           </section>
 
-          <section className="portfolio-side-panel">
-            <PanelTitle
-              detail={teamDetailsComplete ? `${teamWorkloads.length}名` : "未集計"}
-              icon={<UserGroupIcon />}
-              title="チーム残作業"
-            />
-            <div className="portfolio-workload-list">
-              {teamWorkloads.slice(0, 6).map((item) => (
-                <button
-                  className="portfolio-workload-row"
-                  key={item.member.id}
-                  onClick={() => (item.topProject ? onOpenProject(item.topProject.id) : undefined)}
-                  type="button"
-                >
-                  <span
-                    className="portfolio-member-dot"
-                    style={{ background: item.member.color }}
-                  />
-                  <div>
-                    <strong>{item.member.name}</strong>
-                    <small>
-                      {Math.round(item.remainingHours)}h / {item.projectCount}案件
-                      {item.delayedTaskCount > 0 ? ` / 遅延${item.delayedTaskCount}件` : ""}
-                    </small>
-                    <em>{item.topProject?.workspace ?? item.member.role}</em>
-                    <div className="portfolio-workload-meter">
-                      <span
-                        style={{
-                          width: `${Math.min(
-                            (item.remainingHours / maxWorkloadHours) * 100,
-                            100,
-                          )}%`,
-                        }}
-                      />
+          {teamDetailsComplete ? (
+            <section className="portfolio-side-panel">
+              <PanelTitle
+                detail={`${teamWorkloads.length}名`}
+                icon={<UserGroupIcon />}
+                title="チーム残作業"
+              />
+              <div className="portfolio-workload-list">
+                {teamWorkloads.slice(0, 6).map((item) => (
+                  <button
+                    className="portfolio-workload-row"
+                    key={item.member.id}
+                    onClick={() =>
+                      item.topProject ? onOpenProject(item.topProject.id) : undefined
+                    }
+                    type="button"
+                  >
+                    <span
+                      className="portfolio-member-dot"
+                      style={{ background: item.member.color }}
+                    />
+                    <div>
+                      <strong>{item.member.name}</strong>
+                      <small>
+                        {Math.round(item.remainingHours)}h / {item.projectCount}案件
+                        {item.delayedTaskCount > 0 ? ` / 遅延${item.delayedTaskCount}件` : ""}
+                      </small>
+                      <em>{item.topProject?.workspace ?? item.member.role}</em>
+                      <div className="portfolio-workload-meter">
+                        <span
+                          style={{
+                            width: `${Math.min(
+                              (item.remainingHours / maxWorkloadHours) * 100,
+                              100,
+                            )}%`,
+                          }}
+                        />
+                      </div>
                     </div>
-                  </div>
-                </button>
-              ))}
-              {teamWorkloads.length === 0 ? (
-                <p className="portfolio-side-empty">
-                  {teamDetailsComplete
-                    ? "表示できる残作業はありません。"
-                    : "チーム横断Resourceを開くと集計します。"}
-                </p>
-              ) : null}
-            </div>
-          </section>
+                  </button>
+                ))}
+                {teamWorkloads.length === 0 ? (
+                  <p className="portfolio-side-empty">表示できる残作業はありません。</p>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
         </aside>
       </div>
     </section>
   );
-}
-
-function isAttentionProject(item: ProjectPortfolioItem) {
-  return (
-    item.lifecycleStatus !== "completed" && (item.delayedTasks.length > 0 || item.progress < 35)
-  );
-}
-
-function matchesPortfolioFilter(item: ProjectPortfolioItem, filter: PortfolioFilter) {
-  if (filter === "attention") return isAttentionProject(item);
-  if (filter === "favorites") return item.favorite;
-  if (filter === "lowProgress") return item.progress < 50;
-  if (filter === "planning" || filter === "inProgress" || filter === "completed") {
-    return item.lifecycleStatus === filter;
-  }
-  return true;
-}
-
-function matchesPortfolioQuery(item: ProjectPortfolioItem, query: string) {
-  if (!query) return true;
-  return [
-    item.project.workspace,
-    item.project.name,
-    item.project.projectNo ?? "",
-    item.team?.name ?? "",
-    projectLifecycleLabels[item.lifecycleStatus],
-    item.nextMilestone.title,
-    ...item.assignedMembers.map((member) => member.name),
-    ...item.delayedTasks.map((task) => task.title),
-  ]
-    .join(" ")
-    .toLowerCase()
-    .includes(query);
-}
-
-function comparePortfolioItems(
-  a: ProjectPortfolioItem,
-  b: ProjectPortfolioItem,
-  sort: PortfolioSort,
-) {
-  if (sort === "milestone") {
-    return (
-      a.nextMilestone.start.localeCompare(b.nextMilestone.start) ||
-      a.project.rangeEnd.localeCompare(b.project.rangeEnd)
-    );
-  }
-  if (sort === "name") {
-    return a.project.workspace.localeCompare(b.project.workspace, "ja");
-  }
-  if (sort === "progressAsc") {
-    return a.progress - b.progress || a.nextMilestone.start.localeCompare(b.nextMilestone.start);
-  }
-  if (sort === "progressDesc") {
-    return b.progress - a.progress || a.nextMilestone.start.localeCompare(b.nextMilestone.start);
-  }
-  return (
-    getPortfolioPriority(b) - getPortfolioPriority(a) ||
-    a.nextMilestone.start.localeCompare(b.nextMilestone.start) ||
-    a.project.rangeEnd.localeCompare(b.project.rangeEnd)
-  );
-}
-
-function getPortfolioPriority(item: ProjectPortfolioItem) {
-  return (
-    Number(item.favorite) * 1000 +
-    Math.min(item.delayedTasks.length, 8) * 100 +
-    (item.progress < 35 ? 60 : 0) +
-    Math.max(60 - item.progress, 0)
-  );
-}
-
-function buildPortfolioItem({
-  favorite,
-  calendarAware,
-  snapshot,
-  team,
-}: ProjectPortfolioBuildInput): ProjectPortfolioItem {
-  const stats = getProgressStats(snapshot.tasks);
-  const delayedTasks = snapshot.tasks
-    .filter((task) => task.type === "task" && task.status === "delayed")
-    .sort((a, b) => a.end.localeCompare(b.end));
-  const nextMilestone =
-    snapshot.tasks
-      .filter((task) => task.type === "milestone" && task.status !== "done")
-      .sort((a, b) => a.start.localeCompare(b.start))[0] ??
-    ({
-      start: snapshot.project.nextMilestone.date,
-      status: "notStarted",
-      title: snapshot.project.nextMilestone.title,
-    } satisfies Pick<ScheduleTask, "start" | "status" | "title">);
-  const activeTeamMemberIds = new Set(team?.memberIds ?? []);
-  const assignedMembers = getProjectAssignedMembers({
-    members: snapshot.members,
-    project: snapshot.project,
-    team,
-  }).filter((member) => activeTeamMemberIds.has(member.id));
-  const memberCount = assignedMembers.length;
-
-  return {
-    assignedMembers,
-    completedCount: stats.completed,
-    delayedTasks,
-    favorite,
-    lifecycleStatus: getProjectLifecycleStatus(snapshot.project),
-    memberCount,
-    nextMilestone,
-    progress: stats.progress,
-    project: snapshot.project,
-    taskCount: stats.total,
-    team,
-    workDays: getWorkingDays(
-      snapshot.project.rangeStart,
-      snapshot.project.rangeEnd,
-      snapshot.calendar,
-      calendarAware,
-    ),
-  };
-}
-
-/** 詳細タスクをまだ取得していない案件を、集計値だけでカード表示します。 */
-function buildPortfolioSummaryItem({
-  favorite,
-  summary,
-  team,
-}: ProjectPortfolioSummaryBuildInput): ProjectPortfolioItem {
-  return {
-    assignedMembers: [],
-    completedCount: summary.completedTaskCount,
-    delayedTasks: Array.from(
-      { length: summary.delayedTaskCount },
-      (_, index) =>
-        ({
-          assigneeIds: [],
-          color: "#f59e0b",
-          end: summary.project.rangeEnd,
-          id: `${summary.project.id}-delayed-${index}`,
-          parentId: null,
-          progress: summary.progress,
-          start: summary.project.rangeEnd,
-          status: "delayed",
-          title: "遅延タスク",
-          type: "task",
-        }) satisfies ScheduleTask,
-    ),
-    favorite,
-    lifecycleStatus: getProjectLifecycleStatus(summary.project),
-    memberCount: summary.memberCount,
-    nextMilestone: {
-      start: summary.project.nextMilestone.date,
-      status: "notStarted",
-      title: summary.project.nextMilestone.title,
-    },
-    progress: summary.progress,
-    project: summary.project,
-    taskCount: summary.taskCount,
-    team,
-    workDays: null,
-  };
-}
-
-function buildTeamWorkloads({
-  calendarAware,
-  schedules,
-  team,
-}: {
-  calendarAware: boolean;
-  schedules: ScheduleSnapshot[];
-  team: Team | undefined;
-}): TeamWorkloadItem[] {
-  const teamMemberIds = new Set(team?.memberIds ?? []);
-  const workloads = new Map<
-    string,
-    TeamWorkloadItem & {
-      projectHours: Map<string, number>;
-      projectRefs: Map<string, Project>;
-    }
-  >();
-
-  schedules.forEach((snapshot) => {
-    snapshot.members
-      .filter((member) => isMemberActive(member) && teamMemberIds.has(member.id))
-      .forEach((member) => {
-        if (!workloads.has(member.id)) {
-          workloads.set(member.id, {
-            delayedTaskCount: 0,
-            member,
-            openTaskCount: 0,
-            projectCount: 0,
-            projectHours: new Map(),
-            projectRefs: new Map(),
-            remainingHours: 0,
-            topProject: null,
-          });
-        }
-      });
-
-    snapshot.tasks
-      .filter((task) => task.type === "task" && task.status !== "done")
-      .forEach((task) => {
-        const workingHours =
-          task.effortHours ??
-          getWorkingDays(task.start, task.end, snapshot.calendar, calendarAware) * 8;
-        task.assigneeIds.forEach((memberId) => {
-          if (!teamMemberIds.has(memberId)) return;
-          const workload = workloads.get(memberId);
-          if (!workload) return;
-          const allocation = getTaskAssigneeAllocationPercent(task, memberId) / 100;
-          const memberHours = workingHours * allocation * (1 - task.progress / 100);
-          if (memberHours <= 0) return;
-          workload.remainingHours += memberHours;
-          workload.openTaskCount += 1;
-          if (task.status === "delayed") workload.delayedTaskCount += 1;
-          workload.projectRefs.set(snapshot.project.id, snapshot.project);
-          workload.projectHours.set(
-            snapshot.project.id,
-            (workload.projectHours.get(snapshot.project.id) ?? 0) + memberHours,
-          );
-        });
-      });
-  });
-
-  return [...workloads.values()]
-    .map((item) => {
-      const topProjectId = [...item.projectHours.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
-      const { projectRefs, ...workload } = item;
-      return {
-        ...workload,
-        projectCount: projectRefs.size,
-        remainingHours: Math.round(item.remainingHours),
-        topProject: topProjectId ? (projectRefs.get(topProjectId) ?? null) : null,
-      };
-    })
-    .filter((item) => item.remainingHours > 0)
-    .sort(
-      (a, b) =>
-        b.delayedTaskCount - a.delayedTaskCount ||
-        b.remainingHours - a.remainingHours ||
-        a.member.name.localeCompare(b.member.name, "ja"),
-    );
 }
 
 function PortfolioSummaryCard({

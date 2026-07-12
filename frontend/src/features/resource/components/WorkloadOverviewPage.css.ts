@@ -83,6 +83,13 @@ export const summaryValue = style({
   fontWeight: 900,
   letterSpacing: 0,
 });
+export const summaryDetail = style({
+  display: "block",
+  marginTop: 2,
+  color: "#6f7d92",
+  fontSize: 10,
+  fontWeight: 800,
+});
 
 export const controls = style({
   display: "flex",
@@ -104,6 +111,18 @@ export const select = style({
   padding: "0 10px",
   fontSize: 12,
   fontWeight: 700,
+});
+export const filterControls = style({ display: "flex", alignItems: "center", gap: 8 });
+export const capacitySelect = style({
+  width: 148,
+  height: 34,
+  border: "1px solid #d5dfed",
+  borderRadius: 6,
+  color: "#31415a",
+  background: "#fff",
+  padding: "0 9px",
+  fontSize: 11,
+  fontWeight: 800,
 });
 
 export const pager = style({
@@ -183,6 +202,10 @@ export const weekHead = style({
   minHeight: 28,
   padding: "7px 6px",
   textAlign: "center",
+});
+export const currentWeek = style({
+  background: "#eef5ff",
+  boxShadow: "inset 2px 0 #2e6be6, inset -1px 0 #bcd0f7",
 });
 
 export const entityCell = style({

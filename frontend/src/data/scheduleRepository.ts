@@ -101,5 +101,6 @@ export type ScheduleRepository = {
   saveWorkspace(
     workspace: ScheduleWorkspace,
     options: ScheduleRepositorySaveOptions,
+    previousWorkspace?: ScheduleWorkspace,
   ): Promise<ScheduleRepositorySaveResult>;
 };
