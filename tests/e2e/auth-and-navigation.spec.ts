@@ -228,8 +228,8 @@ test.describe("Miraiの認証とプロジェクト導線", () => {
     const initialTeamReports = dailyReport.getByRole("region", { name: "みんなの日報" });
     await expect(initialTeamReports).toBeVisible();
     await expect(initialTeamReports.getByLabel("対象日")).toHaveValue(reportDate);
-    await dailyReport.getByRole("button", { name: "自分の日報" }).click();
-    await dailyReport.getByRole("button", { name: "日報を作成" }).click();
+    await initialTeamReports.getByRole("button", { name: "自分の日報を提出" }).click();
+    await expect(dailyReport.getByLabel("日報日付")).toHaveValue(reportDate);
     await dailyReport.getByLabel("本日のまとめ").fill("基本設計レビューを実施しました。");
     await dailyReport.getByLabel("作業内容").fill("レビュー指摘の整理");
     await dailyReport.getByRole("button", { name: "提出して実績反映" }).click();
@@ -244,6 +244,7 @@ test.describe("Miraiの認証とプロジェクト導線", () => {
 
     await dailyReport.getByRole("button", { name: "みんなの日報" }).click();
     const teamReports = dailyReport.getByRole("region", { name: "みんなの日報" });
+    await expect(teamReports.getByRole("button", { name: "自分の日報を確認" })).toBeVisible();
     await expect(teamReports).toContainText("/ 6名");
     await expect(teamReports.getByRole("row", { name: /山田 健太/ })).toContainText(
       "基本設計レビューを実施しました。",

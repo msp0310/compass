@@ -7,6 +7,8 @@ import {
   ChevronRightIcon,
   ClockIcon,
   ExclamationTriangleIcon,
+  PencilSquareIcon,
+  PlusIcon,
 } from "@heroicons/react/24/outline";
 import { Fragment, useMemo, useState } from "react";
 import type { ReactNode } from "react";
@@ -17,9 +19,11 @@ import * as styles from "./TeamDailyReportsView.css";
 
 type TeamDailyReportsViewProps = {
   canManage: boolean;
+  currentMemberId: string;
   members: Member[];
   onComment: (reportId: string, body: string) => Promise<void>;
   onOpenReport: (report: DailyReport) => void;
+  onOpenOwnReport: (date: string) => void;
   onRemind: (date: string, memberIds: string[]) => Promise<void>;
   reports: DailyReport[];
   schedules: ScheduleSnapshot[];
@@ -30,9 +34,11 @@ type TeamDailyReportsViewProps = {
 /** チーム全員の日報提出状況と案件別実績を日付単位で確認します。 */
 export function TeamDailyReportsView({
   canManage,
+  currentMemberId,
   members,
   onComment,
   onOpenReport,
+  onOpenOwnReport,
   onRemind,
   reports,
   schedules,
@@ -51,6 +57,7 @@ export function TeamDailyReportsView({
   );
   const reportsForDate = reports.filter((report) => report.date === selectedDate);
   const reportByMember = new Map(reportsForDate.map((report) => [report.memberId, report]));
+  const ownReport = reportByMember.get(currentMemberId);
   const submitted = reportsForDate.filter((report) => report.status === "submitted").length;
   const totalHours = reportsForDate.reduce((sum, report) => sum + sumHours(report), 0);
   const blockerCount = reportsForDate.filter((report) => report.blockers?.trim()).length;
@@ -96,6 +103,20 @@ export function TeamDailyReportsView({
           <span>{teamName}の作業内容と提出状況</span>
         </div>
         <div className={styles.toolbarActions}>
+          <button
+            className={styles.ownReportButton}
+            disabled={!ownReport && selectedDate > todayKey}
+            onClick={() => onOpenOwnReport(selectedDate)}
+            title={!ownReport && selectedDate > todayKey ? "未来の日報は作成できません" : undefined}
+            type="button"
+          >
+            {ownReport ? <PencilSquareIcon /> : <PlusIcon />}
+            {ownReport
+              ? ownReport.status === "submitted"
+                ? "自分の日報を確認"
+                : "自分の日報を編集"
+              : "自分の日報を提出"}
+          </button>
           {canManage && missingMemberIds.length > 0 ? (
             <button
               className={styles.remindButton}

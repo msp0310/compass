@@ -10,6 +10,7 @@ export const toolbar = style({
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
+  flexWrap: "wrap",
   gap: 16,
 });
 export const datePicker = style({
@@ -20,7 +21,28 @@ export const datePicker = style({
   fontSize: 10,
   fontWeight: 800,
 });
-export const toolbarActions = style({ display: "flex", alignItems: "center", gap: 8 });
+export const toolbarActions = style({
+  display: "flex",
+  alignItems: "center",
+  flexWrap: "wrap",
+  justifyContent: "flex-end",
+  gap: 8,
+});
+export const ownReportButton = style({
+  display: "inline-flex",
+  height: 34,
+  alignItems: "center",
+  gap: 5,
+  border: 0,
+  borderRadius: 6,
+  color: "#fff",
+  background: "#2864ea",
+  padding: "0 11px",
+  fontSize: 9,
+  fontWeight: 900,
+  cursor: "pointer",
+  selectors: { "&:disabled": { cursor: "default", opacity: 0.45 } },
+});
 export const dateNavigation = style({
   display: "inline-flex",
   height: 34,
@@ -198,6 +220,7 @@ globalStyle(`${dateNavigation} > button`, {
 globalStyle(`${dateNavigation} > button:last-child`, { borderRight: 0 });
 globalStyle(`${dateNavigation} svg`, { width: 13, height: 13 });
 globalStyle(`${remindButton} svg`, { width: 14, height: 14 });
+globalStyle(`${ownReportButton} svg`, { width: 14, height: 14 });
 globalStyle(`${summaryCard} > span`, {
   display: "grid",
   width: 34,

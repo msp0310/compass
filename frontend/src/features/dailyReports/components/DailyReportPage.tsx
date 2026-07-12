@@ -72,8 +72,7 @@ export function DailyReportPage({ currentUser, schedules, team, todayKey }: Dail
   const canManageTeam =
     currentUser.role === "admin" ||
     (team.memberships ?? []).some(
-      (membership) =>
-        membership.memberId === currentUser.memberId && membership.role === "manager",
+      (membership) => membership.memberId === currentUser.memberId && membership.role === "manager",
     );
   const personalReports = useMemo(
     () => reports.filter((report) => report.memberId === currentMember?.id),
@@ -101,15 +100,21 @@ export function DailyReportPage({ currentUser, schedules, team, todayKey }: Dail
     };
   }, [team.id]);
 
-  function createReport() {
+  function createReport(date = todayKey) {
     if (!currentMember || schedules.length === 0) return;
+    const existing = personalReports.find((report) => report.date === date);
+    if (existing) {
+      selectReport(existing);
+      setViewMode("mine");
+      return;
+    }
     const now = new Date().toISOString();
     const report: DailyReport = {
       comments: [],
       createdAt: now,
-      date: todayKey,
+      date,
       entries: [createEntry(schedules[0].project.id)],
-      id: `daily-report-${currentMember.id}-${todayKey}-${Date.now()}`,
+      id: `daily-report-${currentMember.id}-${date}-${Date.now()}`,
       memberId: currentMember.id,
       status: "draft",
       summary: "",
@@ -118,6 +123,7 @@ export function DailyReportPage({ currentUser, schedules, team, todayKey }: Dail
     };
     setSelectedId(report.id);
     setDraft(report);
+    setViewMode("mine");
   }
 
   function selectReport(report: DailyReport) {
@@ -205,7 +211,7 @@ export function DailyReportPage({ currentUser, schedules, team, todayKey }: Dail
             </button>
           </div>
           {viewMode === "mine" ? (
-            <button className={styles.primaryButton} onClick={createReport} type="button">
+            <button className={styles.primaryButton} onClick={() => createReport()} type="button">
               <PlusIcon className={styles.buttonIcon} />
               日報を作成
             </button>
@@ -215,6 +221,7 @@ export function DailyReportPage({ currentUser, schedules, team, todayKey }: Dail
       {viewMode === "team" ? (
         <TeamDailyReportsView
           canManage={canManageTeam}
+          currentMemberId={currentMember?.id ?? currentUser.memberId}
           members={teamMembers}
           onComment={async (reportId, body) => {
             const saved = await addDailyReportComment(reportId, body);
@@ -222,6 +229,11 @@ export function DailyReportPage({ currentUser, schedules, team, todayKey }: Dail
             setMessage("コメントを追加しました。");
           }}
           onOpenReport={openTeamReport}
+          onOpenOwnReport={(date) => {
+            const ownReport = personalReports.find((report) => report.date === date);
+            if (ownReport) openTeamReport(ownReport);
+            else createReport(date);
+          }}
           onRemind={async (date, memberIds) => {
             await sendDailyReportReminders(team.id, date, memberIds);
             setMessage(`${memberIds.length}名へ日報提出のリマインドを送りました。`);
