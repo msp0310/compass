@@ -110,13 +110,18 @@ export function canManageTeamReports(team: Team, currentUser: DailyReportUser) {
   );
 }
 
-export function createDailyReportEntry(projectId: string): DailyReportEntry {
+export function createDailyReportEntry(
+  projectId: string,
+  task?: Pick<ScheduleTask, "id" | "progress">,
+): DailyReportEntry {
   return {
     category: "maintenance",
     hours: 1,
     id: `daily-entry-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    progress: task?.progress ?? 0,
     projectId,
     summary: "",
+    taskId: task?.id,
   };
 }
 
@@ -124,13 +129,14 @@ export function createDailyReportDraft(
   memberId: string,
   date: string,
   projectId: string,
+  task?: Pick<ScheduleTask, "id" | "progress">,
   now = new Date().toISOString(),
 ): DailyReport {
   return {
     comments: [],
     createdAt: now,
     date,
-    entries: [createDailyReportEntry(projectId)],
+    entries: [createDailyReportEntry(projectId, task)],
     id: `daily-report-${memberId}-${date}-${Date.now()}`,
     memberId,
     status: "draft",
@@ -138,6 +144,40 @@ export function createDailyReportDraft(
     updatedAt: now,
     version: 0,
   };
+}
+
+export function canSubmitDailyReport(report: DailyReport) {
+  return (
+    report.summary.trim().length > 0 &&
+    report.entries.length > 0 &&
+    report.entries.every(
+      (entry) =>
+        Boolean(entry.taskId) &&
+        entry.summary.trim().length > 0 &&
+        entry.progress !== undefined &&
+        Number.isInteger(entry.progress) &&
+        entry.progress >= 0 &&
+        entry.progress <= 100,
+    )
+  );
+}
+
+export function getDailyReportAverageProgress(entries: DailyReportEntry[]) {
+  const progressValues = entries
+    .map((entry) => entry.progress)
+    .filter((progress): progress is number => progress !== undefined);
+  if (progressValues.length === 0) {
+    return null;
+  }
+  return Math.round(
+    progressValues.reduce((sum, progress) => sum + progress, 0) / progressValues.length,
+  );
+}
+
+export function getDailyReportTask(entry: DailyReportEntry, schedules: DailyReportSchedule[]) {
+  return schedules
+    .find((schedule) => schedule.project.id === entry.projectId)
+    ?.tasks.find((task) => task.id === entry.taskId);
 }
 
 export function sumDailyReportHours(entries: DailyReportEntry[]) {

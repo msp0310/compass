@@ -118,6 +118,7 @@ export const unread = style({
   fontWeight: 900,
 });
 export const projectList = style({ display: "flex", minWidth: 0, flexWrap: "wrap", gap: 4 });
+export const progressCell = style({ color: "#174dbd", fontWeight: 900 });
 export const hoursCell = style({ color: "#20334f", fontWeight: 900 });
 export const submitted = style({
   display: "inline-flex",
@@ -266,8 +267,9 @@ globalStyle(`${table} th:nth-child(1)`, { width: 150 });
 globalStyle(`${table} th:nth-child(2)`, { width: 78 });
 globalStyle(`${table} th:nth-child(4)`, { width: 190 });
 globalStyle(`${table} th:nth-child(5)`, { width: 60 });
-globalStyle(`${table} th:nth-child(6)`, { width: 80 });
-globalStyle(`${table} th:nth-child(7)`, { width: 72 });
+globalStyle(`${table} th:nth-child(6)`, { width: 60 });
+globalStyle(`${table} th:nth-child(7)`, { width: 80 });
+globalStyle(`${table} th:nth-child(8)`, { width: 72 });
 globalStyle(`${memberCell} > span`, {
   display: "grid",
   width: 28,

@@ -1,8 +1,8 @@
 import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 
 import type { ScheduleSnapshot } from "../../../data/scheduleRepository";
-import type { DailyReportEntry, WorkLogCategory } from "../../../types/schedule";
-import { categoryLabels, createDailyReportEntry, sumDailyReportHours } from "../model/dailyReports";
+import type { DailyReportEntry, ScheduleTask } from "../../../types/schedule";
+import { createDailyReportEntry, sumDailyReportHours } from "../model/dailyReports";
 
 import * as styles from "./DailyReportPage.css";
 
@@ -13,7 +13,22 @@ type DailyReportEntriesProps = {
   schedules: ScheduleSnapshot[];
 };
 
-/** 案件・タスク別の作業時間明細を編集します。 */
+function firstTask(schedule: ScheduleSnapshot | undefined) {
+  return schedule?.tasks.find((task) => task.type === "task");
+}
+
+function taskPatch(task: ScheduleTask | undefined) {
+  return {
+    previousActualEnd: undefined,
+    previousActualStart: undefined,
+    previousProgress: undefined,
+    previousStatus: undefined,
+    progress: task?.progress ?? 0,
+    taskId: task?.id,
+  };
+}
+
+/** 日報からタスクへ反映する進捗・実績時間・作業内容を編集します。 */
 export function DailyReportEntries({
   entries,
   onChange,
@@ -28,26 +43,31 @@ export function DailyReportEntries({
     <section className={styles.entrySection}>
       <header className={styles.sectionHeader}>
         <div>
-          <strong>作業明細</strong>
-          <span>合計 {sumDailyReportHours(entries)}h</span>
+          <strong>タスク実績</strong>
+          <span>合計 {sumDailyReportHours(entries)}h・提出時にタスクへ反映</span>
         </div>
         <button
           className={styles.secondaryButton}
           disabled={readOnly}
-          onClick={() =>
-            onChange([...entries, createDailyReportEntry(schedules[0]?.project.id ?? "")])
-          }
+          onClick={() => {
+            const [schedule] = schedules;
+            onChange([
+              ...entries,
+              createDailyReportEntry(schedule?.project.id ?? "", firstTask(schedule)),
+            ]);
+          }}
           type="button"
         >
           <PlusIcon className={styles.buttonIcon} />
-          明細追加
+          タスク追加
         </button>
       </header>
       <div className={styles.entryLabels} aria-hidden="true">
         <span>案件</span>
         <span>タスク</span>
+        <span>進捗</span>
         <span>時間</span>
-        <span>分類</span>
+        <span />
       </div>
       {entries.map((entry) => {
         const schedule = schedules.find((item) => item.project.id === entry.projectId);
@@ -57,9 +77,15 @@ export function DailyReportEntries({
               aria-label="案件"
               className={styles.select}
               disabled={readOnly}
-              onChange={(event) =>
-                updateEntry(entry.id, { projectId: event.target.value, taskId: undefined })
-              }
+              onChange={(event) => {
+                const nextSchedule = schedules.find(
+                  (item) => item.project.id === event.target.value,
+                );
+                updateEntry(entry.id, {
+                  projectId: event.target.value,
+                  ...taskPatch(firstTask(nextSchedule)),
+                });
+              }}
               value={entry.projectId}
             >
               {schedules.map((item) => (
@@ -72,12 +98,15 @@ export function DailyReportEntries({
               aria-label="タスク"
               className={styles.select}
               disabled={readOnly}
-              onChange={(event) =>
-                updateEntry(entry.id, { taskId: event.target.value || undefined })
-              }
+              onChange={(event) => {
+                const task = schedule?.tasks.find(
+                  (candidate) => candidate.id === event.target.value,
+                );
+                updateEntry(entry.id, taskPatch(task));
+              }}
               value={entry.taskId ?? ""}
             >
-              <option value="">タスク未指定</option>
+              <option value="">タスクを選択</option>
               {schedule?.tasks
                 .filter((task) => task.type === "task")
                 .map((task) => (
@@ -86,6 +115,23 @@ export function DailyReportEntries({
                   </option>
                 ))}
             </select>
+            <label className={styles.progressInput}>
+              <input
+                aria-label="進捗"
+                disabled={readOnly}
+                max="100"
+                min="0"
+                onChange={(event) =>
+                  updateEntry(entry.id, {
+                    progress: Math.min(100, Math.max(0, Number(event.target.value))),
+                  })
+                }
+                step="1"
+                type="number"
+                value={entry.progress ?? 0}
+              />
+              <span>%</span>
+            </label>
             <input
               aria-label="作業時間"
               className={styles.hoursInput}
@@ -96,31 +142,16 @@ export function DailyReportEntries({
               type="number"
               value={entry.hours}
             />
-            <select
-              aria-label="作業分類"
-              className={styles.select}
-              disabled={readOnly}
-              onChange={(event) =>
-                updateEntry(entry.id, { category: event.target.value as WorkLogCategory })
-              }
-              value={entry.category}
-            >
-              {Object.entries(categoryLabels).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
             <input
               aria-label="作業内容"
               className={styles.summaryInput}
               disabled={readOnly}
               onChange={(event) => updateEntry(entry.id, { summary: event.target.value })}
-              placeholder="作業内容"
+              placeholder="作業内容・確認結果・次のアクション"
               value={entry.summary}
             />
             <button
-              aria-label="明細を削除"
+              aria-label="タスク実績を削除"
               className={`${styles.iconButton} ${styles.entryDelete}`}
               disabled={readOnly}
               onClick={() => onChange(entries.filter((item) => item.id !== entry.id))}

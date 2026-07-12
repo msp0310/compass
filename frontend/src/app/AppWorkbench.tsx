@@ -2,6 +2,7 @@ import { Provider } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { type ExportFormat } from "../components/layout/Topbar";
+import { apiScheduleRepository } from "../data/apiScheduleRepository";
 import { type AuthUser } from "../data/authRepository";
 import { clearLocalScheduleDraft, saveLocalScheduleDraft } from "../data/localScheduleStorage";
 import { type ScheduleSnapshot } from "../data/scheduleRepository";
@@ -563,6 +564,21 @@ function useAppWorkbenchController({
     setSavedWorkspace(nextSavedWorkspace);
     setSavedSignature(createDraftSignature(savedDraftRef.current));
   }, []);
+  const refreshSchedulesAfterDailyReport = useCallback(async (projectIds: string[]) => {
+    const loadedSchedules = await Promise.all(
+      [...new Set(projectIds)].map((projectId) =>
+        apiScheduleRepository.getProjectSchedule(projectId),
+      ),
+    );
+    setWorkspace((current) => loadedSchedules.reduce(mergeScheduleIntoWorkspace, current));
+    const nextSavedWorkspace = loadedSchedules.reduce(
+      mergeScheduleIntoWorkspace,
+      savedDraftRef.current.workspace,
+    );
+    savedDraftRef.current = { ...savedDraftRef.current, workspace: nextSavedWorkspace };
+    setSavedWorkspace(nextSavedWorkspace);
+    setSavedSignature(createDraftSignature(savedDraftRef.current));
+  }, []);
   const teamResourcesLoading = useTeamScheduleLoading({
     activeTab,
     activeTeamId,
@@ -1096,6 +1112,7 @@ function useAppWorkbenchController({
     projectMembers,
     projectSummaries,
     recordActivity,
+    refreshSchedulesAfterDailyReport,
     requestSaveDraft,
     resetDraft,
     resourceDisplaySettings,

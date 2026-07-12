@@ -75,8 +75,9 @@ public sealed class DailyReportService(
             .ToListAsync(cancellationToken);
         if (existingProjectIds.Count != projectIds.Length)
         {
-            throw new ArgumentException("日報明細に存在しないプロジェクトが含まれています。");
+            throw new ArgumentException("日報のタスク実績に存在しないプロジェクトが含まれています。");
         }
+        var accessByProjectId = new Dictionary<string, ProjectAccessDto>();
         foreach (var projectId in projectIds)
         {
             var access = await projectAuthorization.GetProjectAccessAsync(user, projectId, cancellationToken);
@@ -84,11 +85,22 @@ public sealed class DailyReportService(
             {
                 throw new UnauthorizedAccessException("参照権限のないプロジェクトは日報へ登録できません。");
             }
+            if (request.Status == "submitted" && !access.CanEnterActual)
+            {
+                throw new UnauthorizedAccessException("実績更新権限のないプロジェクトは日報へ提出できません。");
+            }
+            accessByProjectId[projectId] = access;
         }
 
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         var report = await db.DailyReports.FirstOrDefaultAsync(item => item.Id == reportId, cancellationToken);
         var now = DateTimeOffset.UtcNow.ToString("O");
+        var wasSubmitted = report?.Status == "submitted";
+        var persistedEntries = report is null
+            ? new Dictionary<string, DailyReportEntryDto>()
+            : (JsonSerializer.Deserialize<IReadOnlyList<DailyReportEntryDto>>(
+                report.EntriesJson,
+                JsonOptions) ?? []).ToDictionary(entry => entry.Id);
         if (report is null)
         {
             report = new DailyReportEntity { Id = reportId, CreatedAt = now, Version = 1 };
@@ -108,6 +120,19 @@ public sealed class DailyReportService(
             .ToDictionaryAsync(log => log.DailyReportEntryId!, cancellationToken);
         var entryIds = request.Entries.Select(entry => entry.Id).ToHashSet();
         db.ProjectWorkLogs.RemoveRange(linkedLogs.Values.Where(log => !entryIds.Contains(log.DailyReportEntryId!)));
+
+        if (wasSubmitted)
+        {
+            var currentEntryById = request.Entries.ToDictionary(entry => entry.Id);
+            var entriesToRestore = persistedEntries.Values
+                .Where(entry =>
+                    request.Status != "submitted" ||
+                    !currentEntryById.TryGetValue(entry.Id, out var currentEntry) ||
+                    currentEntry.ProjectId != entry.ProjectId ||
+                    currentEntry.TaskId != entry.TaskId)
+                .ToArray();
+            await RestoreTaskUpdatesAsync(reportId, entriesToRestore, cancellationToken);
+        }
 
         var savedEntries = new List<DailyReportEntryDto>(request.Entries.Count);
         foreach (var entry in request.Entries)
@@ -136,6 +161,23 @@ public sealed class DailyReportService(
             log.TaskId = entry.TaskId;
             log.UpdatedAt = now;
             savedEntries.Add(entry with { WorkLogId = workLogId });
+        }
+
+        if (request.Status == "submitted")
+        {
+            savedEntries = await ApplyTaskUpdatesAsync(
+                reportId,
+                request,
+                user,
+                accessByProjectId,
+                persistedEntries,
+                savedEntries,
+                now,
+                cancellationToken);
+        }
+        else
+        {
+            savedEntries = savedEntries.Select(ClearPreviousTaskActual).ToList();
         }
 
         report.MemberId = request.MemberId;
@@ -268,10 +310,223 @@ public sealed class DailyReportService(
             throw new UnauthorizedAccessException("この日報を削除する権限がありません。");
         }
         var logs = await db.ProjectWorkLogs.Where(log => log.DailyReportId == reportId).ToListAsync(cancellationToken);
+        var entries = JsonSerializer.Deserialize<IReadOnlyList<DailyReportEntryDto>>(
+            report.EntriesJson,
+            JsonOptions) ?? [];
+        await RestoreTaskUpdatesAsync(reportId, entries, cancellationToken);
         db.ProjectWorkLogs.RemoveRange(logs);
         db.DailyReports.Remove(report);
         await db.SaveChangesAsync(cancellationToken);
         return true;
+    }
+
+    private async Task<List<DailyReportEntryDto>> ApplyTaskUpdatesAsync(
+        string reportId,
+        SaveDailyReportRequest request,
+        AuthUserDto user,
+        Dictionary<string, ProjectAccessDto> accessByProjectId,
+        Dictionary<string, DailyReportEntryDto> persistedEntries,
+        List<DailyReportEntryDto> entries,
+        string now,
+        CancellationToken cancellationToken)
+    {
+        var taskIds = entries.Select(entry => entry.TaskId!).Distinct().ToArray();
+        var projectIds = entries.Select(entry => entry.ProjectId).Distinct().ToArray();
+        var tasks = await db.Tasks
+            .Include(task => task.Assignments)
+            .Where(task => projectIds.Contains(task.ProjectId))
+            .ToListAsync(cancellationToken);
+        var taskById = tasks.Where(task => taskIds.Contains(task.Id)).ToDictionary(task => task.Id);
+        var projects = await db.Projects
+            .Where(project => projectIds.Contains(project.Id))
+            .ToDictionaryAsync(project => project.Id, cancellationToken);
+        var authorName = await db.Members
+            .Where(member => member.Id == request.MemberId)
+            .Select(member => member.Name)
+            .SingleAsync(cancellationToken);
+        var touchedProjectIds = new HashSet<string>();
+        var updatedEntries = new List<DailyReportEntryDto>(entries.Count);
+
+        foreach (var entry in entries)
+        {
+            if (entry.TaskId is null || !taskById.TryGetValue(entry.TaskId, out var task) ||
+                task.ProjectId != entry.ProjectId)
+            {
+                throw new ArgumentException("日報に存在しないタスクが含まれています。");
+            }
+            var access = accessByProjectId[entry.ProjectId];
+            var unrestricted = access.Role is SystemRoles.Admin or ProjectRoles.Owner or ProjectRoles.Planner;
+            if (!unrestricted && task.Assignments.All(item => item.MemberId != request.MemberId))
+            {
+                throw new UnauthorizedAccessException("担当していないタスクの実績は更新できません。");
+            }
+
+            persistedEntries.TryGetValue(entry.Id, out var persistedEntry);
+            var samePersistedTask = persistedEntry?.ProjectId == entry.ProjectId &&
+                persistedEntry.TaskId == entry.TaskId;
+            var previousProgress = samePersistedTask
+                ? entry.PreviousProgress ?? persistedEntry?.PreviousProgress ?? task.Progress
+                : task.Progress;
+            var previousStatus = samePersistedTask
+                ? entry.PreviousStatus ?? persistedEntry?.PreviousStatus ?? task.Status
+                : task.Status;
+            var previousActualStart = samePersistedTask
+                ? entry.PreviousActualStart ?? persistedEntry?.PreviousActualStart ?? task.ActualStart
+                : task.ActualStart;
+            var previousActualEnd = samePersistedTask
+                ? entry.PreviousActualEnd ?? persistedEntry?.PreviousActualEnd ?? task.ActualEnd
+                : task.ActualEnd;
+            var progress = Math.Clamp(entry.Progress ?? task.Progress, 0, 100);
+
+            task.Progress = progress;
+            task.Status = StatusForProgress(progress, task.Status);
+            if (progress > 0)
+            {
+                task.ActualStart ??= request.Date;
+            }
+            task.ActualEnd = progress == 100 ? request.Date : null;
+            UpsertDailyReportComment(task, reportId, entry, authorName, request.Date, now);
+            touchedProjectIds.Add(entry.ProjectId);
+            updatedEntries.Add(entry with
+            {
+                Progress = progress,
+                PreviousProgress = previousProgress,
+                PreviousStatus = previousStatus,
+                PreviousActualStart = previousActualStart,
+                PreviousActualEnd = previousActualEnd
+            });
+        }
+
+        foreach (var entry in updatedEntries)
+        {
+            var task = taskById[entry.TaskId!];
+            RecalculateParentProgress(tasks.Where(item => item.ProjectId == task.ProjectId).ToArray(), task.ParentId);
+        }
+        foreach (var projectId in touchedProjectIds)
+        {
+            projects[projectId].Version += 1;
+        }
+        return updatedEntries;
+    }
+
+    private async Task RestoreTaskUpdatesAsync(
+        string reportId,
+        IReadOnlyList<DailyReportEntryDto> entries,
+        CancellationToken cancellationToken)
+    {
+        var taskIds = entries.Where(entry => entry.TaskId is not null).Select(entry => entry.TaskId!).Distinct().ToArray();
+        if (taskIds.Length == 0) return;
+        var projectIds = entries.Select(entry => entry.ProjectId).Distinct().ToArray();
+        var tasks = await db.Tasks
+            .Where(task => projectIds.Contains(task.ProjectId))
+            .ToListAsync(cancellationToken);
+        var taskById = tasks.Where(task => taskIds.Contains(task.Id)).ToDictionary(task => task.Id);
+        var touchedProjectIds = new HashSet<string>();
+
+        foreach (var entry in entries)
+        {
+            if (entry.TaskId is null || !taskById.TryGetValue(entry.TaskId, out var task)) continue;
+            var comments = ReadTaskComments(task);
+            var removed = comments.RemoveAll(comment => comment.Id == DailyReportCommentId(reportId, entry.Id)) > 0;
+            if (removed)
+            {
+                task.CommentsJson = JsonSerializer.Serialize(comments, JsonOptions);
+                touchedProjectIds.Add(task.ProjectId);
+            }
+            if (entry.Progress is not null && entry.PreviousProgress is not null && task.Progress == entry.Progress)
+            {
+                task.Progress = entry.PreviousProgress.Value;
+                task.Status = entry.PreviousStatus ?? StatusForProgress(task.Progress, task.Status);
+                task.ActualStart = entry.PreviousActualStart;
+                task.ActualEnd = entry.PreviousActualEnd;
+                RecalculateParentProgress(tasks.Where(item => item.ProjectId == task.ProjectId).ToArray(), task.ParentId);
+                touchedProjectIds.Add(task.ProjectId);
+            }
+        }
+
+        var projects = await db.Projects
+            .Where(project => touchedProjectIds.Contains(project.Id))
+            .ToListAsync(cancellationToken);
+        foreach (var project in projects)
+        {
+            project.Version += 1;
+        }
+    }
+
+    private static void UpsertDailyReportComment(
+        TaskEntity task,
+        string reportId,
+        DailyReportEntryDto entry,
+        string authorName,
+        string date,
+        string now)
+    {
+        var comments = ReadTaskComments(task);
+        var commentId = DailyReportCommentId(reportId, entry.Id);
+        var existingIndex = comments.FindIndex(comment => comment.Id == commentId);
+        var createdAt = existingIndex >= 0 ? comments[existingIndex].CreatedAt : now;
+        var comment = new TaskCommentDto(
+            commentId,
+            authorName,
+            $"日報 {date}\n{entry.Summary.Trim()}",
+            createdAt);
+        if (existingIndex >= 0)
+        {
+            comments[existingIndex] = comment;
+        }
+        else
+        {
+            comments.Insert(0, comment);
+        }
+        task.CommentsJson = JsonSerializer.Serialize(comments, JsonOptions);
+    }
+
+    private static List<TaskCommentDto> ReadTaskComments(TaskEntity task)
+    {
+        return JsonSerializer.Deserialize<List<TaskCommentDto>>(task.CommentsJson ?? "[]", JsonOptions) ?? [];
+    }
+
+    private static string DailyReportCommentId(string reportId, string entryId)
+    {
+        return $"daily-report-{reportId}-{entryId}";
+    }
+
+    private static string StatusForProgress(int progress, string currentStatus)
+    {
+        if (progress >= 100) return "done";
+        if (progress <= 0) return "notStarted";
+        return currentStatus == "delayed" ? "delayed" : "inProgress";
+    }
+
+    private static DailyReportEntryDto ClearPreviousTaskActual(DailyReportEntryDto entry)
+    {
+        return entry with
+        {
+            PreviousProgress = null,
+            PreviousStatus = null,
+            PreviousActualStart = null,
+            PreviousActualEnd = null
+        };
+    }
+
+    private static void RecalculateParentProgress(IReadOnlyList<TaskEntity> tasks, string? parentId)
+    {
+        while (!string.IsNullOrWhiteSpace(parentId))
+        {
+            var parent = tasks.FirstOrDefault(task => task.Id == parentId);
+            if (parent is null) return;
+            var children = tasks.Where(task => task.ParentId == parent.Id).ToArray();
+            if (children.Length > 0)
+            {
+                parent.Progress = Convert.ToInt32(Math.Round(children.Average(child => child.Progress)));
+                parent.Status = children.All(child => child.Status == "done")
+                    ? "done"
+                    : children.Any(child => child.Status is "inProgress" or "done" or "delayed")
+                        ? "inProgress"
+                        : "notStarted";
+            }
+            parentId = parent.ParentId;
+        }
     }
 
     private static DailyReportDto ToDto(DailyReportEntity entity, int readCommentCount)

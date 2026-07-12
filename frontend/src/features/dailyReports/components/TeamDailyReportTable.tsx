@@ -4,6 +4,7 @@ import { Fragment } from "react";
 import type { DailyReport, Member } from "../../../types/schedule";
 import {
   getDailyReportProjectName,
+  getDailyReportAverageProgress,
   sumDailyReportHours,
   type DailyReportSchedule,
 } from "../model/dailyReports";
@@ -70,6 +71,7 @@ export function TeamDailyReportTable({
             <th>提出</th>
             <th>本日のまとめ</th>
             <th>案件</th>
+            <th>進捗</th>
             <th>工数</th>
             <th>課題・相談</th>
             <th aria-label="操作" />
@@ -79,6 +81,7 @@ export function TeamDailyReportTable({
           {members.map((member) => {
             const report = reportByMember.get(member.id);
             const reportRequired = requiredMemberIds.has(member.id);
+            const averageProgress = report ? getDailyReportAverageProgress(report.entries) : null;
             const projectNames = report
               ? [
                   ...new Set(
@@ -152,6 +155,9 @@ export function TeamDailyReportTable({
                         ? projectNames.map((name) => <span key={name}>{name}</span>)
                         : "-"}
                     </div>
+                  </td>
+                  <td className={styles.progressCell}>
+                    {averageProgress === null ? "-" : `${averageProgress}%`}
                   </td>
                   <td className={styles.hoursCell}>
                     {report ? `${sumDailyReportHours(report.entries)}h` : "-"}

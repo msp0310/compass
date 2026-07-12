@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { AuthUser } from "../../../data/authRepository";
 import type { ScheduleSnapshot } from "../../../data/scheduleRepository";
 import type { DailyReport, Member } from "../../../types/schedule";
+import { canSubmitDailyReport } from "../model/dailyReports";
 import { DailyReportEntries } from "./DailyReportEntries";
 import { DailyReportMarkdownField } from "./DailyReportMarkdownField";
 import { DailyReportSidebar } from "./DailyReportSidebar";
@@ -26,7 +27,7 @@ type DailyReportEditorProps = {
   schedules: ScheduleSnapshot[];
 };
 
-/** 日報の基本情報、Markdown本文、作業明細、コメントを構成します。 */
+/** 日報の基本情報、Markdown本文、タスク実績、コメントを構成します。 */
 export function DailyReportEditor({
   comment,
   currentUser,
@@ -93,7 +94,7 @@ export function DailyReportEditor({
           </button>
           <button
             className={styles.primaryButton}
-            disabled={readOnly || !report.summary.trim() || report.entries.length === 0}
+            disabled={readOnly || !canSubmitDailyReport(report)}
             onClick={onSubmit}
             type="button"
           >

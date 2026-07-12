@@ -26,6 +26,7 @@ export function WorkbenchOrganizationViews({ controller }: WorkbenchOrganization
     navigateToProjectView,
     openProjectCreateSheet,
     projectSummaries,
+    refreshSchedulesAfterDailyReport,
     schedule,
     showMainProjectViews,
     toggleFavoriteProject,
@@ -85,6 +86,7 @@ export function WorkbenchOrganizationViews({ controller }: WorkbenchOrganization
       {activeTab === "DailyReports" && managementTeam ? (
         <DailyReportPage
           currentUser={currentUser}
+          onTaskActualsApplied={refreshSchedulesAfterDailyReport}
           schedules={currentReviewSchedules}
           team={managementTeam}
           todayKey={todayKey}

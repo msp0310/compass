@@ -244,6 +244,11 @@ export type DailyReportEntry = {
   id: string;
   projectId: string;
   taskId?: string;
+  progress?: number;
+  previousProgress?: number;
+  previousStatus?: TaskStatus;
+  previousActualStart?: string;
+  previousActualEnd?: string;
   hours: number;
   category: WorkLogCategory;
   summary: string;

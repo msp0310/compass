@@ -177,7 +177,7 @@ APIアクセスは専用Hookに閉じ込め、表示コンポーネントからr
 - `DailyReportList`: 自分の日報の選択一覧を表示する
 - `DailyReportEditor`: 基本情報、本文、明細、コメント、削除確認を構成する
 - `DailyReportEntries`: 案件・タスク別の作業時間明細を編集する
-- `DailyReportSidebar`: 案件実績への反映見込みとコメントを表示する
+- `DailyReportSidebar`: タスク実績への反映見込みとコメントを表示する
 - `DailyReportMarkdownField`: Markdown編集とプレビューを提供する
 - `dailyReports`: メンバー解決、権限判定、下書き生成、工数集計を純粋関数として提供する
 

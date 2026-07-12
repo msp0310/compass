@@ -1,6 +1,10 @@
 import { MarkdownPreview } from "../../../components/common/MarkdownPreview";
 import type { DailyReport, Member } from "../../../types/schedule";
-import { getDailyReportProjectName, type DailyReportSchedule } from "../model/dailyReports";
+import {
+  getDailyReportProjectName,
+  getDailyReportTask,
+  type DailyReportSchedule,
+} from "../model/dailyReports";
 
 import * as styles from "./TeamDailyReportsView.css";
 
@@ -14,7 +18,7 @@ type TeamDailyReportReviewProps = {
   schedules: DailyReportSchedule[];
 };
 
-/** 選択した日報の内容・明細・既存コメントとクイック返信欄を表示します。 */
+/** 選択した日報の内容・タスク実績・既存コメントとクイック返信欄を表示します。 */
 export function TeamDailyReportReview({
   commenting,
   member,
@@ -26,7 +30,7 @@ export function TeamDailyReportReview({
 }: TeamDailyReportReviewProps) {
   return (
     <tr className={styles.commentRow}>
-      <td colSpan={7}>
+      <td colSpan={8}>
         <div className={styles.reportReview}>
           <div className={styles.reviewContent}>
             <section>
@@ -43,12 +47,17 @@ export function TeamDailyReportReview({
             </section>
           </div>
           <div className={styles.reviewEntries}>
-            <strong>作業明細</strong>
+            <strong>タスク実績</strong>
             {report.entries.map((entry) => (
               <div key={entry.id}>
-                <span>{getDailyReportProjectName(entry.projectId, schedules)}</span>
+                <span>
+                  {getDailyReportProjectName(entry.projectId, schedules)} /{" "}
+                  {getDailyReportTask(entry, schedules)?.title ?? "タスク未選択"}
+                </span>
                 <p>{entry.summary}</p>
-                <b>{entry.hours}h</b>
+                <b>
+                  {entry.progress ?? 0}% / {entry.hours}h
+                </b>
               </div>
             ))}
           </div>

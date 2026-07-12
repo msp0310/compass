@@ -217,7 +217,7 @@ test.describe("Miraiの認証とプロジェクト導線", () => {
     await saveReview.getByRole("button", { name: "閉じる" }).click();
   });
 
-  test("日報を提出し、案件実績とコメントへ連携できる", async ({ page, request }) => {
+  test("日報を提出し、タスク実績とコメントへ連携できる", async ({ page, request }) => {
     const reportDate = todayKey();
     const reportYear = reportDate.slice(0, 4);
     const headers = await loginApi(request);
@@ -250,7 +250,7 @@ test.describe("Miraiの認証とプロジェクト導線", () => {
     await expect(
       dailyReport.getByRole("article").getByText("提出済み", { exact: true }),
     ).toBeVisible();
-    await expect(page.getByText("日報を提出し、案件実績へ反映しました。")).toBeVisible();
+    await expect(page.getByText("日報を提出し、タスク実績へ反映しました。")).toBeVisible();
 
     await dailyReport.getByLabel("日報コメント").fill("確認しました。明日の対応もお願いします。");
     await dailyReport.getByRole("button", { name: "コメントを追加" }).click();
@@ -275,7 +275,7 @@ test.describe("Miraiの認証とプロジェクト導線", () => {
     await teamReports.getByRole("button", { name: "山田 健太の日報を開く" }).click();
     await dailyReport.getByRole("button", { name: "日報を削除" }).click();
     const deleteDialog = page.getByRole("dialog", { name: "日報の削除確認" });
-    await expect(deleteDialog).toContainText("案件実績も同時に取り消されます");
+    await expect(deleteDialog).toContainText("タスク実績も同時に取り消されます");
     await deleteDialog.getByRole("button", { name: "キャンセル" }).click();
     await expect(deleteDialog).toHaveCount(0);
 

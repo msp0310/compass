@@ -228,18 +228,28 @@ export const sectionHeader = style({
 });
 export const entry = style({
   display: "grid",
-  gridTemplateColumns: "1.25fr 1.25fr 66px 88px 32px",
+  gridTemplateColumns: "1fr 1.25fr 82px 72px 32px",
   gap: 6,
   alignItems: "center",
+  border: "1px solid #e0e6ef",
+  borderRadius: 6,
+  background: "#fbfcfe",
+  padding: 8,
+  "@media": {
+    "screen and (max-width: 1100px)": {
+      gridTemplateColumns: "minmax(0, 1fr) 82px 72px 32px",
+    },
+  },
 });
 export const entryLabels = style({
   display: "grid",
-  gridTemplateColumns: "1.25fr 1.25fr 66px 88px 32px",
+  gridTemplateColumns: "1fr 1.25fr 82px 72px 32px",
   gap: 6,
   padding: "0 1px",
   color: "#74839a",
   fontSize: 9,
   fontWeight: 800,
+  "@media": { "screen and (max-width: 1100px)": { display: "none" } },
 });
 export const hoursInput = style({
   width: "100%",
@@ -248,6 +258,19 @@ export const hoursInput = style({
   borderRadius: 6,
   padding: "0 8px",
   fontSize: 11,
+  fontWeight: 800,
+});
+export const progressInput = style({
+  display: "grid",
+  gridTemplateColumns: "minmax(0, 1fr) 18px",
+  height: 34,
+  alignItems: "center",
+  overflow: "hidden",
+  border: "1px solid #d4deeb",
+  borderRadius: 6,
+  background: "#fff",
+  color: "#617089",
+  fontSize: 10,
   fontWeight: 800,
 });
 export const summaryInput = style({
@@ -259,7 +282,11 @@ export const summaryInput = style({
   padding: "0 8px",
   fontSize: 11,
 });
-export const entryDelete = style({ gridColumn: 5, gridRow: 1 });
+export const entryDelete = style({
+  gridColumn: 5,
+  gridRow: 1,
+  "@media": { "screen and (max-width: 1100px)": { gridColumn: 4, gridRow: 3 } },
+});
 export const twoColumns = style({ display: "grid", gridTemplateColumns: "1fr", gap: 12 });
 export const actualSummary = style({
   display: "grid",
@@ -270,6 +297,7 @@ export const actualSummary = style({
   fontSize: 10,
 });
 export const actualWarning = style({ color: "#b75b18", fontSize: 9, fontWeight: 800 });
+export const actualHint = style({ color: "#65758c", fontSize: 9, lineHeight: 1.5 });
 export const comments = style({ display: "grid", gap: 8 });
 export const comment = style({
   display: "grid",
@@ -370,6 +398,30 @@ globalStyle(`${sectionHeader} > div`, {
   fontSize: 11,
 });
 globalStyle(`${sectionHeader} span`, { color: "#728097", fontSize: 10, fontWeight: 800 });
+globalStyle(`${progressInput} > input`, {
+  width: "100%",
+  height: "100%",
+  border: 0,
+  outline: 0,
+  padding: "0 2px 0 8px",
+  fontSize: 11,
+  fontWeight: 800,
+});
+globalStyle(`${entry} > select:nth-child(1)`, {
+  "@media": { "screen and (max-width: 1100px)": { gridColumn: "1 / -1", gridRow: 1 } },
+});
+globalStyle(`${entry} > select:nth-child(2)`, {
+  "@media": { "screen and (max-width: 1100px)": { gridColumn: "1 / -1", gridRow: 2 } },
+});
+globalStyle(`${entry} > ${progressInput}`, {
+  "@media": { "screen and (max-width: 1100px)": { gridColumn: 1, gridRow: 3 } },
+});
+globalStyle(`${entry} > ${hoursInput}`, {
+  "@media": { "screen and (max-width: 1100px)": { gridColumn: 2, gridRow: 3 } },
+});
+globalStyle(`${entry} > ${summaryInput}`, {
+  "@media": { "screen and (max-width: 1100px)": { gridColumn: "1 / -1", gridRow: 4 } },
+});
 globalStyle(`${actualSummary} > div`, { display: "flex", justifyContent: "space-between", gap: 8 });
 globalStyle(`${actualSummary} b`, { color: "#174dbd" });
 globalStyle(`${comments} > h3`, { margin: 0, color: "#34465f", fontSize: 12, letterSpacing: 0 });

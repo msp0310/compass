@@ -11,14 +11,27 @@ import * as styles from "./DailyReportPage.css";
 
 type DailyReportPageProps = {
   currentUser: AuthUser;
+  onTaskActualsApplied: (projectIds: string[]) => Promise<void>;
   schedules: ScheduleSnapshot[];
   team: Team;
   todayKey: string;
 };
 
 /** 自分の日報とチーム日報の表示を調停するページです。 */
-export function DailyReportPage({ currentUser, schedules, team, todayKey }: DailyReportPageProps) {
-  const controller = useDailyReportsController({ currentUser, schedules, team, todayKey });
+export function DailyReportPage({
+  currentUser,
+  onTaskActualsApplied,
+  schedules,
+  team,
+  todayKey,
+}: DailyReportPageProps) {
+  const controller = useDailyReportsController({
+    currentUser,
+    onTaskActualsApplied,
+    schedules,
+    team,
+    todayKey,
+  });
 
   return (
     <section className={styles.page} aria-label="日報">
@@ -70,7 +83,7 @@ export function DailyReportPage({ currentUser, schedules, team, todayKey }: Dail
           ) : (
             <div className={styles.welcome}>
               <strong>日報を選択または作成してください</strong>
-              <span>入力した作業時間は案件実績へ自動反映されます。</span>
+              <span>入力した進捗、作業時間、作業内容はタスクへ自動反映されます。</span>
             </div>
           )}
         </div>

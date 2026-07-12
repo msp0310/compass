@@ -92,7 +92,7 @@ export const tourScenarios: Record<TourId, TourScenario> = {
         title: "作業時間を記録する",
       },
       {
-        body: "その日の作業実績をまとめ、案件実績と連携して日報を提出します。",
+        body: "その日のタスク進捗と作業内容をまとめ、タスク実績と連携して日報を提出します。",
         selector: '[data-tour="nav-DailyReports"]',
         title: "日報を提出する",
       },

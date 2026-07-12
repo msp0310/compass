@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 
 import type { AuthUser } from "../../../data/authRepository";
@@ -11,6 +12,7 @@ import {
 } from "../../../data/dailyReportRepository";
 import type { ScheduleSnapshot } from "../../../data/scheduleRepository";
 import type { DailyReport, Team } from "../../../types/schedule";
+import { projectQueryKeys } from "../../projects/api/projectQueries";
 import {
   canManageTeamReports,
   collectScheduleMembers,
@@ -20,6 +22,7 @@ import {
 
 type UseDailyReportsControllerOptions = {
   currentUser: AuthUser;
+  onTaskActualsApplied: (projectIds: string[]) => Promise<void>;
   schedules: ScheduleSnapshot[];
   team: Team;
   todayKey: string;
@@ -28,10 +31,12 @@ type UseDailyReportsControllerOptions = {
 /** 日報の取得、選択、保存、提出、コメントを画面から分離したI/O境界です。 */
 export function useDailyReportsController({
   currentUser,
+  onTaskActualsApplied,
   schedules,
   team,
   todayKey,
 }: UseDailyReportsControllerOptions) {
+  const queryClient = useQueryClient();
   const [reports, setReports] = useState<DailyReport[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState<DailyReport | null>(null);
@@ -96,7 +101,14 @@ export function useDailyReportsController({
     if (existing) {
       selectReport(existing);
     } else if (currentMember && schedules.length > 0) {
-      const report = createDailyReportDraft(currentMember.id, date, schedules[0].project.id);
+      const [firstSchedule] = schedules;
+      const firstTask = firstSchedule.tasks.find((task) => task.type === "task");
+      const report = createDailyReportDraft(
+        currentMember.id,
+        date,
+        firstSchedule.project.id,
+        firstTask,
+      );
       setSelectedId(report.id);
       setDraft(report);
     }
@@ -118,9 +130,17 @@ export function useDailyReportsController({
       setReports((items) => [saved, ...items.filter((item) => item.id !== saved.id)]);
       setDraft(saved);
       setSelectedId(saved.id);
+      if (status === "submitted") {
+        const projectIds = [...new Set(saved.entries.map((entry) => entry.projectId))];
+        for (const projectId of projectIds) {
+          void queryClient.invalidateQueries({ queryKey: projectQueryKeys.schedule(projectId) });
+        }
+        void queryClient.invalidateQueries({ queryKey: projectQueryKeys.workspaceSummary });
+        await onTaskActualsApplied(projectIds);
+      }
       setMessage(
         status === "submitted"
-          ? "日報を提出し、案件実績へ反映しました。"
+          ? "日報を提出し、タスク実績へ反映しました。"
           : "下書きを保存しました。",
       );
     } catch {

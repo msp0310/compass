@@ -31,7 +31,28 @@ public static class DailyReportEndpoints
             if (context.Items["CurrentUser"] is not AuthUserDto user) return Results.Unauthorized();
             if (string.IsNullOrWhiteSpace(request.Summary) || request.Entries.Count == 0)
             {
-                return Results.BadRequest(new { message = "日報のまとめと作業明細を入力してください。" });
+                return Results.BadRequest(new { message = "日報のまとめとタスク実績を入力してください。" });
+            }
+            if (request.Status == "submitted" && request.Entries.Any(entry =>
+                string.IsNullOrWhiteSpace(entry.TaskId) ||
+                string.IsNullOrWhiteSpace(entry.Summary) ||
+                entry.Progress is null or < 0 or > 100))
+            {
+                return Results.BadRequest(new
+                {
+                    message = "提出するタスク実績には、タスク、0〜100%の進捗、作業内容が必要です。"
+                });
+            }
+            if (request.Status == "submitted" && request.Entries
+                .Where(entry => entry.TaskId is not null)
+                .GroupBy(entry => new { entry.ProjectId, entry.TaskId })
+                .Any(group => group.Count() > 1))
+            {
+                return Results.BadRequest(new { message = "同じタスクの実績は1件にまとめてください。" });
+            }
+            if (request.Entries.GroupBy(entry => entry.Id).Any(group => group.Count() > 1))
+            {
+                return Results.BadRequest(new { message = "日報内でタスク実績IDが重複しています。" });
             }
             try
             {

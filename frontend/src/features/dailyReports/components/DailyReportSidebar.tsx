@@ -2,7 +2,7 @@ import { MarkdownPreview } from "../../../components/common/MarkdownPreview";
 import type { AuthUser } from "../../../data/authRepository";
 import type { ScheduleSnapshot } from "../../../data/scheduleRepository";
 import type { DailyReport } from "../../../types/schedule";
-import { getDailyReportProjectActuals } from "../model/dailyReports";
+import { getDailyReportProjectActuals, getDailyReportTask } from "../model/dailyReports";
 
 import * as styles from "./DailyReportPage.css";
 
@@ -15,7 +15,7 @@ type DailyReportSidebarProps = {
   schedules: ScheduleSnapshot[];
 };
 
-/** 案件実績への反映見込みと、提出済み日報へのコメントを表示します。 */
+/** タスク実績への反映見込みと、提出済み日報へのコメントを表示します。 */
 export function DailyReportSidebar({
   comment,
   currentUser,
@@ -28,21 +28,28 @@ export function DailyReportSidebar({
   return (
     <aside className={styles.editorSide}>
       <section className={styles.actualSummary}>
-        <strong>案件実績への反映</strong>
-        {[...actuals.totals].map(([projectId, hours]) => (
-          <div key={projectId}>
-            <span>
-              {schedules.find((schedule) => schedule.project.id === projectId)?.project.workspace ??
-                projectId}
-            </span>
-            <b>
-              {hours}h
-              {actuals.plans.get(projectId) ? ` / 予定${actuals.plans.get(projectId)}h` : ""}
-            </b>
-          </div>
-        ))}
+        <strong>タスクへの反映</strong>
+        {report.entries.map((entry) => {
+          const task = getDailyReportTask(entry, schedules);
+          return (
+            <div key={entry.id}>
+              <span>{task?.title ?? "タスク未選択"}</span>
+              <b>
+                {entry.progress ?? task?.progress ?? 0}% / {entry.hours}h
+              </b>
+            </div>
+          );
+        })}
+        {report.entries.length === 0 ? (
+          <span className={styles.empty}>反映するタスクはありません。</span>
+        ) : null}
+        <div>
+          <span>案件別合計</span>
+          <b>{[...actuals.totals.values()].reduce((sum, hours) => sum + hours, 0)}h</b>
+        </div>
+        <span className={styles.actualHint}>提出すると進捗と作業内容がタスクへ記録されます。</span>
         {actuals.exceeded ? (
-          <span className={styles.actualWarning}>予定工数を超過している明細があります。</span>
+          <span className={styles.actualWarning}>予定工数を超過しているタスクがあります。</span>
         ) : null}
       </section>
       <section className={styles.comments}>

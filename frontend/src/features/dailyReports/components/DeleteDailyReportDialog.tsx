@@ -42,8 +42,8 @@ export function DeleteDailyReportDialog({
         <section>
           <ExclamationTriangleIcon />
           <div>
-            <strong>案件実績も同時に取り消されます</strong>
-            <p>日報に紐づく作業時間とコメントは元に戻せません。</p>
+            <strong>タスク実績も同時に取り消されます</strong>
+            <p>日報に紐づく進捗、作業時間、タスクコメントを提出前の状態へ戻します。</p>
           </div>
         </section>
         <footer>
