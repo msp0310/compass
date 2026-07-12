@@ -54,7 +54,7 @@ export function PortfolioSummary({
       />
       <SummaryCard
         detail={nextMilestone?.project.workspace ?? "予定中のマイルストーンなし"}
-        label="次の節目"
+        label="次のマイルストーン"
         value={nextMilestone ? formatShortDate(nextMilestone.milestone.start) : "-"}
       />
     </div>

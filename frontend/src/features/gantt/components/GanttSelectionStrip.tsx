@@ -23,7 +23,7 @@ type GanttSelectionStripProps = {
 };
 
 const taskTypeLabels: Record<ScheduleTask["type"], string> = {
-  milestone: "節目",
+  milestone: "マイルストーン",
   phase: "フェーズ",
   summary: "案件",
   task: "タスク",

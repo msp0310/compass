@@ -28,12 +28,12 @@ DBでは `text` として保存し、API / migration で制約する。
 
 ## task_type
 
-| Value     | Label          | Description                |
-| --------- | -------------- | -------------------------- |
-| phase     | フェーズ       | 大工程                     |
-| summary   | サマリー       | 中間階層                   |
-| task      | 作業           | 実作業                     |
-| milestone | マイルストーン | 節目。開始日と終了日は同日 |
+| Value     | Label          | Description                          |
+| --------- | -------------- | ------------------------------------ |
+| phase     | フェーズ       | 大工程                               |
+| summary   | サマリー       | 中間階層                             |
+| task      | 作業           | 実作業                               |
+| milestone | マイルストーン | マイルストーン。開始日と終了日は同日 |
 
 ## task_status
 

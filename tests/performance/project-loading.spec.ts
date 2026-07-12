@@ -19,7 +19,7 @@ function createSummaries(count: number): ProjectSummary[] {
       lifecycleStatus: "inProgress" as const,
       memberIds: [],
       name: `案件${index}`,
-      nextMilestone: { date: "2026-06-30", title: "節目" },
+      nextMilestone: { date: "2026-06-30", title: "マイルストーン" },
       rangeEnd: "2026-12-31",
       rangeStart: "2026-01-01",
       status: "active" as const,

@@ -103,23 +103,23 @@
 
 案件 / プロジェクト。チーム未所属を許可する。
 
-| Column               | Type | Null | Key | Default  | Description                    |
-| -------------------- | ---- | :--: | --- | -------- | ------------------------------ |
-| id                   | text |  NO  | PK  |          | プロジェクトID                 |
-| team_id              | text | YES  | FK  |          | 所属チーム。未所属の場合はNULL |
-| calendar_id          | text |  NO  | FK  |          | 使用カレンダー                 |
-| name                 | text |  NO  |     |          | 案件名 / プロジェクト名        |
-| workspace_name       | text |  NO  |     |          | 画面上の管理単位名             |
-| client_name          | text | YES  |     |          | 顧客名                         |
-| lifecycle_status     | text |  NO  |     | planning | `project_lifecycle_status`     |
-| range_start          | text |  NO  |     |          | 表示範囲開始日 YYYY-MM-DD      |
-| range_end            | text |  NO  |     |          | 表示範囲終了日 YYYY-MM-DD      |
-| next_milestone_title | text | YES  |     |          | 次の節目名                     |
-| next_milestone_date  | text | YES  |     |          | 次の節目日 YYYY-MM-DD          |
-| description          | text |  NO  |     | ''       | 説明                           |
-| archived_at          | text | YES  |     |          | アーカイブ日時                 |
-| created_at           | text |  NO  |     |          | 作成日時                       |
-| updated_at           | text |  NO  |     |          | 更新日時                       |
+| Column               | Type | Null | Key | Default  | Description                     |
+| -------------------- | ---- | :--: | --- | -------- | ------------------------------- |
+| id                   | text |  NO  | PK  |          | プロジェクトID                  |
+| team_id              | text | YES  | FK  |          | 所属チーム。未所属の場合はNULL  |
+| calendar_id          | text |  NO  | FK  |          | 使用カレンダー                  |
+| name                 | text |  NO  |     |          | 案件名 / プロジェクト名         |
+| workspace_name       | text |  NO  |     |          | 画面上の管理単位名              |
+| client_name          | text | YES  |     |          | 顧客名                          |
+| lifecycle_status     | text |  NO  |     | planning | `project_lifecycle_status`      |
+| range_start          | text |  NO  |     |          | 表示範囲開始日 YYYY-MM-DD       |
+| range_end            | text |  NO  |     |          | 表示範囲終了日 YYYY-MM-DD       |
+| next_milestone_title | text | YES  |     |          | 次のマイルストーン名            |
+| next_milestone_date  | text | YES  |     |          | 次のマイルストーン日 YYYY-MM-DD |
+| description          | text |  NO  |     | ''       | 説明                            |
+| archived_at          | text | YES  |     |          | アーカイブ日時                  |
+| created_at           | text |  NO  |     |          | 作成日時                        |
+| updated_at           | text |  NO  |     |          | 更新日時                        |
 
 ### Notes
 

@@ -114,9 +114,9 @@ export const tourScenarios: Record<TourId, TourScenario> = {
         title: "日程と担当を調整する",
       },
       {
-        body: "節目となるレビュー、テスト開始、リリース判定をマイルストーンとして管理します。",
+        body: "レビュー、テスト開始、リリース判定をマイルストーンとして管理します。",
         selector: '[data-tour="nav-Milestones"]',
-        title: "節目を管理する",
+        title: "マイルストーンを管理する",
       },
       {
         body: "週ごとの計画対実績、担当者別の作業、完了件数、未解消課題を確認します。",
