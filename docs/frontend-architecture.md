@@ -98,6 +98,15 @@ Oxlintの`no-restricted-imports`を層ごとに設定し、`npm run check`で依
 - `CalendarSidebar`: 選択日、稼働曜日、休日マスターを編集する
 - `calendarView`: 日別イベント、表示優先度、フォーカス対象を純粋関数で提供する
 
+## 案件概要の責務境界
+
+- `SummaryStrip`: 主要指標と各ダッシュボードパネルの構成だけを行う
+- `projectSummary`: 工程、リスク、負荷、工数、基準計画を純粋関数で集計する
+- `StatusSummaryCards`: 案件全体の主要指標を表示する
+- `TaskProgressPanels`: 工程別進捗と要確認タスクを表示する
+- `HealthPanel`: 健全性スコアと修正導線を段階表示する
+- `MilestoneLoadPanels`: 直近マイルストーンとチーム負荷を表示する
+
 ## 管理設定の責務境界
 
 - `MasterSettingsPage`: 設定カテゴリと編集中チームの選択だけを管理する
