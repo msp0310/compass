@@ -73,6 +73,8 @@ function csrfHeaders(session: AuthSession) {
   return { "X-CSRF-Token": session.csrfToken };
 }
 
+const externalApiHeaders = { "X-Mirai-Api-Key": "mirai-local-external-api-key" };
+
 test("認証が必要なAPIは未認証リクエストを401で拒否する", async ({ request }) => {
   const response = await request.get("/api/workspace/summary");
 
@@ -85,6 +87,88 @@ test("不正なログイン情報ではセッションを発行しない", async
   });
 
   expect(response.status()).toBe(401);
+});
+
+test("外部APIはAPIキーなしのリクエストを401で拒否する", async ({ request }) => {
+  const response = await request.get("/api/external/v1/projects");
+
+  expect(response.status()).toBe(401);
+});
+
+test("外部APIは軽量案件一覧とバージョン付きタスクを返す", async ({ request }) => {
+  const infoResponse = await request.get("/api/external/v1/", { headers: externalApiHeaders });
+  expect(infoResponse.ok()).toBe(true);
+  const info = (await infoResponse.json()) as { apiVersion: string; scopes: string[] };
+  expect(info.apiVersion).toBe("v1");
+  expect(info.scopes).toContain("tasks:read");
+
+  const projectResponse = await request.get("/api/external/v1/projects?limit=1", {
+    headers: externalApiHeaders,
+  });
+  expect(projectResponse.ok()).toBe(true);
+  const projects = (await projectResponse.json()) as {
+    items: { id: string; projectNo: string | null; taskCount: number; version: number }[];
+    limit: number;
+    total: number;
+  };
+  expect(projects.limit).toBe(1);
+  expect(projects.total).toBeGreaterThan(0);
+  expect(projects.items).toHaveLength(1);
+  expect(projects.items[0]).not.toHaveProperty("tasks");
+
+  const projectId = projects.items[0]?.id;
+  expect(projectId).toBeTruthy();
+  const tasksResponse = await request.get(`/api/external/v1/projects/${projectId}/tasks`, {
+    headers: externalApiHeaders,
+  });
+  expect(tasksResponse.ok()).toBe(true);
+  const currentEtag = tasksResponse.headers().etag;
+  expect(currentEtag).toMatch(/^"project-\d+"$/);
+  const taskList = (await tasksResponse.json()) as {
+    items: {
+      actualEnd: string | null;
+      actualStart: string | null;
+      id: string;
+      progress: number;
+      status: string;
+      type: string;
+    }[];
+    projectId: string;
+    version: number;
+  };
+  expect(taskList.projectId).toBe(projectId);
+  expect(taskList.version).toBeGreaterThan(0);
+
+  const unsafeSaveResponse = await request.put(`/api/external/v1/projects/${projectId}/tasks`, {
+    data: { tasks: taskList.items, changeReason: "連携テスト" },
+    headers: externalApiHeaders,
+  });
+  expect(unsafeSaveResponse.status()).toBe(428);
+
+  const targetTask = taskList.items.find((task) => task.type === "task");
+  expect(targetTask).toBeTruthy();
+  const actualResponse = await request.patch(
+    `/api/external/v1/projects/${projectId}/tasks/${targetTask?.id}/actual`,
+    {
+      data: {
+        actualEnd: targetTask?.actualEnd ?? null,
+        actualStart: targetTask?.actualStart ?? null,
+        progress: targetTask?.progress,
+        status: targetTask?.status,
+      },
+      headers: { ...externalApiHeaders, "If-Match": currentEtag },
+    },
+  );
+  expect(actualResponse.ok()).toBe(true);
+  expect(actualResponse.headers().etag).toBe(`"project-${taskList.version + 1}"`);
+  const actual = (await actualResponse.json()) as {
+    projectId: string;
+    task: { id: string };
+    version: number;
+  };
+  expect(actual.projectId).toBe(projectId);
+  expect(actual.task.id).toBe(targetTask?.id);
+  expect(actual.version).toBe(taskList.version + 1);
 });
 
 test("認証後に軽量案件サマリーAPIを取得できる", async ({ request }) => {

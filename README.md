@@ -161,6 +161,8 @@ npm run dev -- --port 5174
 
 [http://127.0.0.1:5174/](http://127.0.0.1:5174/) を開きます。Viteの`/api`プロキシは`http://127.0.0.1:5080`へ接続します。
 
+社内システムや将来のMCPサーバーから連携する場合は、[外部データ連携REST API](docs/external-rest-api.md)を参照してください。
+
 ```bash
 # API health check
 curl http://127.0.0.1:5080/api/health

@@ -1,13 +1,14 @@
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.EntityFrameworkCore;
-using Schedule.Api.Application;
-using Schedule.Api.Endpoints;
-using Schedule.Api.Infrastructure;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.ResponseCompression;
+using Schedule.Api.Application;
+using Schedule.Api.Endpoints;
+using Schedule.Api.ExternalApi;
+using Schedule.Api.Infrastructure;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.RateLimiting;
-using System.Security.Cryptography;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,11 +19,23 @@ builder.Services.AddProblemDetails();
 builder.Services.AddRateLimiter(options =>
 {
     var loginPermitLimit = builder.Environment.IsDevelopment() ? 1000 : 5;
+    var externalPermitLimit = Math.Clamp(
+        builder.Configuration.GetValue<int?>("ExternalApi:PermitLimitPerMinute") ?? 120,
+        1,
+        10_000);
     options.AddPolicy("login", context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions
         {
             PermitLimit = loginPermitLimit,
+            QueueLimit = 0,
+            Window = TimeSpan.FromMinutes(1)
+        }));
+    options.AddPolicy("external-api", context => RateLimitPartition.GetFixedWindowLimiter(
+        CreateExternalRateLimitKey(context),
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = externalPermitLimit,
             QueueLimit = 0,
             Window = TimeSpan.FromMinutes(1)
         }));
@@ -67,6 +80,13 @@ builder.Services.AddScoped<AdministrationService>();
 builder.Services.AddScoped<ScheduleService>();
 builder.Services.AddScoped<AttachmentService>();
 builder.Services.AddScoped<DailyReportService>();
+builder.Services.AddOptions<ExternalApiOptions>()
+    .BindConfiguration(ExternalApiOptions.SectionName)
+    .Validate(
+        options => !options.Enabled || IsValidExternalApiConfiguration(options),
+        "ExternalApiのクライアント設定が不正です。")
+    .ValidateOnStart();
+builder.Services.AddSingleton<ExternalApiAuthenticator>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.Configure<FormOptions>(options =>
 {
@@ -102,6 +122,7 @@ if (app.Environment.IsDevelopment())
 app.UseCors("frontend");
 app.UseRateLimiter();
 app.UseResponseCompression();
+app.UseMiddleware<ExternalApiAuthenticationMiddleware>();
 app.Use(async (context, next) =>
 {
     context.Response.OnStarting(() =>
@@ -166,6 +187,7 @@ app.MapAuthEndpoints();
 app.MapScheduleEndpoints();
 app.MapDailyReportEndpoints();
 app.MapAdministrationEndpoints();
+app.MapExternalApiEndpoints();
 // TanStack Routerの直接アクセスでも、Viteで生成したSPAの入口を返します。
 app.MapFallbackToFile("index.html");
 
@@ -212,7 +234,42 @@ static bool RequiresAuthentication(HttpRequest request)
         return false;
     }
 
+    if (request.Path.StartsWithSegments(ExternalApiAuthenticationMiddleware.RoutePrefix))
+    {
+        return false;
+    }
+
     return true;
+}
+
+static string CreateExternalRateLimitKey(HttpContext context)
+{
+    var key = context.Request.Headers[ExternalApiAuthenticator.HeaderName].ToString();
+    if (string.IsNullOrWhiteSpace(key))
+    {
+        return $"ip:{context.Connection.RemoteIpAddress}";
+    }
+    var hash = SHA256.HashData(Encoding.UTF8.GetBytes(key));
+    return $"key:{Convert.ToHexString(hash.AsSpan(0, 8))}";
+}
+
+static bool IsValidExternalApiConfiguration(ExternalApiOptions options)
+{
+    if (options.Clients.Count == 0)
+    {
+        return false;
+    }
+
+    var uniqueClientCount = options.Clients
+        .Select(client => client.Id)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .Count();
+    return uniqueClientCount == options.Clients.Count && options.Clients.All(client =>
+        !string.IsNullOrWhiteSpace(client.Id) &&
+        !string.IsNullOrWhiteSpace(client.Name) &&
+        client.KeyHash.Length == 64 &&
+        client.KeyHash.All(Uri.IsHexDigit) &&
+        client.Scopes.Count > 0);
 }
 
 /// <summary>APIの予期しない例外を構造化ログへ記録します。</summary>
