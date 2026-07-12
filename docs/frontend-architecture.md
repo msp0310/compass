@@ -124,6 +124,17 @@ APIアクセスは専用Hookに閉じ込め、表示コンポーネントからr
 repository呼び出しはController Hookだけが行い、編集コンポーネントはdraftと名前付き操作だけを受け取ります。
 純粋モデルはrepository型に依存せず、必要最小限の構造型でテストできる状態を保ちます。
 
+## 作業ログの責務境界
+
+- `WorkLogPanel`: 一覧、詳細、編集画面の表示切り替えだけを行う
+- `useWorkLogController`: 検索条件、選択ログ、編集draft、作成・更新・削除を管理する
+- `WorkLogListView`: 集計、検索、フィルター、作業ログ表を表示する
+- `WorkLogDetailPage`: Markdown本文、関連タスク・課題、添付を表示する
+- `WorkLogEditorPage`: 基本情報、Markdown本文、関連先を編集する
+- `workLogs`: 検索、集計、draft生成・正規化、表示形式を純粋関数として提供する
+
+作業ログfeatureは親から受け取る更新操作だけを呼び出し、添付I/Oは共通`AttachmentPanel`へ委譲します。
+
 ## 現在の技術的債務
 
 | 優先度 | 債務                                            | 影響                             | 対応方針                                                    |
