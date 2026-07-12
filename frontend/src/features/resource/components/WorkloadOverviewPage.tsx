@@ -1,29 +1,21 @@
-import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
-import { type CSSProperties, type ReactNode, useMemo, useState } from "react";
+import { useState } from "react";
 
-import { Avatar } from "../../../components/ui/Avatar";
 import type { ScheduleSnapshot } from "../../../data/scheduleRepository";
-import { isMemberActive } from "../../../lib/members";
-import { buildCrossProjectResourceRows } from "../../../lib/resourceCalculations";
-import { buildTimeline, buildWeekColumns } from "../../../lib/schedule";
 import type {
   CalendarDefinition,
-  Member,
   ProjectAssignment,
   StaffingDemand,
   Team,
 } from "../../../types/schedule";
-import {
-  AssignmentEditor,
-  type AssignmentEditorState,
-  DemandEditor,
-  type DemandEditorState,
-} from "./StaffingEditors";
-import {
-  MemberCapacityGrid,
-  TeamCapacityGrid,
-  aggregateTeamCapacityCell,
-} from "./WorkloadCapacityGrid";
+import { useStaffingEditors } from "../hooks/useStaffingEditors";
+import { useWorkloadOverviewModel } from "../hooks/useWorkloadOverviewModel";
+import type { CapacityFilter, ViewMode } from "../model/workloadPlanning";
+import { AssignmentEditor, DemandEditor } from "./StaffingEditors";
+import { StaffingPlanView } from "./StaffingPlanView";
+import { MemberCapacityGrid, TeamCapacityGrid } from "./WorkloadCapacityGrid";
+import { WorkloadOverviewControls } from "./WorkloadOverviewControls";
+import { WorkloadOverviewHeader } from "./WorkloadOverviewHeader";
+import { WorkloadSummary } from "./WorkloadSummary";
 
 import * as styles from "./WorkloadOverviewPage.css";
 
@@ -42,15 +34,7 @@ type WorkloadOverviewPageProps = {
   todayKey: string;
 };
 
-type ViewMode = "plan" | "member" | "team";
-type CapacityFilter = "all" | "overloaded" | "available";
-type AssignmentWithProject = ProjectAssignment & { projectId: string; projectName: string };
-type OpenDemandWithProject = {
-  demand: StaffingDemand;
-  projectId: string;
-  projectName: string;
-};
-/** 全案件をメンバーまたはチーム単位で横断して、週次負荷を比較します。 */
+/** 全案件を人・チーム・アサイン計画の三つの軸で比較するページです。 */
 export function WorkloadOverviewPage({
   calendar,
   calendarAware,
@@ -65,908 +49,98 @@ export function WorkloadOverviewPage({
   const [teamId, setTeamId] = useState("all");
   const [capacityFilter, setCapacityFilter] = useState<CapacityFilter>("all");
   const [periodOffset, setPeriodOffset] = useState(0);
-  const [editorState, setEditorState] = useState<AssignmentEditorState | null>(null);
-  const [demandEditorState, setDemandEditorState] = useState<DemandEditorState | null>(null);
-  const activeSchedules = useMemo(
-    () => schedules.filter((snapshot) => snapshot.project.status !== "archived"),
-    [schedules],
-  );
-  const members = useMemo(() => collectMembers(activeSchedules), [activeSchedules]);
-  const currentMonth = `${todayKey.slice(0, 7)}-01`;
-  const periodStart = addDateMonths(currentMonth, periodOffset * 12);
-  const periodEnd = addDateDays(addDateMonths(periodStart, 12), -1)!;
-  const weeks = useMemo(
-    () => buildWeekColumns(buildTimeline(periodStart, periodEnd, calendar, calendarAware, "day")),
-    [calendar, calendarAware, periodEnd, periodStart],
-  );
-  const visibleWeeks = weeks;
-  const scopedSchedules = useMemo(
-    () =>
-      teamId === "all"
-        ? activeSchedules
-        : activeSchedules.filter((item) => item.project.teamId === teamId),
-    [activeSchedules, teamId],
-  );
-  const scopedMembers = useMemo(
-    () =>
-      getScopedMembers(
-        members,
-        scopedSchedules,
-        teams.find((team) => team.id === teamId),
-      ),
-    [members, scopedSchedules, teamId, teams],
-  );
-  const memberRows = useMemo(
-    () =>
-      buildCrossProjectResourceRows({
-        baseCalendar: calendar,
-        calendarAware,
-        members: scopedMembers,
-        schedules: scopedSchedules,
-        weeks: visibleWeeks,
-      }),
-    [calendar, calendarAware, scopedMembers, scopedSchedules, visibleWeeks],
-  );
-  const projectAssignments = useMemo(
-    () =>
-      scopedSchedules.flatMap((snapshot) =>
-        getProjectAssignments(snapshot, members).map((assignment) => ({
-          ...assignment,
-          projectId: snapshot.project.id,
-          projectName: snapshot.project.workspace,
-        })),
-      ),
-    [members, scopedSchedules],
-  );
-  const openDemands = useMemo(
-    () =>
-      scopedSchedules.flatMap((snapshot) =>
-        (snapshot.project.staffingDemands ?? [])
-          .filter((demand) => demand.status === "open")
-          .map((demand) => ({
-            demand,
-            projectId: snapshot.project.id,
-            projectName: snapshot.project.workspace,
-          })),
-      ),
-    [scopedSchedules],
-  );
-  const teamRows = useMemo(
-    () =>
-      teams.map((team) => {
-        const teamSchedules = activeSchedules.filter((item) => item.project.teamId === team.id);
-        const teamMembers = getScopedMembers(members, teamSchedules, team);
-        const rows = buildCrossProjectResourceRows({
-          baseCalendar: calendar,
-          calendarAware,
-          members: teamMembers,
-          schedules: teamSchedules,
-          weeks: visibleWeeks,
-        });
-        return { rows, team, projectCount: teamSchedules.length };
-      }),
-    [activeSchedules, calendar, calendarAware, members, teams, visibleWeeks],
-  );
-  const overloadedCount =
-    mode !== "team"
-      ? memberRows.filter((row) => row.cells.some((cell) => cell.percent >= 100)).length
-      : teamRows.filter((item) =>
-          visibleWeeks.some(
-            (week, index) => aggregateTeamCapacityCell(item.rows, index, week.key).percent >= 100,
-          ),
-        ).length;
-  const availableCount =
-    mode !== "team"
-      ? memberRows.filter((row) => row.cells.every((cell) => cell.percent < 70)).length
-      : teamRows.filter((item) =>
-          visibleWeeks.every(
-            (week, index) => aggregateTeamCapacityCell(item.rows, index, week.key).percent < 70,
-          ),
-        ).length;
-  const unassignedCount = scopedSchedules.reduce(
-    (count, snapshot) =>
-      count +
-      snapshot.tasks.filter((task) => task.type === "task" && task.assigneeIds.length === 0).length,
-    0,
-  );
-  const peakLoad = Math.max(
-    0,
-    ...(mode === "team"
-      ? teamRows.flatMap((item) =>
-          visibleWeeks.map(
-            (week, index) => aggregateTeamCapacityCell(item.rows, index, week.key).percent,
-          ),
-        )
-      : memberRows.flatMap((row) => row.cells.map((cell) => cell.percent))),
-  );
-  const filteredMemberRows = memberRows.filter((row) =>
-    matchesCapacityFilter(
-      row.cells.map((cell) => cell.percent),
-      capacityFilter,
-    ),
-  );
-  const filteredTeamRows = teamRows.filter((item) =>
-    matchesCapacityFilter(
-      visibleWeeks.map(
-        (week, index) => aggregateTeamCapacityCell(item.rows, index, week.key).percent,
-      ),
-      capacityFilter,
-    ),
-  );
-
-  function openNewAssignment(
-    projectId = scopedSchedules[0]?.project.id,
-    demand?: StaffingDemand,
-    memberId?: string,
-  ) {
-    const project = scopedSchedules.find((item) => item.project.id === projectId)?.project;
-    const member = scopedMembers.find((item) => item.id === memberId) ?? scopedMembers[0];
-    if (!project || !member) {
-      return;
-    }
-    setEditorState({
-      assignment: {
-        allocationPercent: demand?.allocationPercent ?? 50,
-        endDate: demand?.endDate ?? project.rangeEnd,
-        id: `assignment-${project.id}-${Date.now()}`,
-        memberId: member.id,
-        role: demand?.role ?? member.role,
-        startDate: demand?.startDate ?? project.rangeStart,
-        status: "draft",
-      },
-      demandId: demand?.id,
-      projectId: project.id,
-    });
-  }
-
-  function saveAssignment(state: AssignmentEditorState) {
-    const snapshot = activeSchedules.find((item) => item.project.id === state.projectId);
-    if (!snapshot) {
-      return;
-    }
-    const assignments = getProjectAssignments(snapshot, members);
-    const exists = assignments.some((item) => item.id === state.assignment.id);
-    const nextAssignments = exists
-      ? assignments.map((item) => (item.id === state.assignment.id ? state.assignment : item))
-      : [...assignments, state.assignment];
-    const nextDemands = (snapshot.project.staffingDemands ?? []).map((demand) =>
-      demand.id === state.demandId ? { ...demand, status: "filled" as const } : demand,
-    );
-    onUpdateProjectStaffing(state.projectId, nextAssignments, nextDemands);
-    setEditorState(null);
-  }
-
-  function deleteAssignment(state: AssignmentEditorState) {
-    const snapshot = activeSchedules.find((item) => item.project.id === state.projectId);
-    if (!snapshot) {
-      return;
-    }
-    onUpdateProjectStaffing(
-      state.projectId,
-      getProjectAssignments(snapshot, members).filter((item) => item.id !== state.assignment.id),
-      snapshot.project.staffingDemands ?? [],
-    );
-    setEditorState(null);
-  }
-
-  function openNewDemand() {
-    const project = scopedSchedules[0]?.project;
-    if (!project) {
-      return;
-    }
-    setDemandEditorState({
-      demand: {
-        allocationPercent: 50,
-        endDate: project.rangeEnd,
-        id: `demand-${project.id}-${Date.now()}`,
-        requiredCount: 1,
-        role: "BE",
-        startDate: project.rangeStart,
-        status: "open",
-      },
-      projectId: project.id,
-    });
-  }
-
-  function saveDemand(state: DemandEditorState) {
-    const snapshot = activeSchedules.find((item) => item.project.id === state.projectId);
-    if (!snapshot) {
-      return;
-    }
-    const demands = snapshot.project.staffingDemands ?? [];
-    const exists = demands.some((item) => item.id === state.demand.id);
-    onUpdateProjectStaffing(
-      state.projectId,
-      getProjectAssignments(snapshot, members),
-      exists
-        ? demands.map((item) => (item.id === state.demand.id ? state.demand : item))
-        : [...demands, state.demand],
-    );
-    setDemandEditorState(null);
-  }
+  const model = useWorkloadOverviewModel({
+    calendar,
+    calendarAware,
+    capacityFilter,
+    mode,
+    periodOffset,
+    schedules,
+    teamId,
+    teams,
+    todayKey,
+  });
+  const editors = useStaffingEditors({
+    activeSchedules: model.activeSchedules,
+    members: model.members,
+    onUpdateProjectStaffing,
+    scopedMembers: model.scopedMembers,
+    scopedSchedules: model.scopedSchedules,
+  });
 
   return (
     <section className={styles.page} aria-label="チーム分析・要員計画">
-      <header className={styles.header}>
-        <div>
-          <h2 className={styles.heading}>チーム分析・要員計画</h2>
-          <span className={styles.description}>
-            全案件の稼働を確認し、必要な要員とアサインを週単位で計画
-          </span>
-        </div>
-        <div className={styles.segmented} aria-label="チーム分析・要員計画の表示軸">
-          <button
-            className={`${styles.segment} ${mode === "plan" ? styles.segmentActive : ""}`}
-            onClick={() => setMode("plan")}
-            type="button"
-          >
-            アサイン計画
-          </button>
-          <button
-            className={`${styles.segment} ${mode === "member" ? styles.segmentActive : ""}`}
-            onClick={() => setMode("member")}
-            type="button"
-          >
-            人別
-          </button>
-          <button
-            className={`${styles.segment} ${mode === "team" ? styles.segmentActive : ""}`}
-            onClick={() => setMode("team")}
-            type="button"
-          >
-            チーム別
-          </button>
-        </div>
-      </header>
-
-      <div className={styles.summary}>
-        <Summary
-          label={mode === "team" ? "表示チーム" : "表示メンバー"}
-          value={mode === "team" ? `${teamRows.length}チーム` : `${memberRows.length}名`}
-        />
-        <Summary
-          label="稼働超過"
-          value={`${overloadedCount}${mode === "team" ? "チーム" : "名"}`}
-          detail={`最大 ${peakLoad}%`}
-        />
-        <Summary label="余力あり" value={`${availableCount}${mode === "team" ? "チーム" : "名"}`} />
-        <Summary
-          label={mode === "plan" ? "未充足要員" : "未アサインタスク"}
-          value={`${mode === "plan" ? openDemands.length : unassignedCount}件`}
-        />
-      </div>
-
-      <div className={styles.controls}>
-        <div className={styles.filterControls}>
-          {mode !== "team" ? (
-            <select
-              className={styles.select}
-              aria-label="表示チーム"
-              onChange={(event) => setTeamId(event.target.value)}
-              value={teamId}
-            >
-              <option value="all">すべてのチーム</option>
-              {teams.map((team) => (
-                <option key={team.id} value={team.id}>
-                  {team.name}
-                </option>
-              ))}
-            </select>
-          ) : null}
-          {mode !== "plan" ? (
-            <select
-              aria-label="負荷状態"
-              className={styles.capacitySelect}
-              onChange={(event) => setCapacityFilter(event.target.value as CapacityFilter)}
-              value={capacityFilter}
-            >
-              <option value="all">すべての負荷</option>
-              <option value="overloaded">過負荷のみ</option>
-              <option value="available">余力ありのみ</option>
-            </select>
-          ) : null}
-        </div>
-        <div className={styles.timelineControls}>
-          <div className={styles.pager} aria-label="表示期間の切り替え">
-            <button
-              aria-label="前の期間"
-              className={styles.pagerButton}
-              onClick={() => setPeriodOffset((current) => current - 1)}
-              type="button"
-            >
-              <ChevronLeftIcon className={styles.pagerIcon} />
-            </button>
-            <span className={styles.period}>{formatYearPeriod(periodStart, periodEnd)}</span>
-            <button
-              aria-label="次の期間"
-              className={styles.pagerButton}
-              onClick={() => setPeriodOffset((current) => current + 1)}
-              type="button"
-            >
-              <ChevronRightIcon className={styles.pagerIcon} />
-            </button>
-          </div>
-        </div>
-      </div>
+      <WorkloadOverviewHeader mode={mode} onModeChange={setMode} />
+      <WorkloadSummary
+        availableCount={model.summary.availableCount}
+        memberCount={model.memberRows.length}
+        mode={mode}
+        openDemandCount={model.openDemands.length}
+        overloadedCount={model.summary.overloadedCount}
+        peakLoad={model.summary.peakLoad}
+        teamCount={model.teamRows.length}
+        unassignedCount={model.summary.unassignedCount}
+      />
+      <WorkloadOverviewControls
+        capacityFilter={capacityFilter}
+        mode={mode}
+        onCapacityFilterChange={setCapacityFilter}
+        onNextPeriod={() => setPeriodOffset((current) => current + 1)}
+        onPreviousPeriod={() => setPeriodOffset((current) => current - 1)}
+        onTeamChange={setTeamId}
+        periodEnd={model.periodEnd}
+        periodStart={model.periodStart}
+        teamId={teamId}
+        teams={teams}
+      />
 
       {mode === "plan" ? (
-        <>
-          <div className={styles.planActions}>
-            <button
-              className={styles.primaryAction}
-              onClick={() => openNewAssignment()}
-              type="button"
-            >
-              アサイン追加
-            </button>
-            <button className={styles.secondaryAction} onClick={openNewDemand} type="button">
-              要員要求追加
-            </button>
-          </div>
-          <StaffingDecisionPanel
-            assignments={projectAssignments}
-            demands={openDemands}
-            members={scopedMembers}
-            onAssignDemand={(item) => openNewAssignment(item.projectId, item.demand)}
-            onAssignMember={(memberId) => openNewAssignment(undefined, undefined, memberId)}
-            weeks={visibleWeeks}
-          />
-          <div className={styles.demandBand}>
-            <span className={styles.demandHeading}>未充足の要員要求</span>
-            <div className={styles.demands}>
-              {openDemands.map(({ demand, projectId, projectName }) => (
-                <button
-                  className={styles.demand}
-                  key={demand.id}
-                  onClick={() => openNewAssignment(projectId, demand)}
-                  type="button"
-                >
-                  <strong className={styles.demandTitle}>
-                    {projectName} / {demand.role} {demand.requiredCount}名
-                  </strong>
-                  <span className={styles.demandMeta}>
-                    {demand.startDate} - {demand.endDate} / {demand.allocationPercent}%
-                  </span>
-                </button>
-              ))}
-              {openDemands.length === 0 ? (
-                <span className={styles.description}>未充足の要員要求はありません。</span>
-              ) : null}
-            </div>
-          </div>
-          <StaffingShortageTimeline demands={openDemands} weeks={visibleWeeks} />
-          <AssignmentPlanBoard
-            assignments={projectAssignments}
-            members={scopedMembers}
-            onEdit={(assignment) => setEditorState({ assignment, projectId: assignment.projectId })}
-            weeks={visibleWeeks}
-          />
-        </>
+        <StaffingPlanView
+          assignments={model.projectAssignments}
+          demands={model.openDemands}
+          members={model.scopedMembers}
+          onAddAssignment={() => editors.openAssignment()}
+          onAddDemand={editors.openDemand}
+          onAssignDemand={(projectId, demand) => editors.openAssignment(projectId, demand)}
+          onAssignMember={(memberId) => editors.openAssignment(undefined, undefined, memberId)}
+          onEditAssignment={editors.editAssignment}
+          weeks={model.weeks}
+        />
       ) : mode === "member" ? (
         <MemberCapacityGrid
           onOpenProject={onOpenProject}
-          rows={filteredMemberRows}
+          rows={model.filteredMemberRows}
           todayKey={todayKey}
-          weeks={visibleWeeks}
+          weeks={model.weeks}
         />
       ) : (
         <TeamCapacityGrid
           onOpenProject={onOpenProject}
           onOpenTeam={onOpenTeam}
-          rows={filteredTeamRows}
+          rows={model.filteredTeamRows}
           todayKey={todayKey}
-          weeks={visibleWeeks}
+          weeks={model.weeks}
         />
       )}
-      {editorState ? (
+
+      {editors.assignmentEditor ? (
         <AssignmentEditor
-          members={members}
-          onClose={() => setEditorState(null)}
-          onDelete={() => deleteAssignment(editorState)}
-          onSave={saveAssignment}
-          projects={activeSchedules}
-          state={editorState}
+          members={model.members}
+          onClose={editors.closeAssignmentEditor}
+          onDelete={editors.deleteAssignment}
+          onSave={editors.saveAssignment}
+          projects={model.activeSchedules}
+          state={editors.assignmentEditor}
         />
       ) : null}
-      {demandEditorState ? (
+      {editors.demandEditor ? (
         <DemandEditor
-          onClose={() => setDemandEditorState(null)}
-          onSave={saveDemand}
-          projects={activeSchedules}
-          state={demandEditorState}
+          onClose={editors.closeDemandEditor}
+          onSave={editors.saveDemand}
+          projects={model.activeSchedules}
+          state={editors.demandEditor}
         />
       ) : null}
     </section>
   );
-}
-
-function StaffingDecisionPanel({
-  assignments,
-  demands,
-  members,
-  onAssignDemand,
-  onAssignMember,
-  weeks,
-}: {
-  assignments: AssignmentWithProject[];
-  demands: OpenDemandWithProject[];
-  members: Member[];
-  onAssignDemand: (item: OpenDemandWithProject) => void;
-  onAssignMember: (memberId: string) => void;
-  weeks: ReturnType<typeof buildWeekColumns>;
-}) {
-  const monthGroups = buildMonthGroups(weeks);
-  const overloaded = members
-    .flatMap((member) => {
-      const memberAssignments = assignments.filter((item) => item.memberId === member.id);
-      return monthGroups.map((month) => ({
-        allocation: getMonthlyAllocation(
-          memberAssignments,
-          weeks.slice(month.startIndex, month.startIndex + month.span),
-        ),
-        member,
-        month: month.label,
-      }));
-    })
-    .filter((item) => item.allocation > 100)
-    .toSorted((left, right) => right.allocation - left.allocation)
-    .slice(0, 5);
-  const available = members
-    .flatMap((member) => {
-      const memberAssignments = assignments.filter((item) => item.memberId === member.id);
-      const candidate = monthGroups
-        .map((month) => ({
-          allocation: getMonthlyAllocation(
-            memberAssignments,
-            weeks.slice(month.startIndex, month.startIndex + month.span),
-          ),
-          member,
-          month: month.label,
-        }))
-        .find((item) => item.allocation <= 50);
-      return candidate ? [candidate] : [];
-    })
-    .toSorted((left, right) => left.allocation - right.allocation)
-    .slice(0, 5);
-  const shortages = demands
-    .flatMap((item) =>
-      monthGroups
-        .filter((month) => {
-          const monthWeeks = weeks.slice(month.startIndex, month.startIndex + month.span);
-          const start = monthWeeks[0]?.start;
-          const end = addDateDays(monthWeeks.at(-1)?.start, 6);
-          return start && end && item.demand.startDate <= end && item.demand.endDate >= start;
-        })
-        .map((month) => ({ ...item, month: month.label })),
-    )
-    .slice(0, 5);
-
-  return (
-    <section className={styles.decisionPanel} aria-label="要員判断">
-      <DecisionColumn count={shortages.length} title="要員不足">
-        {shortages.map((item) => (
-          <button
-            className={styles.decisionAction}
-            key={`${item.demand.id}-${item.month}`}
-            onClick={() => onAssignDemand(item)}
-            type="button"
-          >
-            <strong className={styles.decisionTitle}>
-              {item.month} / {item.demand.role} {item.demand.requiredCount}名
-            </strong>
-            <span className={styles.decisionDetail}>{item.projectName}</span>
-          </button>
-        ))}
-        {shortages.length === 0 ? <span className={styles.decisionEmpty}>不足なし</span> : null}
-      </DecisionColumn>
-      <DecisionColumn count={overloaded.length} title="過負荷">
-        {overloaded.map((item) => (
-          <div className={styles.decisionItem} key={`${item.member.id}-${item.month}`}>
-            <strong className={styles.decisionTitle}>
-              {item.month} / {item.member.name}
-            </strong>
-            <span className={styles.decisionValue}>{item.allocation}%</span>
-          </div>
-        ))}
-        {overloaded.length === 0 ? <span className={styles.decisionEmpty}>過負荷なし</span> : null}
-      </DecisionColumn>
-      <DecisionColumn count={available.length} title="アサイン候補">
-        {available.map((item) => (
-          <button
-            className={styles.decisionAction}
-            key={`${item.member.id}-${item.month}`}
-            onClick={() => onAssignMember(item.member.id)}
-            type="button"
-          >
-            <strong className={styles.decisionTitle}>
-              {item.month} / {item.member.name}
-            </strong>
-            <span className={styles.decisionDetail}>稼働 {item.allocation}%</span>
-          </button>
-        ))}
-        {available.length === 0 ? <span className={styles.decisionEmpty}>候補なし</span> : null}
-      </DecisionColumn>
-    </section>
-  );
-}
-
-function DecisionColumn({
-  children,
-  count,
-  title,
-}: {
-  children: ReactNode;
-  count: number;
-  title: string;
-}) {
-  return (
-    <div className={styles.decisionColumn}>
-      <header className={styles.decisionHeader}>
-        <strong className={styles.decisionHeaderTitle}>{title}</strong>
-        <span className={styles.decisionHeaderCount}>{count}件</span>
-      </header>
-      <div className={styles.decisionList}>{children}</div>
-    </div>
-  );
-}
-
-function AssignmentPlanBoard({
-  assignments,
-  members,
-  onEdit,
-  weeks,
-}: {
-  assignments: AssignmentWithProject[];
-  members: Member[];
-  onEdit: (assignment: AssignmentWithProject) => void;
-  weeks: ReturnType<typeof buildWeekColumns>;
-}) {
-  const visibleStart = weeks[0]?.start;
-  const visibleEnd = addDateDays(weeks.at(-1)?.start, 6);
-  const monthGroups = buildMonthGroups(weeks);
-  const weekLabels = buildMonthWeekLabels(weeks);
-  const timelineMinWidth = Math.max(920, weeks.length * 40 + 220);
-  return (
-    <div className={styles.planBoard} aria-label="アサイン計画ボード">
-      <div style={{ minWidth: timelineMinWidth }}>
-        <div className={styles.planHeader}>
-          <div className={styles.planMemberHead}>メンバー / 参画案件</div>
-          <div className={styles.planWeeks} aria-label="月・週の時間軸">
-            <div
-              className={styles.planMonthRow}
-              style={{ gridTemplateColumns: `repeat(${weeks.length}, minmax(0, 1fr))` }}
-            >
-              {monthGroups.map((month) => (
-                <div
-                  className={styles.planMonth}
-                  key={month.key}
-                  style={{ gridColumn: `span ${month.span}` }}
-                >
-                  {month.label}
-                </div>
-              ))}
-            </div>
-            <div
-              className={styles.planWeekRow}
-              style={{ gridTemplateColumns: `repeat(${weeks.length}, minmax(0, 1fr))` }}
-            >
-              {weeks.map((week, index) => (
-                <div className={styles.planWeek} key={week.key}>
-                  {weekLabels[index]}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-        {members.map((member) => {
-          const memberAssignments = assignments.filter(
-            (assignment) =>
-              assignment.memberId === member.id &&
-              visibleStart &&
-              visibleEnd &&
-              assignment.endDate >= visibleStart &&
-              assignment.startDate <= visibleEnd,
-          );
-          return (
-            <div
-              className={styles.planRow}
-              key={member.id}
-              style={{ minHeight: Math.max(72, memberAssignments.length * 38 + 42) }}
-            >
-              <div className={styles.planMember}>
-                <Avatar member={member} />
-                <span className={styles.entityText}>
-                  <strong className={styles.entityName}>{member.name}</strong>
-                  <small className={styles.entityMeta}>{member.role}</small>
-                </span>
-              </div>
-              <div
-                className={styles.planTrack}
-                style={{ backgroundSize: `${100 / Math.max(weeks.length, 1)}% 100%` }}
-              >
-                <div
-                  className={styles.monthlyAllocationRow}
-                  aria-label={`${member.name}の月別アサイン率`}
-                  style={{ gridTemplateColumns: `repeat(${weeks.length}, minmax(0, 1fr))` }}
-                >
-                  {monthGroups.map((month) => {
-                    const allocation = getMonthlyAllocation(
-                      memberAssignments,
-                      weeks.slice(month.startIndex, month.startIndex + month.span),
-                    );
-                    return (
-                      <div
-                        className={`${styles.monthlyAllocation} ${getAllocationTone(allocation)}`}
-                        key={month.key}
-                        style={{ gridColumn: `span ${month.span}` }}
-                        title={`${month.label} ${allocation}%`}
-                      >
-                        {allocation}%
-                      </div>
-                    );
-                  })}
-                </div>
-                {memberAssignments.map((assignment, index) => {
-                  const position = getAssignmentPosition(assignment, visibleStart!, visibleEnd!);
-                  return (
-                    <button
-                      className={`${styles.assignmentBar} ${assignment.status === "draft" ? styles.assignmentDraft : ""}`}
-                      key={assignment.id}
-                      onClick={() => onEdit(assignment)}
-                      style={
-                        {
-                          "--assignment-color": getProjectColor(assignment.projectId),
-                          left: `${position.left}%`,
-                          top: 36 + index * 38,
-                          width: `${position.width}%`,
-                        } as CSSProperties
-                      }
-                      title={`${assignment.projectName} / ${assignment.role} / ${assignment.allocationPercent}%`}
-                      type="button"
-                    >
-                      <strong className={styles.assignmentName}>{assignment.projectName}</strong>
-                      <span className={styles.assignmentMeta}>
-                        {assignment.role} / {assignment.allocationPercent}%
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
-        {members.length === 0 ? (
-          <div className={styles.empty}>表示対象のメンバーがいません。</div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function StaffingShortageTimeline({
-  demands,
-  weeks,
-}: {
-  demands: OpenDemandWithProject[];
-  weeks: ReturnType<typeof buildWeekColumns>;
-}) {
-  const monthGroups = buildMonthGroups(weeks);
-  const timelineMinWidth = Math.max(920, weeks.length * 40 + 220);
-  return (
-    <div className={styles.shortageScroll} aria-label="月別の要員不足">
-      <div className={styles.shortageTimeline} style={{ minWidth: timelineMinWidth }}>
-        <div className={styles.shortageLabel}>要員不足見通し</div>
-        <div
-          className={styles.shortageMonths}
-          style={{ gridTemplateColumns: `repeat(${weeks.length}, minmax(0, 1fr))` }}
-        >
-          {monthGroups.map((month) => {
-            const roles = aggregateDemandRoles(
-              demands,
-              weeks.slice(month.startIndex, month.startIndex + month.span),
-            );
-            return (
-              <div
-                className={`${styles.shortageMonth} ${roles.length > 0 ? styles.shortageMonthActive : ""}`}
-                key={month.key}
-                style={{ gridColumn: `span ${month.span}` }}
-              >
-                <strong className={styles.shortageMonthTitle}>{month.label}</strong>
-                <span className={styles.shortageMonthDetail}>
-                  {roles.length > 0 ? roles.join(" / ") : "不足なし"}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Summary({ detail, label, value }: { detail?: string; label: string; value: string }) {
-  return (
-    <article className={styles.summaryItem}>
-      <span className={styles.summaryLabel}>{label}</span>
-      <strong className={styles.summaryValue}>{value}</strong>
-      {detail ? <small className={styles.summaryDetail}>{detail}</small> : null}
-    </article>
-  );
-}
-
-function matchesCapacityFilter(percentages: number[], filter: CapacityFilter) {
-  if (filter === "overloaded") {
-    return percentages.some((percent) => percent >= 100);
-  }
-  if (filter === "available") {
-    return percentages.every((percent) => percent < 70);
-  }
-  return true;
-}
-
-function collectMembers(schedules: ScheduleSnapshot[]): Member[] {
-  const members = new Map<string, Member>();
-  schedules.forEach((snapshot) =>
-    snapshot.members.forEach((member) => members.set(member.id, member)),
-  );
-  return [...members.values()].filter(isMemberActive);
-}
-
-function getScopedMembers(members: Member[], schedules: ScheduleSnapshot[], team?: Team): Member[] {
-  const assignedIds = new Set(
-    schedules.flatMap((snapshot) => snapshot.tasks.flatMap((task) => task.assigneeIds)),
-  );
-  const teamIds = new Set(team?.memberIds);
-  return members.filter((member) => !team || teamIds.has(member.id) || assignedIds.has(member.id));
-}
-
-function formatYearPeriod(start: string, end: string) {
-  return `${formatYearMonth(start)} - ${formatYearMonth(end)}`;
-}
-
-function buildMonthGroups(weeks: ReturnType<typeof buildWeekColumns>) {
-  return weeks.reduce<{ key: string; label: string; span: number; startIndex: number }[]>(
-    (groups, week, index) => {
-      const key = week.start?.slice(0, 7) ?? "unknown";
-      const current = groups.at(-1);
-      if (current?.key === key) {
-        current.span += 1;
-        return groups;
-      }
-      const [year, month] = key.split("-");
-      groups.push({
-        key,
-        label: key === "unknown" ? "期間未設定" : `${year}/${Number(month)}`,
-        span: 1,
-        startIndex: index,
-      });
-      return groups;
-    },
-    [],
-  );
-}
-
-function buildMonthWeekLabels(weeks: ReturnType<typeof buildWeekColumns>) {
-  let currentMonth = "";
-  let weekOfMonth = 0;
-  return weeks.map((week) => {
-    const month = week.start?.slice(0, 7) ?? "unknown";
-    if (month !== currentMonth) {
-      currentMonth = month;
-      weekOfMonth = 1;
-    } else {
-      weekOfMonth += 1;
-    }
-    return `W${weekOfMonth}`;
-  });
-}
-
-function getMonthlyAllocation(
-  assignments: ProjectAssignment[],
-  weeks: ReturnType<typeof buildWeekColumns>,
-) {
-  return weeks.reduce((peak, week) => {
-    if (!week.start) {
-      return peak;
-    }
-    const weekEnd = addDateDays(week.start, 6)!;
-    const allocation = assignments
-      .filter((assignment) => assignment.startDate <= weekEnd && assignment.endDate >= week.start!)
-      .reduce((sum, assignment) => sum + assignment.allocationPercent, 0);
-    return Math.max(peak, allocation);
-  }, 0);
-}
-
-function getAllocationTone(allocation: number) {
-  if (allocation > 100) {
-    return styles.monthlyAllocationOver;
-  }
-  if (allocation >= 80) {
-    return styles.monthlyAllocationFull;
-  }
-  if (allocation > 0) {
-    return styles.monthlyAllocationAvailable;
-  }
-  return styles.monthlyAllocationEmpty;
-}
-
-function aggregateDemandRoles(
-  demands: OpenDemandWithProject[],
-  weeks: ReturnType<typeof buildWeekColumns>,
-) {
-  const start = weeks[0]?.start;
-  const end = addDateDays(weeks.at(-1)?.start, 6);
-  if (!start || !end) {
-    return [];
-  }
-  const counts = new Map<string, number>();
-  demands
-    .filter(({ demand }) => demand.startDate <= end && demand.endDate >= start)
-    .forEach(({ demand }) =>
-      counts.set(demand.role, (counts.get(demand.role) ?? 0) + demand.requiredCount),
-    );
-  return [...counts.entries()].map(([role, count]) => `${role} ${count}名`);
-}
-
-function formatYearMonth(dateKey: string) {
-  const [year, month] = dateKey.split("-");
-  return `${year}/${Number(month)}`;
-}
-
-function getProjectAssignments(snapshot: ScheduleSnapshot, members: Member[]): ProjectAssignment[] {
-  if ((snapshot.project.assignments?.length ?? 0) > 0) {
-    return snapshot.project.assignments ?? [];
-  }
-  const memberById = new Map(members.map((member) => [member.id, member]));
-  return (snapshot.project.memberIds ?? []).map((memberId) => ({
-    allocationPercent: 50,
-    endDate: snapshot.project.rangeEnd,
-    id: `derived-${snapshot.project.id}-${memberId}`,
-    memberId,
-    role: memberById.get(memberId)?.role ?? "SE",
-    startDate: snapshot.project.rangeStart,
-    status: "confirmed",
-  }));
-}
-
-function addDateDays(dateKey: string | undefined, days: number) {
-  if (!dateKey) {
-    return undefined;
-  }
-  const date = new Date(`${dateKey}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
-
-function addDateMonths(dateKey: string, months: number) {
-  const date = new Date(`${dateKey}T00:00:00Z`);
-  date.setUTCMonth(date.getUTCMonth() + months);
-  return date.toISOString().slice(0, 10);
-}
-
-function getAssignmentPosition(
-  assignment: ProjectAssignment,
-  visibleStart: string,
-  visibleEnd: string,
-) {
-  const totalDays = Math.max(diffDateDays(visibleStart, visibleEnd) + 1, 1);
-  const start = assignment.startDate < visibleStart ? visibleStart : assignment.startDate;
-  const end = assignment.endDate > visibleEnd ? visibleEnd : assignment.endDate;
-  return {
-    left: (Math.max(diffDateDays(visibleStart, start), 0) / totalDays) * 100,
-    width: (Math.max(diffDateDays(start, end) + 1, 1) / totalDays) * 100,
-  };
-}
-
-function diffDateDays(start: string, end: string) {
-  return Math.round(
-    (new Date(`${end}T00:00:00Z`).getTime() - new Date(`${start}T00:00:00Z`).getTime()) /
-      86_400_000,
-  );
-}
-
-function getProjectColor(projectId: string) {
-  const colors = ["#5f85eb", "#45a882", "#8a70df", "#e29a42", "#4d9db5", "#d46f83"];
-  const hash = [...projectId].reduce((sum, character) => sum + character.charCodeAt(0), 0);
-  return colors[hash % colors.length];
 }

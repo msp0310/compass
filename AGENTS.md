@@ -71,3 +71,39 @@ React/Vite frontend with an ASP.NET Core Web API and SQLite backend.
 - Do not add landing-page or marketing-style screens; build usable app screens.
 - When changing layout, check that text does not overlap or overflow at the
   in-app browser viewport.
+
+### Frontend Architecture
+
+- Organize product code by feature. Keep feature-specific components, hooks,
+  state, types, and pure calculations inside `features/<feature>/`.
+- Put genuinely reusable UI in shared `components/` and reusable hooks in
+  shared `hooks/`. Do not move code into shared folders only because it is used
+  twice; first confirm that the concepts and change reasons are the same.
+- Keep page and route components focused on composition. Move substantial UI
+  sections into components, stateful interaction into purpose-specific hooks,
+  and deterministic calculations into `lib/` modules.
+- Split components by responsibility and state ownership, not by line count
+  alone. Re-evaluate components around 400-500 lines, components with several
+  unrelated effects, or components that coordinate multiple independent
+  workflows.
+- Keep state close to its consumers. Use `useState` for simple local input and
+  open/closed state, and use Jotai when sibling components need shared state,
+  prop drilling becomes significant, or isolated subscriptions improve render
+  performance.
+- Jotai atoms may be global, feature-scoped, or component-scoped. Place
+  feature atoms under `features/<feature>/state` and colocate component-only
+  atoms near their owner. Scope atoms with a `Provider` at the page or
+  workbench boundary when instances must not share state.
+- Do not import another feature's internal atoms, components, or helpers
+  directly. Expose deliberate public components, hooks, types, or actions from
+  the owning feature and depend on those interfaces instead.
+- Prefer derived atoms or render-time derivation over mirrored state and
+  synchronization effects. Use `useEffect` for synchronization with external
+  systems, not for values that can be calculated from existing state.
+- Keep API calls and business workflows out of primitive atoms. Put them in
+  feature services or action hooks, and let atoms represent the minimum state
+  that consumers need to subscribe to.
+- Avoid large catch-all prop objects and context values. Pass cohesive models
+  or explicit props, and keep high-frequency state subscriptions narrow.
+- Write code comments in Japanese. Comments should explain non-obvious intent,
+  constraints, or trade-offs rather than restating the code.

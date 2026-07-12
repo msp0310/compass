@@ -54,17 +54,33 @@ Oxlintの`no-restricted-imports`を層ごとに設定し、`npm run check`で依
 ポインターイベントのリスナーは各操作Hookが所有し、アンマウント時に必ず解除します。
 表示コンポーネントはタスク更新規則を持たず、名前付きコールバック経由でControllerへ通知します。
 
+## 要員計画の責務境界
+
+- `WorkloadOverviewPage`: 表示モードと子領域の調停だけを行う
+- `useWorkloadOverviewModel`: 全案件から人別・チーム別の表示モデルとサマリーを導出する
+- `useStaffingEditors`: アサインと要員要求の編集ライフサイクルを管理する
+- `StaffingPlanView`: 要員判断、未充足要求、月別不足、アサインボードを構成する
+- `AssignmentPlanBoard`: メンバーごとの月別負荷と案件アサインを描画する
+- `WorkloadCapacityGrid`: 人別・チーム別の週次負荷を描画する
+- `ResourcePanel`: 案件内の週次負荷表と選択セルの調停だけを行う
+- `ResourceDrilldown`: 選択した週の内訳、担当・配分・日程調整の導線を表示する
+- `resourceAdjustments`: 負荷軽減効果と分担候補を純粋関数で算出する
+- `workloadPlanning`: 期間、負荷集計、アサイン位置などを純粋関数として提供する
+
+ページは集計規則や保存規則を持たず、Hookが返すView Modelと操作だけを子コンポーネントへ渡します。
+要員計画の純粋計算はDOMを使わない単体テストで境界値を検証します。
+
 ## 現在の技術的債務
 
-| 優先度 | 債務                                            | 影響                               | 対応方針                                                    |
-| ------ | ----------------------------------------------- | ---------------------------------- | ----------------------------------------------------------- |
-| P0     | `AppWorkbench`に複数featureの状態変更が残る     | 変更影響が広く、レビューが難しい   | 案件、取込、保存、ナビゲーション単位のController Hookへ分離 |
-| P0     | `TimelineGrid`と`TaskInspector`が大きい         | 操作回帰と再描画範囲を把握しにくい | Bar、Drag、Inspector Sectionの境界で分割                    |
-| P1     | `scheduleImportExport.ts`が複数形式を扱う       | CSV、JSON、Brabio変更が干渉する    | format別adapterと共通validationへ分割                       |
-| P1     | `taskOperations.ts`に編集操作が集中する         | 単体テストと権限境界が不鮮明       | hierarchy、date、clipboard、dependencyへ分割                |
-| P1     | API DTOと画面モデルの変換がrepositoryへ集中する | API変更がUIへ波及する              | mapperをAPI feature境界へ分離                               |
-| P2     | 一部CSSがglobal CSSとVanilla Extractに分散する  | 上書き関係を追いにくい             | 新規画面からVanilla Extractへ統一                           |
-| P2     | 巨大コンポーネントのpropsが多い                 | 呼び出し側と子画面が密結合になる   | feature ControllerとView Modelで受け渡す                    |
+| 優先度 | 債務                                            | 影響                             | 対応方針                                                    |
+| ------ | ----------------------------------------------- | -------------------------------- | ----------------------------------------------------------- |
+| P0     | `AppWorkbench`に複数featureの状態変更が残る     | 変更影響が広く、レビューが難しい | 案件、取込、保存、ナビゲーション単位のController Hookへ分離 |
+| P0     | `Topbar`や管理設定画面に複数操作が同居する      | 権限・表示条件の変更が波及する   | 操作群、通知、アカウント、設定Sectionの境界で分割           |
+| P1     | `scheduleImportExport.ts`が複数形式を扱う       | CSV、JSON、Brabio変更が干渉する  | format別adapterと共通validationへ分割                       |
+| P1     | `taskOperations.ts`に編集操作が集中する         | 単体テストと権限境界が不鮮明     | hierarchy、date、clipboard、dependencyへ分割                |
+| P1     | API DTOと画面モデルの変換がrepositoryへ集中する | API変更がUIへ波及する            | mapperをAPI feature境界へ分離                               |
+| P2     | 一部CSSがglobal CSSとVanilla Extractに分散する  | 上書き関係を追いにくい           | 新規画面からVanilla Extractへ統一                           |
+| P2     | 巨大コンポーネントのpropsが多い                 | 呼び出し側と子画面が密結合になる | feature ControllerとView Modelで受け渡す                    |
 
 ## 分割の完了条件
 

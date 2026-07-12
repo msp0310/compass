@@ -1,6 +1,12 @@
 import { Avatar } from "../../../components/ui/Avatar";
 import type { buildWeekColumns } from "../../../lib/schedule";
 import type { ResourceRowModel, Team } from "../../../types/schedule";
+import {
+  aggregateTeamCapacityCell,
+  buildMonthGroups,
+  buildMonthWeekLabels,
+  isCurrentWeek,
+} from "../model/workloadPlanning";
 
 import * as styles from "./WorkloadOverviewPage.css";
 
@@ -230,71 +236,4 @@ function LoadCell({
       </div>
     </div>
   );
-}
-
-export function aggregateTeamCapacityCell(
-  rows: ResourceRowModel[],
-  index: number,
-  week: string,
-): ResourceRowModel["cells"][number] {
-  const cells = rows.map((row) => row.cells[index]).filter(Boolean);
-  const hours = cells.reduce((sum, cell) => sum + cell.hours, 0);
-  const capacityHours = cells.reduce((sum, cell) => sum + cell.capacityHours, 0);
-  const percent = capacityHours > 0 ? Math.round((hours / capacityHours) * 100) : 0;
-  return {
-    week,
-    hours,
-    capacityHours,
-    percent,
-    tone: percent >= 100 ? "danger" : percent >= 82 ? "warning" : "good",
-    unavailableDays: cells.reduce((sum, cell) => sum + cell.unavailableDays, 0),
-    contributions: cells.flatMap((cell) => cell.contributions),
-  };
-}
-
-function buildMonthGroups(weeks: ReturnType<typeof buildWeekColumns>) {
-  return weeks.reduce<{ key: string; label: string; span: number }[]>((groups, week) => {
-    const key = week.start?.slice(0, 7) ?? "unknown";
-    const current = groups.at(-1);
-    if (current?.key === key) {
-      current.span += 1;
-      return groups;
-    }
-    const [year, month] = key.split("-");
-    groups.push({
-      key,
-      label: key === "unknown" ? "期間未設定" : `${year}/${Number(month)}`,
-      span: 1,
-    });
-    return groups;
-  }, []);
-}
-
-function buildMonthWeekLabels(weeks: ReturnType<typeof buildWeekColumns>) {
-  let currentMonth = "";
-  let weekOfMonth = 0;
-  return weeks.map((week) => {
-    const month = week.start?.slice(0, 7) ?? "unknown";
-    if (month !== currentMonth) {
-      currentMonth = month;
-      weekOfMonth = 1;
-    } else {
-      weekOfMonth += 1;
-    }
-    return `W${weekOfMonth}`;
-  });
-}
-
-function addDateDays(dateKey: string | undefined, days: number) {
-  if (!dateKey) {
-    return undefined;
-  }
-  const date = new Date(`${dateKey}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
-
-function isCurrentWeek(weekStart: string | undefined, todayKey: string) {
-  const weekEnd = addDateDays(weekStart, 6);
-  return Boolean(weekStart && weekEnd && weekStart <= todayKey && todayKey <= weekEnd);
 }
