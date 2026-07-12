@@ -166,6 +166,8 @@ app.MapAuthEndpoints();
 app.MapScheduleEndpoints();
 app.MapDailyReportEndpoints();
 app.MapAdministrationEndpoints();
+// TanStack Routerの直接アクセスでも、Viteで生成したSPAの入口を返します。
+app.MapFallbackToFile("index.html");
 
 using (var scope = app.Services.CreateScope())
 {

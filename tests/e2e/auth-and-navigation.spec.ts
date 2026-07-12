@@ -59,6 +59,7 @@ async function login(page: Page, options: { showInitialTour?: boolean } = {}) {
   await page.getByLabel("パスワード").fill("Password123!");
   await page.getByRole("button", { name: "ログイン" }).click();
   await expect(page.getByRole("heading", { name: "プロジェクトポートフォリオ" })).toBeVisible();
+  await expect(page).toHaveURL(/\/projects$/);
 }
 
 test.describe("Miraiの認証とプロジェクト導線", () => {
@@ -157,6 +158,7 @@ test.describe("Miraiの認証とプロジェクト導線", () => {
     await login(page);
     await page.getByRole("button", { name: "分析", exact: true }).click();
     await page.getByRole("button", { name: "チーム分析", exact: true }).click();
+    await expect(page).toHaveURL(/\/analytics\/team$/);
 
     const workload = page.getByRole("region", { name: "チーム分析・要員計画" });
     await expect(workload).toBeVisible();
@@ -309,6 +311,7 @@ test.describe("Miraiの認証とプロジェクト導線", () => {
     const ganttButton = projectCard.getByRole("button", { name: "Ganttへ" });
     await expect(ganttButton).toHaveCount(1);
     await ganttButton.click();
+    await expect(page).toHaveURL(/\/projects\/site-renewal\/gantt$/);
 
     await expect(page.getByRole("button", { name: "タスク追加" })).toBeVisible();
     await expect(page.locator(".task-table-row")).toHaveCount(16);
@@ -319,6 +322,15 @@ test.describe("Miraiの認証とプロジェクト導線", () => {
     await page.getByRole("button", { name: "ショートカット" }).click();
     await expect(page.getByRole("dialog", { name: "キーボードショートカット" })).toBeVisible();
     await expect(page.getByText("選択範囲を上下に広げる", { exact: true })).toBeVisible();
+  });
+
+  test("案件URLへ直接アクセスして対象画面を復元できる", async ({ page }) => {
+    await login(page);
+    await page.goto("/projects/crm-integration/issues");
+
+    await expect(page).toHaveURL(/\/projects\/crm-integration\/issues$/);
+    await expect(page.getByRole("heading", { name: "CRM連携基盤構築", level: 1 })).toBeVisible();
+    await expect(page.getByRole("region", { name: "課題管理" })).toBeVisible();
   });
 
   test("フルHDではガントが画面下端まで表示領域を利用する", async ({ page }) => {
@@ -348,6 +360,7 @@ test.describe("Miraiの認証とプロジェクト導線", () => {
     });
     await projectCard.getByRole("button", { name: "Ganttへ" }).click();
     await page.getByRole("button", { name: "週次報告", exact: true }).click();
+    await expect(page).toHaveURL(/\/projects\/site-renewal\/weekly-report$/);
 
     const weeklyReport = page.getByRole("region", { name: "週次報告" });
     const overview = weeklyReport.getByLabel("プロジェクト全体の計画と実績");
@@ -367,6 +380,7 @@ test.describe("Miraiの認証とプロジェクト導線", () => {
     });
     await expect(projectCard).toHaveCount(1);
     await projectCard.getByRole("button", { name: "Ganttへ" }).click();
+    await expect(page).toHaveURL(/\/projects\/crm-integration\/gantt$/);
 
     await expect(page.getByRole("button", { name: "タスク追加" })).toBeVisible();
     await expect(

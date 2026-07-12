@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 
-import { createInitialAppState, getProjectIdFromHash } from "./app/appState";
+import { createInitialAppState } from "./app/appState";
 import type { AppBootState, AuthState } from "./app/appTypes";
 import { AppWorkbench } from "./app/AppWorkbench";
 import { createInitialScheduleWorkspace, selectInitialProject } from "./app/projectLoading";
+import { getProjectIdFromCurrentRoute } from "./app/routing/miraiRouteState";
 import { ApiRequestError, apiScheduleRepository } from "./data/apiScheduleRepository";
 import { AuthRequestError, authRepository } from "./data/authRepository";
 import { clearLocalScheduleDraft, loadLocalScheduleDraft } from "./data/localScheduleStorage";
@@ -91,7 +92,7 @@ export function App() {
       const draft = loadLocalScheduleDraft();
       const initialProject = selectInitialProject(summary, {
         draftProjectId: draft?.activeProjectId,
-        hashProjectId: getProjectIdFromHash(),
+        hashProjectId: getProjectIdFromCurrentRoute(),
       });
       if (!initialProject) {
         throw new Error("APIからプロジェクトが取得できませんでした。");

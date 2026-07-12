@@ -1,7 +1,8 @@
+import { RouterProvider } from "@tanstack/react-router";
 import React from "react";
 import { createRoot } from "react-dom/client";
 
-import { App } from "./App";
+import { router } from "./app/routing/router";
 import { AppErrorBoundary } from "./components/feedback/AppErrorBoundary";
 
 import "./styles.css";
@@ -11,7 +12,7 @@ document.title = "Mirai";
 createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <AppErrorBoundary>
-      <App />
+      <RouterProvider router={router} />
     </AppErrorBoundary>
   </React.StrictMode>,
 );

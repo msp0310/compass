@@ -82,15 +82,14 @@ import {
   getGanttTimelineRange,
   getHealthIssueFocusTarget,
   getOperationalProjectStatus,
-  getProjectIdFromHash,
   getTaskRange,
   initialFilters,
   isProjectArchived,
   mergeProjectScopedSavedDraft,
-  writeProjectHash,
 } from "./appState";
 import type { ApiSyncState, AppInitialState, TaskClipboard } from "./appTypes";
 import { mergeScheduleIntoWorkspace } from "./projectLoading";
+import { useWorkbenchRouting } from "./routing/useWorkbenchRouting";
 import { buildTopbarSyncQueueItems, createTopbarSyncStatus } from "./syncPresentation";
 import { useScheduleSync } from "./useScheduleSync";
 import { useTeamScheduleLoading } from "./useTeamScheduleLoading";
@@ -159,7 +158,7 @@ type ActivityInput = {
   tone?: ActivityTone;
 };
 
-/** 画面状態をワークベンチ単位のJotai Storeへ閉じ込めます。 */
+/** 画面状態をワークベンチ単位のJotaiストアへ閉じ込めます。 */
 export function AppWorkbench(props: AppWorkbenchProps) {
   const [viewStore] = useState(() => createWorkbenchViewStore(props.initialAppState));
   return (
@@ -178,7 +177,6 @@ function AppWorkbenchContent({
 }: AppWorkbenchProps) {
   const {
     activeProjectId,
-    activeTab,
     activeTeamId,
     activeTourId,
     calendarAware,
@@ -191,7 +189,6 @@ function AppWorkbenchContent({
     resourceScope,
     scale,
     setActiveProjectId,
-    setActiveTab,
     setActiveTeamId,
     setActiveTourId,
     setCalendarAware,
@@ -212,6 +209,18 @@ function AppWorkbenchContent({
     timeUnit,
     todaySignal,
   } = useWorkbenchViewState();
+  const {
+    activeTab,
+    navigateToHelp,
+    navigateToManagementSettings,
+    navigateToProjectSettings,
+    navigateToProjectView,
+    routeProjectId,
+    setActiveTab,
+    showHelpPage,
+    showMasterSettings,
+    showProjectSettings,
+  } = useWorkbenchRouting(activeProjectId);
   const [workspace, setWorkspace] = useState(initialAppState.workspace);
   const [helpDocumentId, setHelpDocumentId] = useState<HelpDocumentId>(() =>
     getContextHelpDocumentId(initialAppState.activeTab, false, false),
@@ -236,18 +245,12 @@ function AppWorkbenchContent({
     setPendingProjectImport,
     setPendingTaskCsvImport,
     setShowCreateSheet,
-    setShowHelpPage,
-    setShowMasterSettings,
     setShowProjectCreateSheet,
-    setShowProjectSettings,
     setShowResetConfirm,
     setShowSaveReview,
     setShowShortcutHelp,
     showCreateSheet,
-    showHelpPage,
-    showMasterSettings,
     showProjectCreateSheet,
-    showProjectSettings,
     showResetConfirm,
     showSaveReview,
     showShortcutHelp,
@@ -756,49 +759,43 @@ function AppWorkbenchContent({
   }, [currentDraft, hasUnsavedChanges]);
 
   useEffect(() => {
-    if (showMasterSettings || (activeTab === "Projects" && !showProjectSettings)) {
+    if (
+      !routeProjectId ||
+      routeProjectId === activeProjectId ||
+      routeProjectId === loadingProjectId
+    ) {
       return;
     }
-    writeProjectHash(activeProjectId, "replace");
-  }, [activeProjectId, activeTab, showMasterSettings, showProjectSettings]);
-
-  useEffect(() => {
-    function handleProjectRouteChange() {
-      const projectId = getProjectIdFromHash();
-      if (!projectId || projectId === activeProjectId) {
-        return;
-      }
-      const nextProject =
-        workspace.schedules.find((snapshot) => snapshot.project.id === projectId)?.project ??
-        projectSummaries.find((summary) => summary.project.id === projectId)?.project;
-      if (!nextProject) {
-        addToast({
-          detail: projectId,
-          title: "共有リンクのプロジェクトが見つかりません",
-          tone: "warning",
-        });
-        writeProjectHash(activeProjectId, "replace");
-        return;
-      }
-      if (isProjectArchived(nextProject)) {
-        addToast({
-          detail: nextProject.workspace,
-          title: "アーカイブ済みプロジェクトです",
-          tone: "warning",
-        });
-        writeProjectHash(activeProjectId, "replace");
-        return;
-      }
-      activateProject(nextProject.id, { updateHash: false });
+    const nextProject =
+      workspace.schedules.find((snapshot) => snapshot.project.id === routeProjectId)?.project ??
+      projectSummaries.find((summary) => summary.project.id === routeProjectId)?.project;
+    if (!nextProject) {
+      addToast({
+        detail: routeProjectId,
+        title: "共有リンクのプロジェクトが見つかりません",
+        tone: "warning",
+      });
+      void navigateToProjectView(activeProjectId, activeTab, { replace: true });
+      return;
     }
-
-    window.addEventListener("hashchange", handleProjectRouteChange);
-    window.addEventListener("popstate", handleProjectRouteChange);
-    return () => {
-      window.removeEventListener("hashchange", handleProjectRouteChange);
-      window.removeEventListener("popstate", handleProjectRouteChange);
-    };
-  }, [activeProjectId, projectSummaries, workspace.schedules]);
+    if (isProjectArchived(nextProject)) {
+      addToast({
+        detail: nextProject.workspace,
+        title: "アーカイブ済みプロジェクトです",
+        tone: "warning",
+      });
+      void navigateToProjectView(activeProjectId, activeTab, { replace: true });
+      return;
+    }
+    activateProject(nextProject.id, { updateRoute: false });
+  }, [
+    activeProjectId,
+    activeTab,
+    loadingProjectId,
+    projectSummaries,
+    routeProjectId,
+    workspace.schedules,
+  ]);
 
   /** 案件単位の操作履歴を記録します。 */
   function recordActivity({
@@ -910,7 +907,7 @@ function AppWorkbenchContent({
   /** タスクを選択し、タイトル編集へフォーカスします。 */
   function selectAndFocusTaskTitle(taskId: string) {
     selectOnlyTask(taskId);
-    setActiveTab("Gantt");
+    void setActiveTab("Gantt");
     setTaskTitleEditRequest((current) => ({ requestId: current.requestId + 1, taskId }));
   }
 
@@ -969,13 +966,10 @@ function AppWorkbenchContent({
 
   /** 表示中のプロジェクトタブを切り替えます。 */
   function changeTab(tab: ViewTab) {
-    setActiveTab(tab);
+    void setActiveTab(tab);
     clearTaskSelection();
     setPendingTaskCsvImport(null);
     setShowCreateSheet(false);
-    setShowHelpPage(false);
-    setShowMasterSettings(false);
-    setShowProjectSettings(false);
     setShowProjectCreateSheet(false);
     setShowShortcutHelp(false);
   }
@@ -988,11 +982,9 @@ function AppWorkbenchContent({
     setPendingProjectImport(null);
     setPendingTaskCsvImport(null);
     setShowCreateSheet(false);
-    setShowHelpPage(false);
     setShowProjectCreateSheet(false);
-    setShowProjectSettings(false);
     setShowShortcutHelp(false);
-    setShowMasterSettings(true);
+    void navigateToManagementSettings();
   }
 
   /** プロジェクト設定画面を開きます。 */
@@ -1000,11 +992,9 @@ function AppWorkbenchContent({
     setPendingProjectImport(null);
     setPendingTaskCsvImport(null);
     setShowCreateSheet(false);
-    setShowHelpPage(false);
-    setShowMasterSettings(false);
     setShowProjectCreateSheet(false);
     setShowShortcutHelp(false);
-    setShowProjectSettings(true);
+    void navigateToProjectSettings();
   }
 
   /** プロジェクト作成画面を開きます。 */
@@ -1012,9 +1002,6 @@ function AppWorkbenchContent({
     setPendingProjectImport(null);
     setPendingTaskCsvImport(null);
     setShowCreateSheet(false);
-    setShowHelpPage(false);
-    setShowMasterSettings(false);
-    setShowProjectSettings(false);
     setShowProjectCreateSheet(true);
   }
 
@@ -1024,12 +1011,10 @@ function AppWorkbenchContent({
     setPendingProjectImport(null);
     setPendingTaskCsvImport(null);
     setShowCreateSheet(false);
-    setShowMasterSettings(false);
-    setShowProjectSettings(false);
     setShowProjectCreateSheet(false);
     setShowShortcutHelp(false);
     closeTaskInspector();
-    setShowHelpPage(true);
+    void navigateToHelp();
   }
 
   /** 指定した操作ツアーに必要な画面へ移動してから案内を開始します。 */
@@ -1076,7 +1061,7 @@ function AppWorkbenchContent({
       }
     }
     selectOnlyTask(taskId);
-    setActiveTab("Gantt");
+    void navigateToProjectView(projectId ?? activeProjectId, "Gantt");
     requestTaskInspectorFocus(taskId, focusTarget);
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
@@ -1125,8 +1110,7 @@ function AppWorkbenchContent({
       ),
     }));
     setActiveTeamId(project.teamId ?? "");
-    setShowMasterSettings(false);
-    setShowProjectSettings(false);
+    void navigateToProjectView(project.id, "Gantt", { replace: true });
     addToast({ detail: project.workspace, title: "プロジェクト設定を保存しました" });
     recordActivity({
       category: "project",
@@ -1284,12 +1268,10 @@ function AppWorkbenchContent({
     setActiveTeamId(fallbackSchedule.project.teamId ?? "");
     setActiveProjectId(fallbackSchedule.project.id);
     persistNavigationState(fallbackSchedule.project.id, fallbackSchedule.project.teamId);
-    writeProjectHash(fallbackSchedule.project.id, "replace");
+    void navigateToProjectView(fallbackSchedule.project.id, "Gantt", { replace: true });
     clearTaskSelection();
     setPendingProjectImport(null);
     setPendingTaskCsvImport(null);
-    setShowMasterSettings(false);
-    setShowProjectSettings(false);
     setShowCreateSheet(false);
     setShowProjectCreateSheet(false);
     addToast({
@@ -1333,13 +1315,10 @@ function AppWorkbenchContent({
     setActiveTeamId(targetSchedule.project.teamId ?? "");
     setActiveProjectId(projectId);
     persistNavigationState(projectId, targetSchedule.project.teamId);
-    writeProjectHash(projectId);
+    void navigateToProjectView(projectId, "Gantt");
     clearTaskSelection();
-    setActiveTab("Gantt");
     setPendingProjectImport(null);
     setPendingTaskCsvImport(null);
-    setShowMasterSettings(false);
-    setShowProjectSettings(false);
     setShowCreateSheet(false);
     setShowProjectCreateSheet(false);
     addToast({
@@ -1653,7 +1632,7 @@ function AppWorkbenchContent({
   /** 指定プロジェクトを読み込み、現在案件として切り替えます。 */
   function activateProject(
     projectId: string,
-    options: { historyMode?: "push" | "replace"; updateHash?: boolean } = {},
+    options: { historyMode?: "push" | "replace"; updateRoute?: boolean } = {},
   ) {
     const nextSchedule = workspace.schedules.find((snapshot) => snapshot.project.id === projectId);
     const summaryProject = projectSummaries.find(
@@ -1690,8 +1669,10 @@ function AppWorkbenchContent({
       setShowProjectCreateSheet(false);
       setShowShortcutHelp(false);
       setFilterOpen(false);
-      if (options.updateHash !== false) {
-        writeProjectHash(loadedSchedule.project.id, options.historyMode ?? "push");
+      if (options.updateRoute !== false && activeTab !== "Projects") {
+        void navigateToProjectView(loadedSchedule.project.id, activeTab, {
+          replace: options.historyMode === "replace",
+        });
       }
       setLoadingProjectId(null);
     };
@@ -1728,23 +1709,19 @@ function AppWorkbenchContent({
       (summary) => summary.project.teamId === teamId && !isProjectArchived(summary.project),
     )?.project;
     if (firstProject) {
-      activateProject(firstProject.id, { updateHash: !options.stayOnPortfolio });
+      activateProject(firstProject.id, { updateRoute: !options.stayOnPortfolio });
       if (options.stayOnPortfolio) {
-        setActiveTab("Projects");
-        setShowMasterSettings(false);
-        setShowProjectSettings(false);
+        void setActiveTab("Projects");
       }
       return;
     }
     setActiveTeamId(teamId);
-    setActiveTab("Projects");
+    void setActiveTab("Projects");
     clearTaskSelection();
     setPendingTaskCsvImport(null);
     setPendingProjectImport(null);
     setShowCreateSheet(false);
     setShowProjectCreateSheet(false);
-    setShowMasterSettings(false);
-    setShowProjectSettings(false);
     setShowShortcutHelp(false);
     persistNavigationState(activeProjectId, teamId);
   }
@@ -1794,10 +1771,9 @@ function AppWorkbenchContent({
     replaceProject(createdSchedule.project.id, createdSchedule.tasks);
     setActiveTeamId(createdSchedule.project.teamId ?? "");
     setActiveProjectId(createdSchedule.project.id);
-    writeProjectHash(createdSchedule.project.id);
+    void navigateToProjectView(createdSchedule.project.id, "Gantt");
     selectOnlyTask(createdSchedule.tasks[0]?.id ?? null);
     setCollapsedIdsForProject(createdSchedule.project.id, new Set());
-    setActiveTab("Gantt");
     setPendingTaskCsvImport(null);
     setPendingProjectImport(null);
     setShowProjectCreateSheet(false);
@@ -1927,8 +1903,6 @@ function AppWorkbenchContent({
         validation: validateProjectImportData(imported),
       });
       setPendingTaskCsvImport(null);
-      setShowMasterSettings(false);
-      setShowProjectSettings(false);
       setShowCreateSheet(false);
       setShowProjectCreateSheet(false);
       setShowShortcutHelp(false);
@@ -1949,8 +1923,6 @@ function AppWorkbenchContent({
       const draft = createTaskCsvImportDraft(await file.text());
       setPendingTaskCsvImport(createPendingTaskCsvImport(file.name, draft));
       setPendingProjectImport(null);
-      setShowMasterSettings(false);
-      setShowProjectSettings(false);
       setShowCreateSheet(false);
       setShowProjectCreateSheet(false);
       setShowShortcutHelp(false);
@@ -1977,8 +1949,6 @@ function AppWorkbenchContent({
         }),
       );
       setPendingProjectImport(null);
-      setShowMasterSettings(false);
-      setShowProjectSettings(false);
       setShowCreateSheet(false);
       setShowProjectCreateSheet(false);
       setShowShortcutHelp(false);
@@ -2156,7 +2126,7 @@ function AppWorkbenchContent({
               ),
       }));
     }
-    setActiveTab("Gantt");
+    void setActiveTab("Gantt");
     setCollapsedIds(new Set());
     selectOnlyTask(nextTasks[0]?.id ?? null);
     setPendingTaskCsvImport(null);
@@ -2256,8 +2226,7 @@ function AppWorkbenchContent({
     });
     setActiveTeamId(nextTeamId ?? "");
     setActiveProjectId(importedProjectId);
-    writeProjectHash(importedProjectId);
-    setActiveTab("Gantt");
+    void navigateToProjectView(importedProjectId, "Gantt");
     setCollapsedIdsForProject(importedProjectId, new Set());
     clearTaskSelection();
     setPendingProjectImport(null);
@@ -2763,12 +2732,12 @@ function AppWorkbenchContent({
               onCreateProject={openProjectCreateSheet}
               onOpenProjectIssues={(projectId) => {
                 if (changeProject(projectId)) {
-                  setActiveTab("Issues");
+                  void navigateToProjectView(projectId, "Issues");
                 }
               }}
               onOpenProject={(projectId) => {
                 if (changeProject(projectId)) {
-                  setActiveTab("Gantt");
+                  void navigateToProjectView(projectId, "Gantt");
                 }
               }}
               onSelectProject={(projectId) => {
@@ -2788,7 +2757,7 @@ function AppWorkbenchContent({
               calendarAware={calendarAware}
               onOpenProject={(projectId) => {
                 if (changeProject(projectId)) {
-                  setActiveTab("Gantt");
+                  void navigateToProjectView(projectId, "Gantt");
                 }
               }}
               onOpenTeam={(teamId) => changeTeam(teamId, { stayOnPortfolio: true })}

@@ -1,6 +1,5 @@
 import { atom, createStore, useAtom } from "jotai";
 
-import type { ViewTab } from "../components/layout/ViewTabs";
 import type { TourId } from "../features/onboarding/tourScenarios";
 import type {
   GanttColumnVisibility,
@@ -15,7 +14,6 @@ export type GanttDisplayMode = "gantt" | "table";
 export type TaskTitleEditRequest = { requestId: number; taskId: string | null };
 export type WorkbenchViewInitialState = {
   activeProjectId: string;
-  activeTab: ViewTab;
   activeTeamId: string;
   calendarAware: boolean;
   collapsedIdsByProject: Record<string, string[]>;
@@ -30,7 +28,6 @@ export type WorkbenchViewInitialState = {
 
 const activeTeamIdAtom = atom("");
 const activeProjectIdAtom = atom("");
-const activeTabAtom = atom<ViewTab>("Projects");
 const activeTourIdAtom = atom<TourId | null>(null);
 const filtersAtom = atom<ScheduleFilters>({
   assigneeId: "all",
@@ -64,7 +61,6 @@ export function createWorkbenchViewStore(initialState: WorkbenchViewInitialState
   const store = createStore();
   store.set(activeTeamIdAtom, initialState.activeTeamId);
   store.set(activeProjectIdAtom, initialState.activeProjectId);
-  store.set(activeTabAtom, initialState.activeTab);
   store.set(filtersAtom, initialState.filters);
   store.set(collapsedIdsByProjectAtom, initialState.collapsedIdsByProject);
   store.set(filterOpenAtom, initialState.filterOpen);
@@ -81,7 +77,6 @@ export function createWorkbenchViewStore(initialState: WorkbenchViewInitialState
 export function useWorkbenchViewState() {
   const [activeTeamId, setActiveTeamId] = useAtom(activeTeamIdAtom);
   const [activeProjectId, setActiveProjectId] = useAtom(activeProjectIdAtom);
-  const [activeTab, setActiveTab] = useAtom(activeTabAtom);
   const [activeTourId, setActiveTourId] = useAtom(activeTourIdAtom);
   const [filters, setFilters] = useAtom(filtersAtom);
   const [collapsedIdsByProject, setCollapsedIdsByProject] = useAtom(collapsedIdsByProjectAtom);
@@ -101,7 +96,6 @@ export function useWorkbenchViewState() {
 
   return {
     activeProjectId,
-    activeTab,
     activeTeamId,
     activeTourId,
     calendarAware,
@@ -114,7 +108,6 @@ export function useWorkbenchViewState() {
     resourceScope,
     scale,
     setActiveProjectId,
-    setActiveTab,
     setActiveTeamId,
     setActiveTourId,
     setCalendarAware,
@@ -140,7 +133,6 @@ export function useWorkbenchViewState() {
 /** ストア分離と初期化をテストするためのAtom参照です。 */
 export const workbenchViewAtoms = {
   activeProjectId: activeProjectIdAtom,
-  activeTab: activeTabAtom,
   activeTeamId: activeTeamIdAtom,
   calendarAware: calendarAwareAtom,
   filters: filtersAtom,

@@ -9,7 +9,6 @@ import {
 function createInitialState(projectId: string): WorkbenchViewInitialState {
   return {
     activeProjectId: projectId,
-    activeTab: "Projects",
     activeTeamId: "team-1",
     calendarAware: true,
     collapsedIdsByProject: {},
@@ -36,12 +35,9 @@ test("ワークベンチごとに画面状態を分離する", () => {
   const firstStore = createWorkbenchViewStore(createInitialState("project-1"));
   const secondStore = createWorkbenchViewStore(createInitialState("project-2"));
 
-  firstStore.set(workbenchViewAtoms.activeTab, "Gantt");
   firstStore.set(workbenchViewAtoms.activeTeamId, "team-2");
 
   expect(firstStore.get(workbenchViewAtoms.activeProjectId)).toBe("project-1");
-  expect(firstStore.get(workbenchViewAtoms.activeTab)).toBe("Gantt");
   expect(secondStore.get(workbenchViewAtoms.activeProjectId)).toBe("project-2");
-  expect(secondStore.get(workbenchViewAtoms.activeTab)).toBe("Projects");
   expect(secondStore.get(workbenchViewAtoms.activeTeamId)).toBe("team-1");
 });

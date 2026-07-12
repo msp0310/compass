@@ -17,6 +17,7 @@ import type {
   TaskInspectorFocusTarget,
 } from "../types/schedule";
 import type { AppInitialState, PersistableDraft, TaskHistory } from "./appTypes";
+import { getMiraiRouteState, getProjectIdFromCurrentRoute } from "./routing/miraiRouteState";
 
 /** ローカル表示設定がない場合に使う既定のフィルター状態です。 */
 export const initialFilters: ScheduleFilters = {
@@ -223,39 +224,6 @@ export function createLocalDraftChangeSummary(
   return { count: labels.length, detail: labels.join(" / "), labels };
 }
 
-/** ビルド時にブラウザーAPIへ依存せず、ハッシュから選択プロジェクトを読み取ります。 */
-export function getProjectIdFromHash() {
-  if (typeof window === "undefined") {
-    return null;
-  }
-  const rawHash = window.location.hash.replace(/^#/, "").trim();
-  if (!rawHash) {
-    return null;
-  }
-  try {
-    return decodeURIComponent(rawHash);
-  } catch {
-    return rawHash;
-  }
-}
-
-/** パスとクエリを維持したまま、プロジェクトのディープリンクを更新します。 */
-export function writeProjectHash(projectId: string, mode: "push" | "replace" = "push") {
-  if (typeof window === "undefined") {
-    return;
-  }
-  const nextHash = `#${encodeURIComponent(projectId)}`;
-  if (window.location.hash === nextHash) {
-    return;
-  }
-  const nextUrl = `${window.location.pathname}${window.location.search}${nextHash}`;
-  if (mode === "replace") {
-    window.history.replaceState(null, "", nextUrl);
-  } else {
-    window.history.pushState(null, "", nextUrl);
-  }
-}
-
 /** 通常の運用画面からアーカイブ済みプロジェクトを除外します。 */
 export function isProjectArchived(project: Project) {
   return project.status === "archived";
@@ -315,10 +283,14 @@ export function createInitialAppState(
   const firstSchedule =
     workspace.schedules.find((snapshot) => !isProjectArchived(snapshot.project)) ??
     workspace.schedules[0];
-  const hashProjectId = getProjectIdFromHash();
-  const hashSchedule = hashProjectId
+  const routeState = getMiraiRouteState(
+    typeof window === "undefined" ? "/projects" : window.location.pathname,
+  );
+  const routeProjectId = getProjectIdFromCurrentRoute();
+  const routeSchedule = routeProjectId
     ? (workspace.schedules.find(
-        (snapshot) => snapshot.project.id === hashProjectId && !isProjectArchived(snapshot.project),
+        (snapshot) =>
+          snapshot.project.id === routeProjectId && !isProjectArchived(snapshot.project),
       ) ?? null)
     : null;
   const hasDraftProject = workspace.schedules.some(
@@ -329,12 +301,12 @@ export function createInitialAppState(
     ? (workspace.schedules.find((snapshot) => snapshot.project.id === draft?.activeProjectId) ??
       firstSchedule)
     : null;
-  const activeSchedule = hashSchedule ?? draftSchedule ?? firstSchedule;
+  const activeSchedule = routeSchedule ?? draftSchedule ?? firstSchedule;
   const taskHistories = createTaskHistories(workspace);
   const activityLogs = ensureActivityLogs(workspace, undefined);
   const persistableDraft = createPersistableDraft({
     activeProjectId: activeSchedule.project.id,
-    activeTab: hashSchedule ? "Gantt" : (draft?.activeTab ?? "Projects"),
+    activeTab: routeState.activeTab,
     activeTeamId: activeSchedule.project.teamId ?? draft?.activeTeamId ?? "",
     activityLogs,
     calendarAware: draft?.calendarAware ?? true,
@@ -362,8 +334,8 @@ export function createInitialAppState(
     favoriteProjectIds: new Set(persistableDraft.favoriteProjectIds),
     filterOpen: persistableDraft.filterOpen,
     filters: persistableDraft.filters,
-    routeProjectId: hashProjectId,
-    routeProjectMatched: hashSchedule !== null,
+    routeProjectId,
+    routeProjectMatched: routeSchedule !== null,
     resourceDisplaySettings: persistableDraft.resourceDisplaySettings,
     resourceScope: persistableDraft.resourceScope,
     savedDraft: persistableDraft,
