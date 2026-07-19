@@ -164,7 +164,7 @@
 .gantt-shell {
   position: relative;
   display: grid;
-  grid-template-columns: 390px minmax(0, 1fr);
+  grid-template-columns: clamp(440px, 30vw, 500px) minmax(0, 1fr);
   overflow: visible;
 }
 
@@ -561,7 +561,7 @@
   inset: 0 auto auto 0;
   width: 100%;
   background:
-    linear-gradient(#eef2f7 1px, transparent 1px) 0 0 / 100% 34px,
+    linear-gradient(#eef2f7 1px, transparent 1px) 0 0 / 100% 38px,
     linear-gradient(90deg, #edf1f6 1px, transparent 1px) 0 0 / var(--day-width, 22px) 100%;
   pointer-events: none;
 }
@@ -687,7 +687,7 @@
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   overflow: hidden;
   padding-left: 4px;
 }
@@ -834,14 +834,14 @@
   position: relative;
   align-self: stretch;
   flex: 0 0 auto;
-  height: 34px;
+  height: 38px;
 }
 
 .task-tree-guide {
   position: absolute;
   top: 0;
-  width: 12px;
-  height: 34px;
+  width: 14px;
+  height: 38px;
   color: #c2cedd;
   pointer-events: none;
 }
@@ -850,7 +850,7 @@
 .task-tree-guide.branch::before {
   position: absolute;
   top: 0;
-  left: 6px;
+  left: 7px;
   height: 100%;
   border-left: 1px solid currentColor;
   content: "";
@@ -863,8 +863,8 @@
 .task-tree-guide.branch::after {
   position: absolute;
   top: 50%;
-  left: 6px;
-  width: 6px;
+  left: 7px;
+  width: 7px;
   border-top: 1px solid currentColor;
   content: "";
 }

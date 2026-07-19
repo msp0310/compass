@@ -129,7 +129,7 @@ export function TaskTitleCell({
         <span
           aria-hidden="true"
           className="task-tree-guides"
-          style={{ width: `${task.depth * 12}px` }}
+          style={{ width: `${task.depth * 14}px` }}
         >
           {Array.from({ length: task.depth }, (_, depth) => {
             const isBranch = depth === task.depth - 1;
@@ -144,7 +144,7 @@ export function TaskTitleCell({
                   .filter(Boolean)
                   .join(" ")}
                 key={depth}
-                style={{ left: `${depth * 12}px` }}
+                style={{ left: `${depth * 14}px` }}
               />
             );
           })}

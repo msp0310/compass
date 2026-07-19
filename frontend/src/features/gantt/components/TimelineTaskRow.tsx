@@ -79,8 +79,9 @@ export function TimelineTaskRow({
   const baselineLeft = baselineSpan ? baselineSpan.offset * dayWidth + 7 : 0;
   const baselineWidth = baselineSpan ? Math.max(baselineSpan.duration * dayWidth - 12, 10) : 0;
   const top = index * rowHeight;
-  const barTopOffset = task.type === "task" ? 9 : task.type === "summary" ? 8 : 7;
-  const metaTopOffset = task.type === "task" ? 10 : task.type === "summary" ? 10 : 9;
+  const barTopOffset =
+    task.type === "task" ? (task.hasChildren ? 10 : 11) : task.type === "summary" ? 9 : 8;
+  const metaTopOffset = task.type === "phase" ? 11 : 12;
   const canResize = task.type === "task";
   const canMove = task.type !== "summary";
   const barKeyboardHint = canResize
