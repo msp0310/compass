@@ -234,6 +234,7 @@ export function GanttWorkbench({
     scrollLeft,
     scrollTop,
     setSynchronizedScrollTop,
+    tableScrollRangeCompensation,
     tableRef,
     timelineBodyRef,
     timelineHeaderRef,
@@ -264,9 +265,9 @@ export function GanttWorkbench({
       rows: displayRows.slice(start, end),
       start,
       topSpacer: start * rowHeight,
-      totalHeight: displayRows.length * rowHeight,
+      totalHeight: displayRows.length * rowHeight + tableScrollRangeCompensation,
     };
-  }, [displayRows, scrollTop, viewportHeight]);
+  }, [displayRows, scrollTop, tableScrollRangeCompensation, viewportHeight]);
   const visibleSlotWindow = useMemo(() => {
     const measuredWidth = timelineViewportWidth || 980;
     const overscan = timeUnit === "day" ? Math.ceil(360 / dayWidth) : 4;

@@ -1216,19 +1216,19 @@
 }
 
 .gantt-bar.task {
-  height: 12px;
+  height: 14px;
   border: 1px solid color-mix(in srgb, var(--bar-color) 70%, #0f172a);
   background: color-mix(in srgb, var(--bar-color) 68%, #fff);
 }
 
 .gantt-bar.task.has-children {
-  height: 14px;
+  height: 16px;
   border-color: color-mix(in srgb, var(--bar-color) 82%, #153f78);
   background: color-mix(in srgb, var(--bar-color) 82%, #fff);
 }
 
 .gantt-bar.phase {
-  height: 15px;
+  height: 17px;
   border-radius: 2px;
   background: color-mix(in srgb, var(--bar-color) 86%, #173b72);
   box-shadow:
@@ -1237,7 +1237,7 @@
 }
 
 .gantt-bar.summary {
-  height: 16px;
+  height: 18px;
   border-radius: 2px;
   background: color-mix(in srgb, var(--bar-color) 90%, #234b86);
 }

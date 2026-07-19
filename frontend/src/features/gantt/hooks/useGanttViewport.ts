@@ -39,6 +39,7 @@ export function useGanttViewport({
   const [scrollTop, setScrollTop] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
+  const [tableScrollRangeCompensation, setTableScrollRangeCompensation] = useState(0);
   const [timelineViewportWidth, setTimelineViewportWidth] = useState(0);
 
   const setSynchronizedScrollTop = useCallback((nextScrollTop: number) => {
@@ -135,7 +136,10 @@ export function useGanttViewport({
   useEffect(() => {
     function measureViewport() {
       const timelineBody = timelineBodyRef.current;
-      setViewportHeight(timelineBody?.clientHeight ?? tableRef.current?.clientHeight ?? 0);
+      const timelineHeight = timelineBody?.clientHeight ?? tableRef.current?.clientHeight ?? 0;
+      const tableHeight = tableRef.current?.clientHeight ?? timelineHeight;
+      setViewportHeight(timelineHeight);
+      setTableScrollRangeCompensation(Math.max(tableHeight - timelineHeight, 0));
       setTimelineViewportWidth(timelineBody?.clientWidth ?? 0);
       setScrollLeft(timelineBody?.scrollLeft ?? 0);
     }
@@ -199,6 +203,7 @@ export function useGanttViewport({
     scrollLeft,
     scrollTop,
     setSynchronizedScrollTop,
+    tableScrollRangeCompensation,
     tableRef,
     timelineBodyRef,
     timelineHeaderRef,
