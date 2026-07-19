@@ -87,11 +87,6 @@ export function TimelineHeader({
           );
         })}
       </div>
-      {showToday ? (
-        <div className="today-label" style={{ left: todayOffset * dayWidth + dayWidth / 2 }}>
-          今日
-        </div>
-      ) : null}
     </div>
   );
 }

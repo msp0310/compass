@@ -8,6 +8,7 @@ import type {
   TaskInspectorFocusTarget,
   TaskRow,
 } from "../../../types/schedule";
+import type { TaskTreeGuideState } from "../lib/taskTableModel";
 import { getTaskSelectionOptions } from "../utils/taskSelection";
 import { rowHeight } from "./constants";
 import { TaskMetadataCells } from "./TaskMetadataCells";
@@ -35,6 +36,7 @@ type TaskTableRowProps = {
   selected: boolean;
   task: TaskRow;
   titleEditSignal?: number;
+  treeGuideState?: TaskTreeGuideState;
   showDates?: boolean;
 };
 
@@ -58,6 +60,7 @@ export function TaskTableRow({
   showDates = false,
   task,
   titleEditSignal = 0,
+  treeGuideState,
 }: TaskTableRowProps) {
   const searchMatched = taskMatchesQuery(task, query);
 
@@ -87,7 +90,7 @@ export function TaskTableRow({
         searchMatched ? "search-match" : ""
       } ${dependencyIssues.length > 0 ? "dependency-issue" : ""} ${
         dragReordering ? "reorder-dragging" : ""
-      } row-${task.type} status-${task.status}`}
+      } ${task.hasChildren ? "has-children" : "leaf-task"} row-${task.type} status-${task.status}`}
       data-task-id={task.id}
       onClick={handleRowClick}
       onContextMenu={onContextMenu}
@@ -117,6 +120,7 @@ export function TaskTableRow({
         searchMatched={searchMatched}
         task={task}
         titleEditSignal={titleEditSignal}
+        treeGuideState={treeGuideState}
       />
       <TaskMetadataCells
         columnVisibility={columnVisibility}

@@ -3,6 +3,8 @@ import {
   ChatBubbleLeftRightIcon,
   ChevronRightIcon,
   ExclamationTriangleIcon,
+  FolderIcon,
+  StopIcon,
 } from "@heroicons/react/24/outline";
 import {
   type MouseEvent,
@@ -14,6 +16,7 @@ import {
 
 import type { DependencyIssue } from "../../../lib/schedule";
 import type { ScheduleTask, TaskInspectorFocusTarget, TaskRow } from "../../../types/schedule";
+import type { TaskTreeGuideState } from "../lib/taskTableModel";
 import { getTaskSelectionOptions } from "../utils/taskSelection";
 
 type SelectionOptions = {
@@ -34,6 +37,7 @@ type TaskTitleCellProps = {
   searchMatched: boolean;
   task: TaskRow;
   titleEditSignal: number;
+  treeGuideState?: TaskTreeGuideState;
 };
 
 /** 階層操作、タスク名編集、コメント・依存警告をタスク名セルへ閉じ込めます。 */
@@ -49,6 +53,7 @@ export function TaskTitleCell({
   searchMatched,
   task,
   titleEditSignal,
+  treeGuideState,
 }: TaskTitleCellProps) {
   const [titleDraft, setTitleDraft] = useState(task.title);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -108,7 +113,7 @@ export function TaskTitleCell({
   }
 
   return (
-    <span className="task-title" style={{ paddingLeft: `${task.depth * 18 + 10}px` }}>
+    <span className="task-title">
       <button
         aria-label={`${task.title} をドラッグして並び替え`}
         className="drag-handle"
@@ -120,6 +125,31 @@ export function TaskTitleCell({
       >
         <Bars3Icon />
       </button>
+      {task.depth > 0 ? (
+        <span
+          aria-hidden="true"
+          className="task-tree-guides"
+          style={{ width: `${task.depth * 12}px` }}
+        >
+          {Array.from({ length: task.depth }, (_, depth) => {
+            const isBranch = depth === task.depth - 1;
+            return (
+              <span
+                className={[
+                  "task-tree-guide",
+                  isBranch ? "branch" : "ancestor",
+                  isBranch && treeGuideState?.isLastSibling ? "last" : "",
+                  !isBranch && treeGuideState?.ancestorContinues[depth] ? "continues" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                key={depth}
+                style={{ left: `${depth * 12}px` }}
+              />
+            );
+          })}
+        </span>
+      ) : null}
       {task.hasChildren ? (
         <span
           className={collapsed ? "collapse-button collapsed" : "collapse-button"}
@@ -133,6 +163,9 @@ export function TaskTitleCell({
       ) : (
         <span className="collapse-spacer" aria-hidden="true" />
       )}
+      <span className={task.hasChildren ? "task-kind-icon parent" : "task-kind-icon leaf"}>
+        {task.hasChildren ? <FolderIcon /> : <StopIcon />}
+      </span>
       {isEditingTitle ? (
         <input
           aria-label={`${task.title} のタスク名`}

@@ -1,6 +1,46 @@
 import type { Member, ScheduleTask, TaskRow, TaskStatus } from "../../../types/schedule";
 import type { TaskRowReorderMode, TaskTableSortState } from "../types/ganttState";
 
+export type TaskTreeGuideState = {
+  ancestorContinues: boolean[];
+  isLastSibling: boolean;
+};
+
+/** 表示中の行だけを使い、各階層の縦線と枝の終端を計算します。 */
+export function buildTaskTreeGuideStates(rows: TaskRow[]) {
+  const rowById = new Map(rows.map((row) => [row.id, row]));
+  const visibleChildrenByParentId = new Map<string | null, TaskRow[]>();
+
+  rows.forEach((row) => {
+    const siblings = visibleChildrenByParentId.get(row.parentId) ?? [];
+    siblings.push(row);
+    visibleChildrenByParentId.set(row.parentId, siblings);
+  });
+
+  function isLastVisibleSibling(row: TaskRow) {
+    const siblings = visibleChildrenByParentId.get(row.parentId) ?? [];
+    return siblings.at(-1)?.id === row.id;
+  }
+
+  return new Map(
+    rows.map((row) => {
+      const ancestors: TaskRow[] = [];
+      let parent = row.parentId ? rowById.get(row.parentId) : undefined;
+      while (parent) {
+        ancestors.unshift(parent);
+        parent = parent.parentId ? rowById.get(parent.parentId) : undefined;
+      }
+      return [
+        row.id,
+        {
+          ancestorContinues: ancestors.map((ancestor) => !isLastVisibleSibling(ancestor)),
+          isLastSibling: isLastVisibleSibling(row),
+        },
+      ];
+    }),
+  );
+}
+
 export function getTaskRowReorderMode(clientX: number, startX: number): TaskRowReorderMode {
   const deltaX = clientX - startX;
   if (deltaX > 34) {

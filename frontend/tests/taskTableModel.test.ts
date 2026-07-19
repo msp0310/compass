@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   buildTaskChildrenMap,
+  buildTaskTreeGuideStates,
   getDescendantTaskIds,
   getReorderRootIds,
   getTaskRowReorderMode,
@@ -47,6 +48,29 @@ test("階層ソートは子タスクを親の直後に保持する", () => {
     sorted.map((item) => item.id),
     ["phase-a", "task-a", "phase-b", "task-b"],
   );
+});
+
+test("階層ガイドは表示中の兄弟だけを基準に枝の継続を判定する", () => {
+  const rows = [
+    row("root-a", null, 0, "A"),
+    row("child-a", "root-a", 1, "A-1"),
+    row("grandchild-a", "child-a", 2, "A-1-1"),
+    row("child-b", "root-a", 1, "A-2"),
+    row("root-b", null, 0, "B"),
+  ];
+
+  const guides = buildTaskTreeGuideStates(rows);
+
+  assert.deepEqual(guides.get("grandchild-a"), {
+    ancestorContinues: [true, true],
+    isLastSibling: true,
+  });
+  assert.deepEqual(guides.get("child-b"), {
+    ancestorContinues: [true],
+    isLastSibling: true,
+  });
+  assert.equal(guides.get("root-a")?.isLastSibling, false);
+  assert.equal(guides.get("root-b")?.isLastSibling, true);
 });
 
 test("親子を同時選択した場合は親だけを移動ルートにする", () => {

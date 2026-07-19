@@ -15,6 +15,7 @@ import type {
   TaskRow,
 } from "../../../types/schedule";
 import type { TaskRowReorderState, TaskTableSortKey } from "../types/ganttState";
+import type { TaskTreeGuideState } from "../lib/taskTableModel";
 import { TaskTableRow } from "./TaskTableRow";
 
 type TaskTableViewportProps = {
@@ -47,6 +48,7 @@ type TaskTableViewportProps = {
   tableRef: RefObject<HTMLDivElement | null>;
   tableSortKey: TaskTableSortKey | null;
   taskTitleEditRequest: { requestId: number; taskId: string | null };
+  taskTreeGuideStates: Map<string, TaskTreeGuideState>;
   virtualWindow: {
     rows: TaskRow[];
     start: number;
@@ -79,6 +81,7 @@ export function TaskTableViewport({
   tableRef,
   tableSortKey,
   taskTitleEditRequest,
+  taskTreeGuideStates,
   virtualWindow,
 }: TaskTableViewportProps) {
   return (
@@ -140,6 +143,7 @@ export function TaskTableViewport({
               selected={selectedTaskIds.has(task.id)}
               showDates={displayMode === "table"}
               task={task}
+              treeGuideState={taskTreeGuideStates.get(task.id)}
               titleEditSignal={
                 taskTitleEditRequest.taskId === task.id ? taskTitleEditRequest.requestId : 0
               }

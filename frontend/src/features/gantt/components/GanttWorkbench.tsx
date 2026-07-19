@@ -22,7 +22,10 @@ import { useSuppressedTableClick } from "../hooks/useSuppressedTableClick";
 import { useTaskContextMenu } from "../hooks/useTaskContextMenu";
 import { useTaskDragSelection } from "../hooks/useTaskDragSelection";
 import { useTaskRowReorder } from "../hooks/useTaskRowReorder";
-import { sortTaskRowsPreservingHierarchy } from "../lib/taskTableModel";
+import {
+  buildTaskTreeGuideStates,
+  sortTaskRowsPreservingHierarchy,
+} from "../lib/taskTableModel";
 import type { TaskTableSortKey, TaskTableSortState } from "../types/ganttState";
 import { rowHeight } from "./constants";
 import { FilterPanel } from "./FilterPanel";
@@ -195,6 +198,10 @@ export function GanttWorkbench({
     () =>
       displayMode === "table" ? sortTaskRowsPreservingHierarchy(rows, tableSort, members) : rows,
     [displayMode, members, rows, tableSort],
+  );
+  const taskTreeGuideStates = useMemo(
+    () => buildTaskTreeGuideStates(displayRows),
+    [displayRows],
   );
   const taskTableColumns = useMemo(
     () =>
@@ -442,6 +449,7 @@ export function GanttWorkbench({
           tableRef={tableRef}
           tableSortKey={tableSort.key}
           taskTitleEditRequest={taskTitleEditRequest}
+          taskTreeGuideStates={taskTreeGuideStates}
           virtualWindow={virtualWindow}
         />
 

@@ -346,28 +346,13 @@
   color: #c4473e;
 }
 
-.today-label {
-  position: absolute;
-  top: 52px;
-  z-index: 4;
-  transform: translateX(-50%);
-  border-radius: 999px;
-  color: #fff;
-  background: #2864ea;
-  padding: 2px 7px;
-  font-size: 10px;
-  font-weight: 700;
-  box-shadow: 0 4px 10px rgba(40, 100, 234, 0.18);
-}
-
 .today-header-band {
   position: absolute;
   top: 0;
   bottom: 0;
   z-index: 0;
-  border-right: 1px solid rgba(40, 100, 234, 0.18);
-  border-left: 1px solid rgba(40, 100, 234, 0.18);
-  background: linear-gradient(180deg, rgba(40, 100, 234, 0.14), rgba(40, 100, 234, 0.05));
+  background: rgba(40, 100, 234, 0.035);
+  box-shadow: inset 1px 0 rgba(40, 100, 234, 0.3);
   pointer-events: none;
 }
 
@@ -592,13 +577,12 @@
 }
 
 .day-column.today {
-  border-right: 1px solid rgba(40, 100, 234, 0.16);
-  border-left: 1px solid rgba(40, 100, 234, 0.16);
-  background: rgba(40, 100, 234, 0.055);
+  background: rgba(40, 100, 234, 0.028);
+  box-shadow: inset 1px 0 rgba(40, 100, 234, 0.28);
 }
 
 .day-column.non-working.today {
-  background: linear-gradient(90deg, rgba(246, 144, 75, 0.07), rgba(40, 100, 234, 0.08));
+  background: linear-gradient(90deg, rgba(40, 100, 234, 0.025), rgba(246, 144, 75, 0.07));
 }
 
 .day-column.outside-project-range {
@@ -610,7 +594,7 @@
 }
 
 .day-column.outside-project-range.today {
-  background: rgba(40, 100, 234, 0.065);
+  background: rgba(40, 100, 234, 0.035);
 }
 
 .day-column.project-range-end {
@@ -623,7 +607,7 @@
   grid-template-columns: var(--task-table-columns, minmax(280px, 1fr) 72px 68px 56px);
   align-items: center;
   border: 0;
-  border-bottom: 1px solid #edf1f6;
+  border-bottom: 1px solid #e4ebf5;
   color: #233047;
   background: #fff;
   padding: 0;
@@ -695,12 +679,17 @@
   font-weight: 700;
 }
 
+.task-table-row.has-children:not(.selected):not(.search-match) {
+  background-color: #fbfdff;
+}
+
 .task-title {
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 7px;
+  gap: 3px;
   overflow: hidden;
+  padding-left: 4px;
 }
 
 .gantt-shell.table-view .task-title {
@@ -841,6 +830,73 @@
   color: #54647a;
 }
 
+.task-tree-guides {
+  position: relative;
+  align-self: stretch;
+  flex: 0 0 auto;
+  height: 34px;
+}
+
+.task-tree-guide {
+  position: absolute;
+  top: 0;
+  width: 12px;
+  height: 34px;
+  color: #c2cedd;
+  pointer-events: none;
+}
+
+.task-tree-guide.ancestor.continues::before,
+.task-tree-guide.branch::before {
+  position: absolute;
+  top: 0;
+  left: 6px;
+  height: 100%;
+  border-left: 1px solid currentColor;
+  content: "";
+}
+
+.task-tree-guide.branch.last::before {
+  height: 50%;
+}
+
+.task-tree-guide.branch::after {
+  position: absolute;
+  top: 50%;
+  left: 6px;
+  width: 6px;
+  border-top: 1px solid currentColor;
+  content: "";
+}
+
+.task-kind-icon {
+  display: grid;
+  flex: 0 0 15px;
+  width: 15px;
+  height: 18px;
+  place-items: center;
+}
+
+.task-kind-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.task-kind-icon.parent {
+  color: #5f84c7;
+}
+
+.task-kind-icon.leaf {
+  color: #a6b1c0;
+}
+
+.task-kind-icon.leaf svg {
+  width: 10px;
+  height: 10px;
+  fill: none;
+  stroke-width: 1.8;
+}
+
 .collapse-button svg {
   width: 14px;
   height: 14px;
@@ -853,8 +909,8 @@
 
 .drag-handle {
   display: grid;
-  flex: 0 0 20px;
-  width: 20px;
+  flex: 0 0 17px;
+  width: 17px;
   height: 26px;
   place-items: center;
   border: 0;
@@ -1152,9 +1208,25 @@
   background: color-mix(in srgb, var(--bar-color) 68%, #fff);
 }
 
+.gantt-bar.task.has-children {
+  height: 18px;
+  border-color: color-mix(in srgb, var(--bar-color) 82%, #153f78);
+  background: color-mix(in srgb, var(--bar-color) 82%, #fff);
+}
+
+.gantt-bar.phase {
+  height: 21px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--bar-color) 86%, #173b72);
+  box-shadow:
+    inset 0 -2px 0 rgba(15, 23, 42, 0.2),
+    0 1px 2px rgba(30, 64, 120, 0.15);
+}
+
 .gantt-bar.summary {
-  height: 19px;
-  border-radius: 999px;
+  height: 20px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--bar-color) 90%, #234b86);
 }
 
 .gantt-bar.status-done {

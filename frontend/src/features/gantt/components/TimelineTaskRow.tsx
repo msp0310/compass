@@ -186,7 +186,7 @@ export function TimelineTaskRow({
           task.end,
         )}${barKeyboardHint}`}
         aria-pressed={selected}
-        className={`gantt-bar ${task.type} status-${task.status} ${selected ? "selected" : ""} ${
+        className={`gantt-bar ${task.type} ${task.hasChildren ? "has-children" : "leaf-task"} status-${task.status} ${selected ? "selected" : ""} ${
           canMove ? "draggable" : "readonly"
         } ${searchMatched ? "search-match" : ""} ${
           dependencyIssues.length > 0 ? "dependency-issue" : ""
