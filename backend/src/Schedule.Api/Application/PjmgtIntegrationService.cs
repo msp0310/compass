@@ -142,7 +142,7 @@ public sealed class PjmgtIntegrationService(
         var projects = await db.Projects.AsNoTracking().ToListAsync(cancellationToken);
         var included = snapshot.Projects.Where(item => !ShouldExclude(item, excludePastProjects)).ToArray();
         var skipped = snapshot.Projects.Count - included.Length;
-        if (skipped > 0) warnings.Add($"削除・失注・過去案件の{skipped}件を同期対象外にします。");
+        if (skipped > 0) warnings.Add($"未受注・削除・失注・過去案件の{skipped}件を同期対象外にします。");
 
         var teamCreated = snapshot.Teams.Count(item => !teams.Any(existing => IsMatch(existing.ExternalSource, existing.ExternalId, item.TeamId) || existing.Name == item.TeamName));
         var memberCreated = snapshot.Members.Count(item => !members.Any(existing =>
@@ -325,6 +325,8 @@ public sealed class PjmgtIntegrationService(
             project.Workspace = source.ProjectName.Trim();
             project.CustomerName = NullIfBlank(source.DeliveryDestination);
             project.OrderingCompanyName = NullIfBlank(source.OrderingCompanyName);
+            project.ProjectTypeId = source.ProjectTypeId;
+            project.ProjectTypeName = NullIfBlank(source.ProjectTypeName);
             project.TeamId = source.TeamId is not null && teamMap.TryGetValue(source.TeamId, out var team) ? team.Id : null;
             project.RangeStart = start;
             project.RangeEnd = end;
@@ -472,7 +474,8 @@ public sealed class PjmgtIntegrationService(
 
     private static bool ShouldExclude(PjmgtProjectDto project, bool excludePastProjects)
     {
-        if (project.SalesStatus is 7 or 9) return true;
+        // 営業活動中・仮受注を含む未受注案件と、削除・失注案件は取り込みません。
+        if (project.SalesStatus is not (1 or 8)) return true;
         if (!excludePastProjects) return false;
         if (project.SalesStatus == 8) return true;
         return DateOnly.TryParse(project.PeriodTo, out var end) && end < DateOnly.FromDateTime(DateTime.Today);

@@ -65,6 +65,8 @@ public sealed record PjmgtProjectDto(
     string? TeamId,
     string? ManagerMemberId,
     string? SalesMemberId,
+    int? ProjectTypeId,
+    string? ProjectTypeName,
     [property: JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)] int SalesStatus,
     string? PeriodFrom,
     string? PeriodTo);

@@ -86,6 +86,8 @@ public sealed class ProjectEntity
     public string? ProjectNo { get; set; }
     public string? CustomerName { get; set; }
     public string? OrderingCompanyName { get; set; }
+    public int? ProjectTypeId { get; set; }
+    public string? ProjectTypeName { get; set; }
     public string? LifecycleStatus { get; set; }
     public string RangeStart { get; set; } = "";
     public string RangeEnd { get; set; } = "";

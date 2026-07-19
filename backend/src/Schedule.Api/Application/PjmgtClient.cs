@@ -80,6 +80,8 @@ public sealed class PjmgtClient(HttpClient httpClient, IOptions<PjmgtOptions> op
                 ToId(item.Team),
                 ToId(item.ManagerMember),
                 ToId(item.SalesMember),
+                item.ProjectType?.Id,
+                item.ProjectType?.Name,
                 item.SalesStatus.Id,
                 item.Dates.PeriodFrom,
                 item.Dates.PeriodTo)).ToArray(),
@@ -188,6 +190,8 @@ internal sealed class PjmgtApiProjectDto
     public PjmgtApiIdNameDto? SalesMember { get; init; }
     [JsonPropertyName("sales_status")]
     public PjmgtApiIdNameDto SalesStatus { get; init; } = new(0, null);
+    [JsonPropertyName("project_type")]
+    public PjmgtApiIdNameDto? ProjectType { get; init; }
     public PjmgtApiProjectDatesDto Dates { get; init; } = new();
 }
 

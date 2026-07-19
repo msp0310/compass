@@ -109,7 +109,9 @@ public static class ScheduleMapper
             entity.ExternalId,
             entity.ExternalSource == "pjmgt" && entity.ExternalId is not null
                 ? $"/api/integrations/pjmgt/projects/{Uri.EscapeDataString(entity.Id)}/open"
-                : null);
+                : null,
+            entity.ProjectTypeId,
+            entity.ProjectTypeName);
     }
 
     /// <summary>タスクエンティティと関連付けをAPI DTOへ変換します。</summary>
@@ -270,6 +272,8 @@ public static class ScheduleMapper
             ProjectNo = string.IsNullOrWhiteSpace(dto.ProjectNo) ? null : dto.ProjectNo.Trim(),
             CustomerName = string.IsNullOrWhiteSpace(dto.CustomerName) ? null : dto.CustomerName.Trim(),
             OrderingCompanyName = string.IsNullOrWhiteSpace(dto.OrderingCompanyName) ? null : dto.OrderingCompanyName.Trim(),
+            ProjectTypeId = dto.ProjectTypeId,
+            ProjectTypeName = string.IsNullOrWhiteSpace(dto.ProjectTypeName) ? null : dto.ProjectTypeName.Trim(),
             LifecycleStatus = dto.LifecycleStatus,
             RangeStart = dto.RangeStart,
             RangeEnd = dto.RangeEnd,

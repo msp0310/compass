@@ -30,6 +30,7 @@ export function ProjectSettingsPage(props: ProjectSettingsPageProps) {
       </div>
       <div className="master-settings-summary project-settings-summary">
         <Summary label="プロジェクトNo." value={draft.projectNo || "未設定"} />
+        <Summary label="案件種別" value={props.project.projectTypeName || "未設定"} />
         <Summary
           label="ステータス"
           value={projectLifecycleLabels[draft.lifecycleStatus ?? "planning"]}

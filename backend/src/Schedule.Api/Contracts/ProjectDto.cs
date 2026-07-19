@@ -22,4 +22,6 @@ public sealed record ProjectDto(
     string? OrderingCompanyName = null,
     string? ExternalSource = null,
     string? ExternalId = null,
-    string? ExternalUrl = null);
+    string? ExternalUrl = null,
+    int? ProjectTypeId = null,
+    string? ProjectTypeName = null);

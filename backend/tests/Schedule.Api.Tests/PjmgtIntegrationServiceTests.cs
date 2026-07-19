@@ -45,7 +45,7 @@ public sealed class PjmgtIntegrationServiceTests
         await client.TestConnectionAsync("https://pjmgt.example.test/pjmgt/api/v1", CancellationToken.None);
         var preview = await service.PreviewAsync(CancellationToken.None);
         Assert.Equal(1, preview.ProjectsCreated);
-        Assert.Equal(1, preview.ProjectsSkipped);
+        Assert.Equal(2, preview.ProjectsSkipped);
         Assert.Equal(1, preview.AssignmentsImported);
         Assert.Empty(preview.Errors);
 
@@ -55,6 +55,8 @@ public sealed class PjmgtIntegrationServiceTests
         Assert.Equal("PJ-001", project.ProjectNo);
         Assert.Equal("納品先A", project.CustomerName);
         Assert.Equal("発注元A", project.OrderingCompanyName);
+        Assert.Equal(15, project.ProjectTypeId);
+        Assert.Equal("Azure", project.ProjectTypeName);
         Assert.Single(project.Assignments);
         Assert.Equal(60, project.Assignments[0].AllocationPercent);
         Assert.Single(project.Members);
@@ -231,7 +233,8 @@ public sealed class PjmgtIntegrationServiceTests
                 Assert.Equal("true", query["include_deleted"]);
                 return Collection([
                     Project(30, "PJ-001", "現行案件", "納品先A", "発注元A", currentEnd),
-                    Project(31, "PJ-OLD", "過去案件", "納品先B", "発注元B", oldEnd)
+                    Project(31, "PJ-OLD", "過去案件", "納品先B", "発注元B", oldEnd),
+                    Project(32, "PJ-LEAD", "未受注案件", "納品先C", "発注元C", currentEnd, 0)
                 ]);
             }
 
@@ -252,12 +255,13 @@ public sealed class PjmgtIntegrationServiceTests
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
         }
 
-        private object Project(int id, string projectNo, string name, string deliveryDestination, string companyName, string periodTo) => new
+        private object Project(int id, string projectNo, string name, string deliveryDestination, string companyName, string periodTo, int salesStatus = 1) => new
         {
             id,
             project_no = projectNo,
             name,
-            sales_status = new { id = 1, name = "進行中" },
+            sales_status = new { id = salesStatus, name = salesStatus == 1 ? "受注" : "営業活動中" },
+            project_type = new { id = 15, name = "Azure" },
             company = new { id = 1, name = companyName, short_name = companyName },
             sales_member = (object?)null,
             manager_member = new { id = 20, name = "山田 太郎" },

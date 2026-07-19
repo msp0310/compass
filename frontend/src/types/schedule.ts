@@ -111,6 +111,8 @@ export type Project = {
   projectNo?: string | null;
   customerName?: string | null;
   orderingCompanyName?: string | null;
+  projectTypeId?: number | null;
+  projectTypeName?: string | null;
   externalSource?: string | null;
   externalId?: string | null;
   externalUrl?: string | null;
