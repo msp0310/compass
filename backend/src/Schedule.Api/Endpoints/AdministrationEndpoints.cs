@@ -18,6 +18,19 @@ public static class AdministrationEndpoints
             catch (ProjectAccessDeniedException) { return Results.StatusCode(StatusCodes.Status403Forbidden); }
             catch (ArgumentException error) { return Results.BadRequest(new { message = error.Message }); }
         });
+        api.MapDelete("/admin/teams/{teamId}", async (string teamId, HttpContext context,
+            AdministrationService service, CancellationToken token) =>
+        {
+            if (context.Items["CurrentUser"] is not AuthUserDto user) return Results.Unauthorized();
+            try
+            {
+                await service.DeleteTeamAsync(teamId, user, token);
+                return Results.NoContent();
+            }
+            catch (ProjectAccessDeniedException) { return Results.StatusCode(StatusCodes.Status403Forbidden); }
+            catch (ArgumentException error) { return Results.NotFound(new { message = error.Message }); }
+            catch (InvalidOperationException error) { return Results.Conflict(new { message = error.Message }); }
+        });
         api.MapPut("/admin/members/{memberId}", async (string memberId, MemberDto dto, HttpContext context,
             AdministrationService service, CancellationToken token) =>
         {

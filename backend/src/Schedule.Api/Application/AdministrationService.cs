@@ -47,6 +47,25 @@ public sealed class AdministrationService(
         return ScheduleMapper.ToDto(team);
     }
 
+    public async Task DeleteTeamAsync(
+        string teamId,
+        AuthUserDto user,
+        CancellationToken cancellationToken)
+    {
+        if (user.Role != SystemRoles.Admin) throw new ProjectAccessDeniedException();
+        var team = await db.Teams.Include(item => item.Members)
+            .SingleOrDefaultAsync(item => item.Id == teamId, cancellationToken)
+            ?? throw new ArgumentException("削除対象のチームが見つかりません。");
+        if (await db.Projects.AnyAsync(project => project.TeamId == teamId, cancellationToken))
+            throw new InvalidOperationException("所属プロジェクトがあるチームは削除できません。先にプロジェクトの所属先を変更してください。");
+
+        var detail = new { team.Name, team.Code, memberCount = team.Members.Count };
+        db.Teams.Remove(team);
+        await db.SaveChangesAsync(cancellationToken);
+        await auditLogs.RecordAsync(user, "team.delete", "system", null, "team", teamId,
+            detail, cancellationToken);
+    }
+
     public async Task<MemberDto> SaveMemberAsync(
         MemberDto dto,
         AuthUserDto user,

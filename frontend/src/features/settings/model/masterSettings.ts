@@ -30,6 +30,8 @@ export const auditActionLabels: Record<string, string> = {
   "project.activity.save": "案件運用データ保存",
   "project.schedule.save": "案件計画保存",
   "task.actual.update": "タスク実績更新",
+  "team.delete": "チーム削除",
+  "team.save": "チーム更新",
 };
 
 export function getActiveTeamMemberCount(team: Team, members: Member[]) {

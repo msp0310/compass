@@ -95,6 +95,12 @@ export const apiScheduleRepository: ScheduleRepository = {
     });
   },
 
+  async deleteTeam(teamId) {
+    await requestAuthenticatedJson(`/admin/teams/${encodeURIComponent(teamId)}`, {
+      method: "DELETE",
+    });
+  },
+
   async saveMember(member) {
     return requestAuthenticatedJson(`/admin/members/${encodeURIComponent(member.id)}`, {
       body: JSON.stringify(member),

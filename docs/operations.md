@@ -29,6 +29,19 @@ COMPASS_DATA_DIR=/data COMPASS_BACKUP_DIR=/backups ./scripts/backup.sh
 
 添付アップロードとDB更新を完全に同一時点へ揃える必要がある場合は、メンテナンス表示中に実行してください。日次バックアップに加えて世代管理と別ストレージへの転送を設定し、四半期ごとに復元試験を行います。
 
+## PostgreSQL
+
+本番環境でPostgreSQLを使用する場合は、次の環境変数を設定します。起動時にPostgreSQL専用Migrationが自動適用されます。
+
+```bash
+Database__Provider=PostgreSql
+ConnectionStrings__ScheduleDb='Host=<postgres-host>;Port=5432;Database=compass;Username=compass;Password=<password>'
+```
+
+SQLiteへ戻す場合は`Database__Provider=Sqlite`を指定します。SQLiteとPostgreSQLは別のMigration履歴を持つため、既存データは自動移行されません。
+
+PostgreSQL運用時は`pg_dump`でDBをバックアップし、添付ディレクトリも同じ世代として保管してください。
+
 ## 復元
 
 1. APIを停止します。

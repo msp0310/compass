@@ -16,6 +16,7 @@ export function WorkbenchConfigurationViews({ controller }: WorkbenchConfigurati
     availableTourIds,
     createMember,
     createTeam,
+    deleteTeam,
     currentUser,
     helpDocumentId,
     managementTeam,
@@ -47,6 +48,7 @@ export function WorkbenchConfigurationViews({ controller }: WorkbenchConfigurati
           members={schedule.members}
           onCreateMember={createMember}
           onCreateTeam={createTeam}
+          onDeleteTeam={deleteTeam}
           onSaveCalendar={updateTeamCalendarMaster}
           onSaveMember={updateMember}
           onSaveTeam={updateTeam}

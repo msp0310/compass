@@ -23,23 +23,19 @@ public static class SeedData
         string? initialAdminName,
         CancellationToken cancellationToken)
     {
-        await ConfigureSqliteAsync(db, cancellationToken);
-        if (await HasLegacySchemaAsync(db, cancellationToken))
-        {
-            // 旧EnsureCreated環境は既存テーブルを作り直さず、初期Migrationを適用済みとして扱います。
-            await db.Database.EnsureCreatedAsync(cancellationToken);
-        }
-        else
+        if (db.Database.IsNpgsql())
         {
             await db.Database.MigrateAsync(cancellationToken);
         }
-
-        await EnsureAuthSchemaAsync(db, cancellationToken);
-        await EnsureIssueSchemaAsync(db, cancellationToken);
-        await EnsureWorkLogSchemaAsync(db, cancellationToken);
-        await EnsureMigrationBaselineAsync(db, cancellationToken);
-        // 既存DBは初期Migrationをベースライン登録した後、将来の未適用Migrationだけを適用します。
-        await db.Database.MigrateAsync(cancellationToken);
+        else if (db.Database.IsSqlite())
+        {
+            await PrepareSqliteSchemaAsync(db, cancellationToken);
+        }
+        else
+        {
+            throw new InvalidOperationException(
+                $"未対応のデータベースプロバイダーです: {db.Database.ProviderName}");
+        }
         if (!seedDevelopmentData)
         {
             await EnsureInitialAdminAsync(
@@ -242,6 +238,29 @@ public static class SeedData
         await db.SaveChangesAsync(cancellationToken);
     }
 
+    private static async Task PrepareSqliteSchemaAsync(
+        ScheduleDbContext db,
+        CancellationToken cancellationToken)
+    {
+        await ConfigureSqliteAsync(db, cancellationToken);
+        if (await HasLegacySchemaAsync(db, cancellationToken))
+        {
+            // 旧EnsureCreated環境は既存テーブルを作り直さず、初期Migrationを適用済みとして扱います。
+            await db.Database.EnsureCreatedAsync(cancellationToken);
+        }
+        else
+        {
+            await db.Database.MigrateAsync(cancellationToken);
+        }
+
+        await EnsureAuthSchemaAsync(db, cancellationToken);
+        await EnsureIssueSchemaAsync(db, cancellationToken);
+        await EnsureWorkLogSchemaAsync(db, cancellationToken);
+        await EnsureMigrationBaselineAsync(db, cancellationToken);
+        // 既存DBは初期Migrationをベースライン登録した後、将来の未適用Migrationだけを適用します。
+        await db.Database.MigrateAsync(cancellationToken);
+    }
+
     /// <summary>空の本番DBへ環境変数で指定された初期管理者を一度だけ作成します。</summary>
     private static async Task EnsureInitialAdminAsync(
         ScheduleDbContext db,
@@ -277,7 +296,7 @@ public static class SeedData
             Id = Guid.NewGuid().ToString("N"),
             MemberId = memberId,
             Email = email,
-            EmailNormalized = email.ToLowerInvariant(),
+            EmailNormalized = AuthService.NormalizeEmail(email),
             Name = name,
             Role = SystemRoles.Admin,
             PasswordHash = PasswordHasher.HashPassword(password),

@@ -18,9 +18,15 @@ export function useMemberAccountAdministration(members: Member[], active: boolea
 
   const mergedMembers = useMemo(() => {
     const accountMemberById = new Map(accountMembers.map((member) => [member.id, member]));
-    return members.map((member) =>
-      mergeMemberAccountFields(member, accountMemberById.get(member.id)),
-    );
+    const scheduleMemberById = new Map(members.map((member) => [member.id, member]));
+    return [
+      ...accountMembers.map((member) =>
+        mergeMemberAccountFields(scheduleMemberById.get(member.id) ?? member, member),
+      ),
+      ...members
+        .filter((member) => !accountMemberById.has(member.id))
+        .map((member) => mergeMemberAccountFields(member, undefined)),
+    ];
   }, [accountMembers, members]);
 
   const load = useCallback(async () => {

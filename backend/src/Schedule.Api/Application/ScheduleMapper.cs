@@ -104,7 +104,12 @@ public static class ScheduleMapper
                 .Select(member => new ProjectMemberDto(member.MemberId, member.ProjectRole))
                 .ToArray(),
             entity.CustomerName,
-            entity.OrderingCompanyName);
+            entity.OrderingCompanyName,
+            entity.ExternalSource,
+            entity.ExternalId,
+            entity.ExternalSource == "pjmgt" && entity.ExternalId is not null
+                ? $"/api/integrations/pjmgt/projects/{Uri.EscapeDataString(entity.Id)}/open"
+                : null);
     }
 
     /// <summary>タスクエンティティと関連付けをAPI DTOへ変換します。</summary>

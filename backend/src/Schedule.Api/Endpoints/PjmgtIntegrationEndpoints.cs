@@ -8,6 +8,27 @@ public static class PjmgtIntegrationEndpoints
 {
     public static IEndpointRouteBuilder MapPjmgtIntegrationEndpoints(this IEndpointRouteBuilder app)
     {
+        app.MapGet("/api/integrations/pjmgt/projects/{projectId}/open", async (
+            string projectId,
+            HttpContext context,
+            PjmgtIntegrationService service,
+            ProjectAuthorizationService authorization,
+            CancellationToken token) =>
+        {
+            if (context.Items["CurrentUser"] is not AuthUserDto user) return Results.Unauthorized();
+            var access = await authorization.GetProjectAccessAsync(user, projectId, token);
+            if (!access.CanView) return Results.StatusCode(StatusCodes.Status403Forbidden);
+            try
+            {
+                var url = await service.GetProjectWebUrlAsync(projectId, token);
+                return url is null ? Results.NotFound() : Results.Redirect(url);
+            }
+            catch (InvalidOperationException error)
+            {
+                return Results.BadRequest(new { message = error.Message });
+            }
+        });
+
         var api = app.MapGroup("/api/admin/integrations/pjmgt");
 
         api.MapGet("/settings", async (HttpContext context, PjmgtIntegrationService service, CancellationToken token) =>

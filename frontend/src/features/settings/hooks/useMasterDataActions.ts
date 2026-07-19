@@ -91,6 +91,38 @@ export function useMasterDataActions({
     [onActivity, onToast, setWorkspace],
   );
 
+  const deleteTeam = useCallback(
+    async (teamId: string) => {
+      const team = workspace.teams.find((item) => item.id === teamId);
+      if (!team) {
+        return false;
+      }
+      try {
+        await apiScheduleRepository.deleteTeam(teamId);
+      } catch (error) {
+        onToast({
+          detail: error instanceof Error ? error.message : "削除できませんでした。",
+          title: "チームの削除に失敗しました",
+          tone: "warning",
+        });
+        return false;
+      }
+      setWorkspace((current) => ({
+        ...current,
+        teams: current.teams.filter((item) => item.id !== teamId),
+      }));
+      onToast({ detail: team.name, title: "チームを削除しました" });
+      onActivity({
+        category: "team",
+        detail: team.description || team.code,
+        title: `チームを削除: ${team.name}`,
+        tone: "warning",
+      });
+      return true;
+    },
+    [onActivity, onToast, setWorkspace, workspace.teams],
+  );
+
   const updateMember = useCallback(
     async (sourceMember: Member) => {
       let member = sourceMember;
@@ -312,6 +344,7 @@ export function useMasterDataActions({
   return {
     createMember,
     createTeam,
+    deleteTeam,
     toggleTeamMember,
     updateMember,
     updateMemberLifecycle,

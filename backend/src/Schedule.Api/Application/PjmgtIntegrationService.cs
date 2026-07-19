@@ -93,6 +93,24 @@ public sealed class PjmgtIntegrationService(
         return new PjmgtSyncResultDto(syncedAt, summary);
     }
 
+    /// <summary>COMPASS案件に対応するPJMGT詳細画面のURLを返します。</summary>
+    public async Task<string?> GetProjectWebUrlAsync(string projectId, CancellationToken cancellationToken)
+    {
+        var project = await db.Projects.AsNoTracking()
+            .SingleOrDefaultAsync(item => item.Id == projectId, cancellationToken);
+        if (project is not { ExternalSource: Source } || string.IsNullOrWhiteSpace(project.ExternalId))
+            return null;
+
+        var setting = await GetConfiguredSettingAsync(cancellationToken);
+        const string apiSuffix = "/api/v1";
+        var baseUrl = setting.BaseUrl.TrimEnd('/');
+        if (!baseUrl.EndsWith(apiSuffix, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("PJMGT接続先URLから画面URLを特定できません。");
+
+        var webBaseUrl = baseUrl[..^apiSuffix.Length];
+        return $"{webBaseUrl}/pj/pj-list/?type=details&pid={Uri.EscapeDataString(project.ExternalId)}";
+    }
+
     private async Task<PjmgtSyncSummaryDto> BuildSummaryAsync(
         PjmgtSnapshotDto snapshot,
         bool excludePastProjects,
@@ -104,7 +122,7 @@ public sealed class PjmgtIntegrationService(
         var projectNumbers = snapshot.Projects.Select(item => item.ProjectNo?.Trim() ?? "").ToArray();
         var missingMembers = memberNumbers.Count(string.IsNullOrWhiteSpace);
         var missingProjects = projectNumbers.Count(string.IsNullOrWhiteSpace);
-        if (missingMembers > 0) errors.Add($"社員NO未設定の要員が{missingMembers}名あります。");
+        if (missingMembers > 0) warnings.Add($"社員NO未設定の要員{missingMembers}名はPJMGT要員IDで取り込みます。");
         if (missingProjects > 0) errors.Add($"プロジェクトNO未設定の案件が{missingProjects}件あります。");
         var duplicateMembers = DuplicateCount(memberNumbers);
         var duplicateProjects = DuplicateCount(projectNumbers);
@@ -121,7 +139,7 @@ public sealed class PjmgtIntegrationService(
         var teamCreated = snapshot.Teams.Count(item => !teams.Any(existing => IsMatch(existing.ExternalSource, existing.ExternalId, item.TeamId) || existing.Name == item.TeamName));
         var memberCreated = snapshot.Members.Count(item => !members.Any(existing =>
             IsMatch(existing.ExternalSource, existing.ExternalId, item.MemberId) ||
-            existing.EmployeeNo == item.EmployeeNo ||
+            (!string.IsNullOrWhiteSpace(item.EmployeeNo) && existing.EmployeeNo == item.EmployeeNo.Trim()) ||
             (existing.Name == item.Name && members.Count(candidate => candidate.Name == item.Name) == 1)));
         var projectCreated = included.Count(item => !projects.Any(existing => IsMatch(existing.ExternalSource, existing.ExternalId, item.ProjectId) || existing.ProjectNo == item.ProjectNo));
         var archived = projects.Count(existing =>
@@ -173,12 +191,12 @@ public sealed class PjmgtIntegrationService(
             teamMap[source.TeamId] = team;
         }
 
-        var memberMap = new Dictionary<string, MemberEntity>(StringComparer.OrdinalIgnoreCase);
+        var memberMap = new Dictionary<string, MemberEntity>(StringComparer.Ordinal);
         foreach (var source in snapshot.Members)
         {
-            var employeeNo = source.EmployeeNo.Trim();
+            var employeeNo = NullIfBlank(source.EmployeeNo);
             var member = members.FirstOrDefault(item => IsMatch(item.ExternalSource, item.ExternalId, source.MemberId))
-                ?? members.FirstOrDefault(item => item.EmployeeNo == employeeNo);
+                ?? (employeeNo is null ? null : members.FirstOrDefault(item => item.EmployeeNo == employeeNo));
             var nameMatches = members.Where(item => item.Name == source.Name.Trim()).ToArray();
             if (member is null && nameMatches.Length == 1) member = nameMatches[0];
             if (member is null)
@@ -194,13 +212,13 @@ public sealed class PjmgtIntegrationService(
                 member.Role = NormalizeRole(source.ClassName);
             else if (string.IsNullOrWhiteSpace(member.Role))
                 member.Role = "SE";
-            member.Color = MemberColors[SHA256.HashData(Encoding.UTF8.GetBytes(employeeNo))[0] % MemberColors.Length];
+            member.Color = MemberColors[SHA256.HashData(Encoding.UTF8.GetBytes(source.MemberId))[0] % MemberColors.Length];
             var isInactive = source.EmploymentStatus is "7" or "9";
             member.Status = isInactive ? "inactive" : "active";
             member.InactiveAt = isInactive ? NormalizeDate(source.PeriodTo) : null;
             member.ExternalSource = Source;
             member.ExternalId = source.MemberId;
-            memberMap[employeeNo] = member;
+            memberMap[source.MemberId] = member;
         }
 
         var syncedMemberIds = memberMap.Values.Select(item => item.Id).ToHashSet(StringComparer.Ordinal);
@@ -213,7 +231,7 @@ public sealed class PjmgtIntegrationService(
         {
             if (source.TeamId is not null && teamMap.TryGetValue(source.TeamId, out var team))
             {
-                team.Members.Add(new TeamMemberEntity { TeamId = team.Id, MemberId = memberMap[source.EmployeeNo.Trim()].Id });
+                team.Members.Add(new TeamMemberEntity { TeamId = team.Id, MemberId = memberMap[source.MemberId].Id });
             }
         }
 
@@ -286,14 +304,14 @@ public sealed class PjmgtIntegrationService(
 
         foreach (var source in snapshot.ProjectMembers.Where(item => projectMap.ContainsKey(item.ProjectId)))
         {
-            if (!memberMap.TryGetValue(source.EmployeeNo.Trim(), out var member)) continue;
+            if (!memberMap.TryGetValue(source.MemberId, out var member)) continue;
             var project = projectMap[source.ProjectId];
             if (project.Members.All(item => item.MemberId != member.Id))
                 project.Members.Add(new ProjectMemberEntity { ProjectId = project.Id, MemberId = member.Id, ProjectRole = "member" });
         }
         foreach (var source in includedProjects)
         {
-            if (source.ManagerEmployeeNo is null || !memberMap.TryGetValue(source.ManagerEmployeeNo.Trim(), out var manager)) continue;
+            if (source.ManagerMemberId is null || !memberMap.TryGetValue(source.ManagerMemberId, out var manager)) continue;
             var project = projectMap[source.ProjectId];
             var membership = project.Members.FirstOrDefault(item => item.MemberId == manager.Id);
             if (membership is null)
@@ -303,7 +321,7 @@ public sealed class PjmgtIntegrationService(
         }
         foreach (var source in includedProjects)
         {
-            if (source.SalesEmployeeNo is null || !memberMap.TryGetValue(source.SalesEmployeeNo.Trim(), out var sales)) continue;
+            if (source.SalesMemberId is null || !memberMap.TryGetValue(source.SalesMemberId, out var sales)) continue;
             var project = projectMap[source.ProjectId];
             if (project.Members.All(item => item.MemberId != sales.Id))
                 project.Members.Add(new ProjectMemberEntity { ProjectId = project.Id, MemberId = sales.Id, ProjectRole = "viewer" });
@@ -311,14 +329,14 @@ public sealed class PjmgtIntegrationService(
 
         foreach (var source in snapshot.Allocations
                      .Where(item => projectMap.ContainsKey(item.ProjectId))
-                     .GroupBy(item => $"{item.ProjectId}:{item.EmployeeNo}:{item.WorkMonth}", StringComparer.OrdinalIgnoreCase)
+                     .GroupBy(item => $"{item.ProjectId}:{item.MemberId}:{item.WorkMonth}", StringComparer.Ordinal)
                      .Select(group => group.Last()))
         {
-            if (!memberMap.TryGetValue(source.EmployeeNo.Trim(), out var member) || !TryMonthRange(source.WorkMonth, out var start, out var end)) continue;
+            if (!memberMap.TryGetValue(source.MemberId, out var member) || !TryMonthRange(source.WorkMonth, out var start, out var end)) continue;
             var project = projectMap[source.ProjectId];
             project.Assignments.Add(new ProjectAssignmentEntity
             {
-                Id = StableId("assignment", $"{source.ProjectId}:{source.EmployeeNo}:{source.WorkMonth}"),
+                Id = StableId("assignment", $"{source.ProjectId}:{source.MemberId}:{source.WorkMonth}"),
                 ProjectId = project.Id,
                 MemberId = member.Id,
                 Role = member.Role,
@@ -327,7 +345,7 @@ public sealed class PjmgtIntegrationService(
                 AllocationPercent = Math.Clamp(source.PlannedPercent, 0, 100),
                 Status = "confirmed",
                 ExternalSource = Source,
-                ExternalId = $"{source.ProjectId}:{source.EmployeeNo}:{source.WorkMonth}"
+                ExternalId = $"{source.ProjectId}:{source.MemberId}:{source.WorkMonth}"
             });
         }
     }

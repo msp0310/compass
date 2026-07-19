@@ -26,7 +26,11 @@ RUN dotnet publish backend/src/Schedule.Api/Schedule.Api.csproj \
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 
 WORKDIR /app
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgssapi-krb5-2 \
+    && rm -rf /var/lib/apt/lists/*
 ENV ASPNETCORE_HTTP_PORTS=8080 \
+    Database__Provider="Sqlite" \
     ConnectionStrings__ScheduleDb="Data Source=/data/compass.db" \
     Attachments__RootPath="/data/attachments"
 

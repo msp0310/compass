@@ -3,8 +3,8 @@ using Schedule.Api.Domain;
 
 namespace Schedule.Api.Infrastructure;
 
-/// <summary>COMPASSのSQLite永続化モデルとリレーションを定義するDbContextです。</summary>
-public sealed class ScheduleDbContext(DbContextOptions<ScheduleDbContext> options) : DbContext(options)
+/// <summary>COMPASSの永続化モデルとリレーションを定義するDbContextです。</summary>
+public class ScheduleDbContext(DbContextOptions options) : DbContext(options)
 {
     public DbSet<UserEntity> Users => Set<UserEntity>();
     public DbSet<AuthSessionEntity> AuthSessions => Set<AuthSessionEntity>();
@@ -38,25 +38,25 @@ public sealed class ScheduleDbContext(DbContextOptions<ScheduleDbContext> option
         modelBuilder.Entity<UserEntity>()
             .HasIndex(entity => entity.MemberId)
             .IsUnique()
-            .HasFilter("MemberId IS NOT NULL");
+            .HasFilter("\"MemberId\" IS NOT NULL");
         modelBuilder.Entity<AuthSessionEntity>().HasIndex(entity => entity.TokenHash).IsUnique();
         modelBuilder.Entity<AuthSessionEntity>().HasIndex(entity => new { entity.UserId, entity.ExpiresAt });
         modelBuilder.Entity<TeamEntity>()
             .HasIndex(entity => new { entity.ExternalSource, entity.ExternalId })
             .IsUnique()
-            .HasFilter("ExternalSource IS NOT NULL AND ExternalId IS NOT NULL");
+            .HasFilter("\"ExternalSource\" IS NOT NULL AND \"ExternalId\" IS NOT NULL");
         modelBuilder.Entity<MemberEntity>()
             .HasIndex(entity => entity.EmployeeNo)
             .IsUnique()
-            .HasFilter("EmployeeNo IS NOT NULL");
+            .HasFilter("\"EmployeeNo\" IS NOT NULL");
         modelBuilder.Entity<MemberEntity>()
             .HasIndex(entity => new { entity.ExternalSource, entity.ExternalId })
             .IsUnique()
-            .HasFilter("ExternalSource IS NOT NULL AND ExternalId IS NOT NULL");
+            .HasFilter("\"ExternalSource\" IS NOT NULL AND \"ExternalId\" IS NOT NULL");
         modelBuilder.Entity<ProjectEntity>()
             .HasIndex(entity => new { entity.ExternalSource, entity.ExternalId })
             .IsUnique()
-            .HasFilter("ExternalSource IS NOT NULL AND ExternalId IS NOT NULL");
+            .HasFilter("\"ExternalSource\" IS NOT NULL AND \"ExternalId\" IS NOT NULL");
 
         modelBuilder.Entity<AuthSessionEntity>()
             .HasOne(entity => entity.User)
@@ -143,7 +143,7 @@ public sealed class ScheduleDbContext(DbContextOptions<ScheduleDbContext> option
         modelBuilder.Entity<ProjectAssignmentEntity>()
             .HasIndex(entity => new { entity.ExternalSource, entity.ExternalId })
             .IsUnique()
-            .HasFilter("ExternalSource IS NOT NULL AND ExternalId IS NOT NULL");
+            .HasFilter("\"ExternalSource\" IS NOT NULL AND \"ExternalId\" IS NOT NULL");
         modelBuilder.Entity<StaffingDemandEntity>().HasIndex(entity => new { entity.ProjectId, entity.Status });
         modelBuilder.Entity<AttachmentEntity>().HasIndex(entity => new
         {

@@ -75,17 +75,17 @@ public sealed class PjmgtClient(HttpClient httpClient, IOptions<PjmgtOptions> op
                 item.DeliveryDestination,
                 item.Company?.Name,
                 ToId(item.Team),
-                EmployeeNo(item.ManagerMember, membersById),
-                EmployeeNo(item.SalesMember, membersById),
+                ToId(item.ManagerMember),
+                ToId(item.SalesMember),
                 item.SalesStatus.Id,
                 item.Dates.PeriodFrom,
                 item.Dates.PeriodTo)).ToArray(),
             ProjectMembers = projectMembers.Select(item => new PjmgtProjectMemberDto(
                 item.Project.Id.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                membersById[item.Member.Id].EmployeeNo)).ToArray(),
+                item.Member.Id.ToString(System.Globalization.CultureInfo.InvariantCulture))).ToArray(),
             Allocations = manhours.Where(item => item.ScheduledWorkRatio > 0).Select(item => new PjmgtAllocationDto(
                 item.Project.Id.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                membersById[item.Member.Id].EmployeeNo,
+                item.Member.Id.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 item.WorkMonth.Replace("-", "", StringComparison.Ordinal),
                 item.ScheduledWorkRatio)).ToArray()
         };
@@ -134,12 +134,6 @@ public sealed class PjmgtClient(HttpClient httpClient, IOptions<PjmgtOptions> op
     private static string? ToId(PjmgtApiIdNameDto? item) =>
         item?.Id.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
-    private static string? EmployeeNo(
-        PjmgtApiIdNameDto? reference,
-        Dictionary<int, PjmgtApiMemberDto> membersById) =>
-        reference is not null && membersById.TryGetValue(reference.Id, out var member)
-            ? member.EmployeeNo
-            : null;
 }
 
 internal sealed class PjmgtApiCollection<T>
@@ -162,7 +156,7 @@ internal sealed class PjmgtApiMemberDto
 {
     public int Id { get; init; }
     [JsonPropertyName("employee_no")]
-    public string EmployeeNo { get; init; } = "";
+    public string? EmployeeNo { get; init; }
     public string Name { get; init; } = "";
     public PjmgtApiIdNameDto? Team { get; init; }
     [JsonPropertyName("employment_status")]

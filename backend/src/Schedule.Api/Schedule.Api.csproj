@@ -19,6 +19,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.9" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
     <!-- Microsoft.OpenApi 2.0.0の脆弱性を修正したバージョンへ解決を固定します。 -->
     <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
     <!-- EF Core SQLiteが利用するネイティブSQLiteを3.50.3へ固定します。 -->

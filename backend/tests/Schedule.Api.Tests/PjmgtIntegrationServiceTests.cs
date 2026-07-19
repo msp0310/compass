@@ -61,17 +61,68 @@ public sealed class PjmgtIntegrationServiceTests
         var member = await db.Members.SingleAsync();
         Assert.Equal("E001", member.EmployeeNo);
         Assert.Equal("active", member.Status);
+        var team = await db.Teams.Include(item => item.Members).SingleAsync();
+        Assert.Equal(member.Id, Assert.Single(team.Members).MemberId);
 
         await service.SyncAsync(user, CancellationToken.None);
         Assert.Single(await db.Projects.ToListAsync());
         Assert.Single(await db.ProjectAssignments.ToListAsync());
     }
 
+    [Fact]
+    public async Task SyncUsesPjmgtMemberIdWhenEmployeeNumberIsMissing()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var dbOptions = new DbContextOptionsBuilder<ScheduleDbContext>().UseSqlite(connection).Options;
+        await using var db = new ScheduleDbContext(dbOptions);
+        await db.Database.EnsureCreatedAsync();
+        db.PjmgtIntegrationSettings.Add(new PjmgtIntegrationSettingEntity
+        {
+            BaseUrl = "https://pjmgt.example.test/pjmgt/api/v1",
+            ExcludePastProjects = true
+        });
+        await db.SaveChangesAsync();
+
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var currentStart = today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var currentEnd = today.AddMonths(1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var oldEnd = today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var workMonth = today.ToString("yyyy-MM", CultureInfo.InvariantCulture);
+        using var httpClient = new HttpClient(
+            new PjmgtApiHandler(currentStart, currentEnd, oldEnd, workMonth, ""));
+        var client = new PjmgtClient(httpClient, Options.Create(new PjmgtOptions { ApiKey = "secret" }));
+        var service = new PjmgtIntegrationService(
+            db,
+            client,
+            new AuditLogService(db, new HttpContextAccessor()));
+        var user = new AuthUserDto(
+            "admin", null, "admin@example.com", "管理者", SystemRoles.Admin, false);
+
+        var preview = await service.PreviewAsync(CancellationToken.None);
+        Assert.Empty(preview.Errors);
+        Assert.Contains("社員NO未設定の要員1名はPJMGT要員IDで取り込みます。", preview.Warnings);
+
+        await service.SyncAsync(user, CancellationToken.None);
+
+        var member = await db.Members.SingleAsync();
+        Assert.Null(member.EmployeeNo);
+        Assert.Equal("20", member.ExternalId);
+        var project = await db.Projects
+            .Include(item => item.Members)
+            .Include(item => item.Assignments)
+            .SingleAsync();
+        Assert.Equal(member.Id, Assert.Single(project.Members).MemberId);
+        Assert.Equal("owner", project.Members[0].ProjectRole);
+        Assert.Equal(member.Id, Assert.Single(project.Assignments).MemberId);
+    }
+
     private sealed class PjmgtApiHandler(
         string currentStart,
         string currentEnd,
         string oldEnd,
-        string workMonth) : HttpMessageHandler
+        string workMonth,
+        string employeeNo = "E001") : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
@@ -94,7 +145,7 @@ public sealed class PjmgtIntegrationServiceTests
                 return Collection([new
                 {
                     id = 20,
-                    employee_no = "E001",
+                    employee_no = employeeNo,
                     name = "山田 太郎",
                     team = new { id = 10, name = "開発部" },
                     employment_status = "1",

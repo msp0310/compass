@@ -64,10 +64,7 @@ builder.Services.AddCors(options =>
     });
 });
 
-var connectionString = builder.Configuration.GetConnectionString("ScheduleDb")
-    ?? "Data Source=schedule-manager.db";
-builder.Services.AddDbContext<ScheduleDbContext>(options =>
-    options.UseSqlite(connectionString));
+builder.Services.AddScheduleDatabase(builder.Configuration);
 builder.Services.AddHttpClient<JapaneseHolidayService>(client =>
 {
     // 外部の祝日APIが応答しない場合に、アプリ全体の操作を待たせません。

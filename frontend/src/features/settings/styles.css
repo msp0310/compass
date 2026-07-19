@@ -2556,6 +2556,59 @@
   padding-top: 12px;
 }
 
+.settings-actions .danger-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: auto;
+  border: 1px solid #efb6b6;
+  border-radius: 7px;
+  color: #b42318;
+  background: #fff7f7;
+  padding: 8px 12px;
+  font-weight: 700;
+}
+
+.settings-actions .danger-button:hover {
+  border-color: #d92d20;
+  background: #fff0f0;
+}
+
+.settings-actions .danger-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.project-source-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-color: #bad1ff;
+  background: #f6f9ff;
+}
+
+.project-source-card > div {
+  display: grid;
+  gap: 2px;
+}
+
+.project-source-card span,
+.project-source-card small {
+  color: #667085;
+  font-size: 12px;
+}
+
+.project-source-card a {
+  border-radius: 7px;
+  color: #fff;
+  background: #245dcc;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
 .shortcut-sheet {
   top: 92px;
   left: 50%;

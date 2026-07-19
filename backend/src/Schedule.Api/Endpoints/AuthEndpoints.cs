@@ -18,12 +18,10 @@ public static class AuthEndpoints
             HttpContext context,
             AuthService auth,
             AuditLogService auditLogs,
-            IHostEnvironment environment,
             CancellationToken cancellationToken) =>
         {
             var result = await auth.LoginAsync(request.Email, request.Password, cancellationToken);
-            if (result is null) return Results.Unauthorized();
-            var secure = !environment.IsDevelopment() || context.Request.IsHttps;
+            if (result is null) return Results.Unauthorized();            var secure = context.Request.IsHttps;
             context.Response.Cookies.Append(AuthService.SessionCookieName, result.SessionToken,
                 new CookieOptions { HttpOnly = true, Secure = secure, SameSite = SameSiteMode.Strict, Expires = DateTimeOffset.Parse(result.Session.ExpiresAt, CultureInfo.InvariantCulture), Path = "/" });
             context.Response.Cookies.Append(AuthService.CsrfCookieName, result.CsrfToken,

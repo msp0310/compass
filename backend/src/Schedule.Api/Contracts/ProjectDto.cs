@@ -19,4 +19,7 @@ public sealed record ProjectDto(
     string? ProjectNo = null,
     IReadOnlyList<ProjectMemberDto>? Memberships = null,
     string? CustomerName = null,
-    string? OrderingCompanyName = null);
+    string? OrderingCompanyName = null,
+    string? ExternalSource = null,
+    string? ExternalId = null,
+    string? ExternalUrl = null);

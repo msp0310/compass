@@ -86,6 +86,8 @@ export type ScheduleRepository = {
   createProject(schedule: ScheduleSnapshot): Promise<ScheduleSnapshot>;
   /** チームマスターを保存します。 */
   saveTeam(team: Team): Promise<Team>;
+  /** 案件が所属していないチームを削除します。 */
+  deleteTeam(teamId: string): Promise<void>;
   /** メンバーマスターを保存します。 */
   saveMember(member: Member): Promise<Member>;
   /** チーム配下案件へ標準カレンダーを一括保存します。 */

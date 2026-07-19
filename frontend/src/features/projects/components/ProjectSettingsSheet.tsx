@@ -41,6 +41,18 @@ export function ProjectSettingsPage(props: ProjectSettingsPageProps) {
         />
       </div>
       <div className="project-settings-content">
+        {props.project.externalUrl ? (
+          <div className="settings-card project-source-card">
+            <div>
+              <span>連携元</span>
+              <strong>PJMGT</strong>
+              <small>連携ID: {props.project.externalId ?? "-"}</small>
+            </div>
+            <a href={props.project.externalUrl} rel="noreferrer" target="_blank">
+              プロジェクト管理で詳細を開く
+            </a>
+          </div>
+        ) : null}
         <ProjectBasicSettings
           draft={draft}
           onChange={editor.updateDraft}

@@ -47,7 +47,7 @@ public sealed record PjmgtTeamDto(string TeamId, string TeamName, string? Status
 
 public sealed record PjmgtMemberDto(
     string MemberId,
-    string EmployeeNo,
+    string? EmployeeNo,
     string Name,
     string? TeamId,
     string? ClassName,
@@ -63,16 +63,16 @@ public sealed record PjmgtProjectDto(
     string? DeliveryDestination,
     string? OrderingCompanyName,
     string? TeamId,
-    string? ManagerEmployeeNo,
-    string? SalesEmployeeNo,
+    string? ManagerMemberId,
+    string? SalesMemberId,
     [property: JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)] int SalesStatus,
     string? PeriodFrom,
     string? PeriodTo);
 
-public sealed record PjmgtProjectMemberDto(string ProjectId, string EmployeeNo);
+public sealed record PjmgtProjectMemberDto(string ProjectId, string MemberId);
 
 public sealed record PjmgtAllocationDto(
     string ProjectId,
-    string EmployeeNo,
+    string MemberId,
     string WorkMonth,
     [property: JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)] int PlannedPercent);

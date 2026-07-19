@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
+import { authRepository } from "../../../data/authRepository";
 import type { CalendarDefinition, Member, Team } from "../../../types/schedule";
 import type { MasterSettingsSection } from "../model/masterSettings";
 import { AuditLogSection } from "./settings/AuditLogSection";
@@ -18,6 +19,7 @@ type MasterSettingsPageProps = {
   members: Member[];
   onCreateMember: (member: Member, teamId: string | null) => void;
   onCreateTeam: (team: Team) => void;
+  onDeleteTeam: (teamId: string) => Promise<boolean>;
   onSaveCalendar: (calendar: CalendarDefinition) => void;
   onSaveMember: (member: Member) => void;
   onSaveTeam: (team: Team) => void;
@@ -38,6 +40,7 @@ export function MasterSettingsPage({
   members,
   onCreateMember,
   onCreateTeam,
+  onDeleteTeam,
   onSaveCalendar,
   onSaveMember,
   onSaveTeam,
@@ -49,12 +52,20 @@ export function MasterSettingsPage({
 }: MasterSettingsPageProps) {
   const [activeSection, setActiveSection] = useState<MasterSettingsSection>("teams");
   const [editingTeamId, setEditingTeamId] = useState(team.id);
+  const [allMembers, setAllMembers] = useState(members);
   const selectedTeam = useMemo(
     () => teams.find((candidate) => candidate.id === editingTeamId) ?? team,
     [editingTeamId, team, teams],
   );
 
   useEffect(() => setEditingTeamId(team.id), [team.id]);
+  useEffect(() => {
+    if (!canManageMembers) {
+      setAllMembers(members);
+      return;
+    }
+    void authRepository.listMembersWithAccounts().then(setAllMembers).catch(() => setAllMembers(members));
+  }, [canManageMembers, members]);
   useEffect(() => {
     if (!canManageMembers && (activeSection === "members" || activeSection === "pjmgt" || activeSection === "audit")) {
       setActiveSection("teams");
@@ -83,8 +94,16 @@ export function MasterSettingsPage({
         <div className="master-settings-content">
           <TeamSettingsSection
             active={activeSection === "teams"}
-            members={members}
+            canDeleteTeam={canManageMembers}
+            members={allMembers}
             onCreateTeam={onCreateTeam}
+            onDeleteTeam={async (teamId) => {
+              const deleted = await onDeleteTeam(teamId);
+              if (deleted) {
+                setEditingTeamId(teams.find((candidate) => candidate.id !== teamId)?.id ?? team.id);
+              }
+              return deleted;
+            }}
             onSaveTeam={onSaveTeam}
             onSelectTeam={setEditingTeamId}
             onToggleTeamMember={onToggleTeamMember}
@@ -96,7 +115,7 @@ export function MasterSettingsPage({
               active={activeSection === "members"}
               defaultTeamId={team.id}
               memberAssignmentCounts={memberAssignmentCounts}
-              members={members}
+              members={allMembers}
               onCreateMember={onCreateMember}
               onSaveMember={onSaveMember}
               onUpdateMemberLifecycle={onUpdateMemberLifecycle}

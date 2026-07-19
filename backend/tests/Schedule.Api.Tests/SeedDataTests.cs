@@ -28,7 +28,14 @@ public sealed class SeedDataTests
 
         var user = await db.Users.SingleAsync();
         Assert.Equal(SystemRoles.Admin, user.Role);
+        Assert.Equal("ADMIN@EXAMPLE.COM", user.EmailNormalized);
         Assert.True(user.PasswordResetRequired);
         Assert.True(PasswordHasher.VerifyPassword("InitialPass123!", user.PasswordHash));
+
+        var login = await new AuthService(db).LoginAsync(
+            "admin@example.com",
+            "InitialPass123!",
+            CancellationToken.None);
+        Assert.NotNull(login);
     }
 }

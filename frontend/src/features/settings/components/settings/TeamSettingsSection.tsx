@@ -1,4 +1,4 @@
-import { PlusIcon } from "@heroicons/react/24/outline";
+import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { type CSSProperties, useEffect, useState } from "react";
 
 import { isMemberActive } from "../../../../lib/members";
@@ -7,8 +7,10 @@ import { getActiveTeamMemberCount, updateTeamMembershipRole } from "../../model/
 
 type TeamSettingsSectionProps = {
   active: boolean;
+  canDeleteTeam: boolean;
   members: Member[];
   onCreateTeam: (team: Team) => void;
+  onDeleteTeam: (teamId: string) => Promise<boolean>;
   onSaveTeam: (team: Team) => void;
   onSelectTeam: (teamId: string) => void;
   onToggleTeamMember: (teamId: string, memberId: string, enabled: boolean) => void;
@@ -19,8 +21,10 @@ type TeamSettingsSectionProps = {
 /** チーム一覧、基本情報、所属メンバーを一つの編集単位として扱います。 */
 export function TeamSettingsSection({
   active,
+  canDeleteTeam,
   members,
   onCreateTeam,
+  onDeleteTeam,
   onSaveTeam,
   onSelectTeam,
   onToggleTeamMember,
@@ -63,6 +67,13 @@ export function TeamSettingsSection({
       description: description.trim(),
       name: name.trim() || selectedTeam.name,
     });
+  }
+
+  async function deleteTeam() {
+    if (!window.confirm(`チーム「${selectedTeam.name}」を削除しますか？\n所属プロジェクトがあるチームは削除できません。`)) {
+      return;
+    }
+    await onDeleteTeam(selectedTeam.id);
   }
 
   return (
@@ -207,6 +218,12 @@ export function TeamSettingsSection({
       </div>
 
       <div className="settings-actions">
+        {canDeleteTeam ? (
+          <button className="danger-button" onClick={deleteTeam} type="button">
+            <TrashIcon />
+            チームを削除
+          </button>
+        ) : null}
         <button className="primary-button" onClick={saveTeam} type="button">
           チームを保存
         </button>

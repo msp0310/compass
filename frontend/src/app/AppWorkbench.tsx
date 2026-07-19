@@ -430,6 +430,7 @@ function useAppWorkbenchController({
   const {
     createMember,
     createTeam,
+    deleteTeam,
     toggleTeamMember,
     updateMember,
     updateMemberLifecycle,
@@ -1072,6 +1073,7 @@ function useAppWorkbenchController({
     createProjectIssue,
     createProjectWorkLog,
     createTeam,
+    deleteTeam,
     currentDraftRef,
     currentReviewSchedules,
     currentUser,
