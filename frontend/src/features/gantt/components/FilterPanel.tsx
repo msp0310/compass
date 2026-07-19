@@ -1,6 +1,6 @@
 import { CalendarDaysIcon, XMarkIcon } from "@heroicons/react/24/outline";
 
-import { isMemberActive } from "../../../lib/members";
+import { getActiveMembers } from "../../../lib/members";
 import { statusLabels } from "../../../lib/schedule";
 import type { Member, ScheduleFilters, TaskStatus } from "../../../types/schedule";
 
@@ -54,10 +54,9 @@ export function FilterPanel({
         >
           <option value="all">すべての担当者</option>
           <option value="unassigned">未割当</option>
-          {members.map((member) => (
+          {getActiveMembers(members).map((member) => (
             <option key={member.id} value={member.id}>
               {member.name}
-              {!isMemberActive(member) ? "（休止中）" : ""}
             </option>
           ))}
         </select>

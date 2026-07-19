@@ -29,8 +29,7 @@ export function MilestonePanel({
   const [date, setDate] = useState(project.nextMilestone.date);
   const [parentId, setParentId] = useState(parentCandidates[0]?.id ?? "");
   const assigneeOptions = useMemo(() => {
-    const activeMembers = getActiveMembers(members);
-    return activeMembers.length > 0 ? activeMembers : members;
+    return getActiveMembers(members);
   }, [members]);
   const [assigneeId, setAssigneeId] = useState(assigneeOptions[0]?.id ?? "");
   const milestones = useMemo(

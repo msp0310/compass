@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { getActiveTeamMembers } from "../src/lib/members.ts";
+import { getActiveTeamMembers, getAssignableMembers } from "../src/lib/members.ts";
 import type { Member } from "../src/types/schedule.ts";
 
 test("日報のチームメンバーには退職者を含めない", () => {
@@ -13,6 +13,15 @@ test("日報のチームメンバーには退職者を含めない", () => {
 
   assert.deepEqual(
     getActiveTeamMembers(members, ["active", "retired"]).map((item) => item.id),
+    ["active"],
+  );
+});
+
+test("通常画面の担当者候補には選択済みでも退職者を含めない", () => {
+  const members = [member("active", "active"), member("retired", "inactive")];
+
+  assert.deepEqual(
+    getAssignableMembers(members).map((item) => item.id),
     ["active"],
   );
 });

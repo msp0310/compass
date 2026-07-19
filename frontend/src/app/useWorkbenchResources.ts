@@ -40,31 +40,17 @@ export function useWorkbenchResources({
       ),
     [activeTeamId, currentReviewSchedules],
   );
-  const teamResourceTasks = useMemo(
-    () =>
-      activeTeamReviewSchedules.flatMap((snapshot) =>
-        snapshot.tasks.map((task) => ({
-          ...task,
-          sourceProjectId: snapshot.project.id,
-          sourceProjectName: snapshot.project.workspace,
-        })),
-      ),
-    [activeTeamReviewSchedules],
-  );
   const teamResourceMembers = useMemo(() => {
     const teamMemberIds = new Set(activeTeam?.memberIds);
-    const assignedMemberIds = new Set(teamResourceTasks.flatMap((task) => task.assigneeIds));
     const memberById = new Map<string, Member>();
     activeTeamReviewSchedules.forEach((snapshot) => {
       snapshot.members.forEach((member) => memberById.set(member.id, member));
     });
     const scopedMembers = [...memberById.values()].filter(
-      (member) =>
-        (teamMemberIds.has(member.id) && isMemberActive(member)) ||
-        assignedMemberIds.has(member.id),
+      (member) => teamMemberIds.has(member.id) && isMemberActive(member),
     );
     return scopedMembers.length > 0 ? scopedMembers : projectMembers;
-  }, [activeTeam, activeTeamReviewSchedules, projectMembers, teamResourceTasks]);
+  }, [activeTeam, activeTeamReviewSchedules, projectMembers]);
   const teamResourceRange = useMemo(() => {
     if (activeTeamReviewSchedules.length === 0) {
       return {

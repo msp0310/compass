@@ -9,6 +9,7 @@ import { type ReactNode, useEffect, useMemo, useState } from "react";
 
 import type { AuthUser } from "../../../data/authRepository";
 import type { ScheduleSnapshot } from "../../../data/scheduleRepository";
+import { getActiveMembers } from "../../../lib/members";
 import type { WorkLogCategory } from "../../../types/schedule";
 import { dailyReportsQueryOptions } from "../../dailyReports/api/dailyReportQueries";
 
@@ -48,11 +49,12 @@ export function PersonalAnalyticsPage({
   todayKey,
 }: PersonalAnalyticsPageProps) {
   const members = useMemo(
-    () => [
-      ...new Map(
-        schedules.flatMap((schedule) => schedule.members).map((member) => [member.id, member]),
-      ).values(),
-    ],
+    () =>
+      getActiveMembers([
+        ...new Map(
+          schedules.flatMap((schedule) => schedule.members).map((member) => [member.id, member]),
+        ).values(),
+      ]),
     [schedules],
   );
   const currentMember =

@@ -47,7 +47,9 @@ export function useProjectSettingsEditor({
   useEffect(() => setDraft(createDraft(project, team)), [project, team]);
 
   const selectedTeam = teams.find((item) => item.id === draft.teamId);
-  const assignableMembers = members.filter((member) => selectedTeam?.memberIds.includes(member.id));
+  const assignableMembers = members.filter(
+    (member) => selectedTeam?.memberIds.includes(member.id) && isMemberActive(member),
+  );
   const activeMemberCount = assignableMembers.filter(
     (member) => draft.memberIds.includes(member.id) && isMemberActive(member),
   ).length;
@@ -68,7 +70,10 @@ export function useProjectSettingsEditor({
         ],
       }),
     changeTeam: (teamId: string) => {
-      const nextMemberIds = teams.find((item) => item.id === teamId)?.memberIds ?? [];
+      const activeMemberIds = new Set(members.filter(isMemberActive).map((member) => member.id));
+      const nextMemberIds = (teams.find((item) => item.id === teamId)?.memberIds ?? []).filter(
+        (memberId) => activeMemberIds.has(memberId),
+      );
       updateDraft({
         memberIds: nextMemberIds,
         memberships: nextMemberIds.map((memberId) => ({ memberId, role: "member" })),
@@ -83,7 +88,12 @@ export function useProjectSettingsEditor({
       if (invalidRange) {
         return;
       }
-      const availableMemberIds = new Set(selectedTeam?.memberIds ?? team?.memberIds);
+      const activeMemberIds = new Set(members.filter(isMemberActive).map((member) => member.id));
+      const availableMemberIds = new Set(
+        (selectedTeam?.memberIds ?? team?.memberIds ?? []).filter((memberId) =>
+          activeMemberIds.has(memberId),
+        ),
+      );
       onSaveProject({
         ...project,
         lifecycleStatus: draft.lifecycleStatus,

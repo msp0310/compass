@@ -29,8 +29,7 @@ export function CreateTaskSheet({ members, onClose, onCreateTask, tasks }: Creat
     [tasks],
   );
   const assigneeOptions = useMemo(() => {
-    const activeMembers = getActiveMembers(members);
-    return activeMembers.length > 0 ? activeMembers : members;
+    return getActiveMembers(members);
   }, [members]);
   const form = useForm({
     defaultValues: {

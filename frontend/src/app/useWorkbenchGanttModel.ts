@@ -83,14 +83,11 @@ export function useWorkbenchGanttModel({
         team: activeTeam,
       }).map((member) => member.id),
     );
-    const assignedMemberIds = new Set(tasks.flatMap((task) => task.assigneeIds));
     const scopedMembers = schedule.members.filter(
-      (member) =>
-        (projectMemberIds.has(member.id) && isMemberActive(member)) ||
-        assignedMemberIds.has(member.id),
+      (member) => projectMemberIds.has(member.id) && isMemberActive(member),
     );
     return scopedMembers.length > 0 ? scopedMembers : getActiveMembers(schedule.members);
-  }, [activeTeam, schedule.members, schedule.project, tasks]);
+  }, [activeTeam, schedule.members, schedule.project]);
 
   return {
     collapsedIds,

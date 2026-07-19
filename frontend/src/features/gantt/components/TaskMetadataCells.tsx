@@ -29,7 +29,7 @@ export function TaskMetadataCells({
   const assignees = task.assigneeIds
     .map((id) => members.find((member) => member.id === id))
     .filter((member): member is Member => Boolean(member));
-  const assigneeOptions = getAssignableMembers(members, task.assigneeIds);
+  const assigneeOptions = getAssignableMembers(members);
   const canEditFields = task.type !== "summary" && task.type !== "phase";
 
   useEffect(() => setProgressDraft(String(task.progress)), [task.progress]);
@@ -82,7 +82,6 @@ export function TaskMetadataCells({
               {assigneeOptions.map((member) => (
                 <option key={member.id} value={member.id}>
                   {member.initials}
-                  {member.status === "inactive" ? " 休止" : ""}
                 </option>
               ))}
             </select>

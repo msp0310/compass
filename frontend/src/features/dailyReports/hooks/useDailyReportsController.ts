@@ -11,7 +11,7 @@ import {
   sendDailyReportReminders,
 } from "../../../data/dailyReportRepository";
 import type { ScheduleSnapshot } from "../../../data/scheduleRepository";
-import { getActiveTeamMembers } from "../../../lib/members";
+import { getActiveMembers, getActiveTeamMembers } from "../../../lib/members";
 import type { DailyReport, Team } from "../../../types/schedule";
 import { projectQueryKeys } from "../../projects/api/projectQueries";
 import {
@@ -44,7 +44,10 @@ export function useDailyReportsController({
   const [comment, setComment] = useState("");
   const [message, setMessage] = useState("読み込み中...");
   const [viewMode, setViewMode] = useState<"mine" | "team">("team");
-  const members = useMemo(() => collectScheduleMembers(schedules), [schedules]);
+  const members = useMemo(
+    () => getActiveMembers(collectScheduleMembers(schedules)),
+    [schedules],
+  );
   const currentMember = findCurrentMember(members, currentUser);
   const canManageTeam = canManageTeamReports(team, currentUser);
   const teamMembers = useMemo(

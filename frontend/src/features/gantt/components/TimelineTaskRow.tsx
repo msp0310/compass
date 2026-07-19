@@ -325,7 +325,7 @@ export function TimelineTaskRow({
 
 function formatTimelineAssignees(assigneeIds: string[], members: Member[]) {
   const names = assigneeIds
-    .map((id) => members.find((member) => member.id === id)?.name ?? id)
+    .map((id) => members.find((member) => member.id === id)?.name ?? "")
     .filter(Boolean);
   if (names.length === 0) {
     return { full: "", short: "" };
