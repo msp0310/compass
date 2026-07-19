@@ -113,6 +113,7 @@ export function useTimelineBarInteraction({
     }
     const canvas = element.closest(".timeline-canvas") as HTMLElement | null;
     const body = element.closest(".timeline-body") as HTMLElement | null;
+    const originalInlineWidth = element.style.width;
     let previewElements: ReturnType<typeof ensureDragPreviewElements> | null = null;
     let autoScrollFrame: number | null = null;
     let active = false;
@@ -191,7 +192,7 @@ export function useTimelineBarInteraction({
       }
       element.classList.remove("is-dragging");
       element.style.transform = "";
-      element.style.width = "";
+      element.style.width = originalInlineWidth;
       delete element.dataset.dragPreview;
       resetDependencyPreviewPaths(canvas);
       clearDragPreviewElements(canvas);
